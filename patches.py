@@ -4,6 +4,7 @@ import cv2 as cv
 from PIL import Image
 import PIL
 import torch
+import os
 
 
 def log_me(s):
@@ -31,10 +32,10 @@ def mnn(kpts, kpts_r, scale, th):
     kpts0 = kpts[min0[1][mask_th]]
     kpts1 = kpts_r[mask_th]
     dists = min0[0][mask_th]
-    diffs = kpts_reproj[mask_th] - kpts0
+    diffs = (kpts0 - kpts_reproj[mask_th]) * scale
     if verify:
         ds = torch.diag(torch.cdist(kpts0, kpts_reproj[mask_th]))
-        assert torch.all(ds == dists)
+        assert torch.allclose(ds, dists)
 
     return kpts0, kpts1, diffs
 
@@ -116,12 +117,11 @@ def get_patches(img_pil, patch_size, kpt_f, exclude_near_edge=True, show_few=Fal
     if not exclude_near_edge:
         raise "Not implemented"
 
-    #npa = torch.tensor(img_pil)
     img_t = torch.tensor(np.array(img_pil))
     kpt_i = torch.round(kpt_f).to(torch.int)
     margin = patch_size // 2
 
-    patches_l = [img_t[kp_i[0] - margin: kp_i[0] + margin, kp_i[1] - margin: kp_i[1] + margin][None] for kp_i in kpt_i]
+    patches_l = [img_t[kp_i[0] - margin: kp_i[0] + margin + 1, kp_i[1] - margin: kp_i[1] + margin + 1][None] for kp_i in kpt_i]
     patches = torch.cat(patches_l, dim=0)
     # patches = np.array([img_t[kp_i[0] - margin: kp_i[0] + margin,
     #                         kp_i[1] - margin: kp_i[1] + margin] for kp_i in kpt_i])
@@ -159,3 +159,82 @@ def compare_patches(patches0, patches1, diffs):
             axs[r, n].imshow(patch.numpy())
     plt.show()
 
+
+def get_img_tuple(path, scale, show=False):
+
+    img = Image.open(path)
+    if show:
+        show_pil(img)
+    log_me("original size: {}".format(img.size))
+
+    img_r, real_scale = scale_pil(img, scale=scale, show=show)
+    return img, img_r, real_scale
+
+
+def process_patches_for_file(file_path,
+                             out_dir,
+                             out_dict,
+                             patch_size=33,
+                             scale=0.3,
+                             th=2.0,
+                             compare=True,
+                             show=False):
+
+    print("Processing: {}".format(file_path))
+
+    # convert and show the image
+    img, img_r, real_scale = get_img_tuple(file_path, scale)
+
+    kpts = detect(img, patch_size=patch_size, show=show)
+    kpts_r = detect(img_r, patch_size=patch_size, show=show)
+
+    # TODO check integer th (original value of 2)
+    kpts, kpts_r, diffs = mnn(kpts, kpts_r, real_scale, th)
+
+    patches = get_patches(img, patch_size, kpt_f=kpts, show_few=show)
+    patches_r = get_patches(img_r, patch_size, kpt_f=kpts_r, show_few=show)
+
+    if compare:
+        compare_patches(patches, patches_r, diffs)
+
+    file_name_prefix = file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
+    for i in range(patches.shape[0]):
+        diff = diffs[i]
+        patch = patches_r[i]
+        file_name = "{}_{}.jpg".format(file_name_prefix, i)
+        out_dict[file_name] = diff
+        out_path = "{}/{}".format(out_dir, file_name)
+        cv.imwrite(out_path, patch.numpy())
+
+
+def prepare_data():
+
+    root_dir = "./work"
+    out_dir = "./dataset"
+
+    all = len([fn for fn in os.listdir(root_dir) if fn.endswith(".tonemap.jpg")])
+
+    data_dict = {}
+    counter = 0
+    for file_name in os.listdir(root_dir):
+        if not file_name.endswith(".tonemap.jpg"):
+            continue
+        counter += 1
+        path = "{}/{}".format(root_dir, file_name)
+        print("{}/{}".format(counter, all))
+        process_patches_for_file(file_path=path,
+                                 out_dir=out_dir,
+                                 out_dict=data_dict,
+                                 patch_size=33,
+                                 scale=0.3,
+                                 th=2.0,
+                                 compare=False)
+
+    with open("{}/values.txt".format(out_dir), "w") as f:
+        for k in data_dict:
+            data = data_dict[k].numpy()
+            f.write("{}, {}, {}\n".format(k, data[0], data[1]))
+
+
+if __name__ == "__main__":
+    prepare_data()
