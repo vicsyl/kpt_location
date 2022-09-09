@@ -1,4 +1,6 @@
+.DS_Store
 .idea
-work
-.ipynb_checkpoints/
+snippets
+dataset
+lightning_logs
 __pycache__/

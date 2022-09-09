@@ -209,18 +209,27 @@ def process_patches_for_file(file_path,
 
 def prepare_data():
 
-    root_dir = "./work"
+    max_items = None
+
+    in_dir = "./dataset/raw_data"
     out_dir = "./dataset"
 
-    all = len([fn for fn in os.listdir(root_dir) if fn.endswith(".tonemap.jpg")])
+    if max_items:
+        all = max_items
+    else:
+        all = len([fn for fn in os.listdir(in_dir) if fn.endswith(".tonemap.jpg")])
 
     data_dict = {}
     counter = 0
-    for file_name in os.listdir(root_dir):
+    for file_name in os.listdir(in_dir):
+
         if not file_name.endswith(".tonemap.jpg"):
             continue
         counter += 1
-        path = "{}/{}".format(root_dir, file_name)
+        if max_items and counter > max_items:
+            break
+
+        path = "{}/{}".format(in_dir, file_name)
         print("{}/{}".format(counter, all))
         process_patches_for_file(file_path=path,
                                  out_dir=out_dir,
@@ -228,9 +237,10 @@ def prepare_data():
                                  patch_size=33,
                                  scale=0.3,
                                  th=2.0,
-                                 compare=False)
+                                 compare=counter == 1,
+                                 show=counter == 1)
 
-    with open("{}/values.txt".format(out_dir), "w") as f:
+    with open("{}/a_values.txt".format(out_dir), "w") as f:
         for k in data_dict:
             data = data_dict[k].numpy()
             f.write("{}, {}, {}\n".format(k, data[0], data[1]))

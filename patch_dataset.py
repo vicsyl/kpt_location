@@ -2,6 +2,7 @@ from typing import Any
 import numpy as np
 import pytorch_lightning as pl
 import torch
+import torchvision
 from PIL import Image
 from torch.utils.data import random_split, DataLoader
 from torch.utils.data.dataset import Dataset
@@ -13,7 +14,7 @@ class PatchDataset(Dataset):
         super().__init__()
         self.root_dir = root_dir
         metadata = {}
-        with open("{}/values.txt".format(root_dir), "r") as f:
+        with open("{}/a_values.txt".format(root_dir), "r") as f:
             for line in f.readlines():
                 tokens = line.strip().split(",")
                 file = tokens[0]
@@ -26,8 +27,8 @@ class PatchDataset(Dataset):
         metadata = self.metadata_list[index]
         path = "{}/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
-        patch_t = torch.from_numpy(np.array(patch_pil))
-        return patch_t, metadata[1]
+        patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
+        return patch_t, torch.tensor(metadata[1])
 
     def __len__(self) -> int:
         return len(self.metadata_list)
