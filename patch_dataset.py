@@ -36,35 +36,35 @@ class PatchDataset(Dataset):
 
 class PatchesDataModule(pl.LightningDataModule):
 
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, batch_size):
         super().__init__()
-        # TODO add transforms
+        self.batch_size = batch_size
+        # TODO add transforms (e.g. normalization)
         self.dataset = PatchDataset(root_dir)
 
     def setup(self, stage: str):
-
         size = len(self.dataset)
         part_size = size // 4
         parts = [part_size, part_size, part_size, size - 3 * part_size]
         self.train, self.validate, self.test, self.predict = random_split(self.dataset, parts)
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=32)
+        return DataLoader(self.train, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.validate, batch_size=32)
+        return DataLoader(self.validate, batch_size=self.batch_size)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=32)
+        return DataLoader(self.test, batch_size=self.batch_size)
 
     def predict_dataloader(self):
-        return DataLoader(self.predict, batch_size=32)
+        return DataLoader(self.predict, batch_size=self.batch_size)
 
 
 def iterate_dataset():
 
     # download, etc...
-    dm = PatchesDataModule("./dataset")
+    dm = PatchesDataModule("./dataset", batch_size=32)
     dm.prepare_data()
 
     # splits/transforms

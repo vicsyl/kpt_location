@@ -1,6 +1,7 @@
 .DS_Store
+__pycache__/
 .idea
 snippets
 dataset
 lightning_logs
-__pycache__/
+wandb

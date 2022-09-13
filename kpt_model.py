@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import torchvision.models as models
+import wandb
 from pytorch_lightning import LightningModule, Trainer
 from patch_dataset import PatchesDataModule
 
@@ -25,9 +26,10 @@ class PatchesModule(LightningModule):
         return x
 
     def training_step(self, batch, batch_idx):
-        xs, ys = batch[0], batch[1]
+        xs, ys = batch
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
+        wandb.log({"loss": loss})
         return dict(
             loss=loss,
             log=dict(
@@ -39,6 +41,7 @@ class PatchesModule(LightningModule):
         xs, ys = batch[0], batch[1]
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
+        wandb.log({"loss": loss})
         return dict(
             validation_loss=loss,
             log=dict(
@@ -46,14 +49,27 @@ class PatchesModule(LightningModule):
             )
         )
 
+    # TODO where are the parameters defined?
+    # TODO why not classifier!!!
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.01)
 
 
 def main():
 
+    wandb.init(project="kpt_location")
+
+    # wandb.config = {
+    #     "learning_rate": 0.001,
+    #     "epochs": 100,
+    #     "batch_size": 128
+    # }
+
+    # Optional
     model = PatchesModule()
-    dm = PatchesDataModule("./dataset")
+    wandb.watch(model)
+
+    dm = PatchesDataModule("./dataset", batch_size=32)
     trainer = Trainer(max_epochs=10)
     trainer.fit(model, datamodule=dm)
     trainer.validate(model, datamodule=dm)
