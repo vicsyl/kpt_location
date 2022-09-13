@@ -18,10 +18,9 @@ class PatchesModule(LightningModule):
         self.loss_function = nn.MSELoss()
 
     def forward(self, x):
-        self.feature_extractor.eval()
-        with torch.no_grad():
-            representations = self.feature_extractor(x).flatten(1)
-
+        # self.feature_extractor.eval()
+        # with torch.no_grad():
+        representations = self.feature_extractor(x).flatten(1)
         x = self.classifier(representations)
         return x
 
@@ -69,10 +68,11 @@ def main():
     model = PatchesModule()
     wandb.watch(model)
 
-    dm = PatchesDataModule("./dataset", batch_size=32)
-    trainer = Trainer(max_epochs=10)
+    dm = PatchesDataModule("./dataset", batch_size=32, batch_aware=True)
+    trainer = Trainer(max_epochs=1)
     trainer.fit(model, datamodule=dm)
-    trainer.validate(model, datamodule=dm)
+    eval_ret = trainer.validate(model, datamodule=dm)
+    print()
 
 
 if __name__ == "__main__":

@@ -5,18 +5,18 @@ from PIL import Image
 import PIL
 import torch
 import os
+import math
 
 
+# FIXME: use proper logging
 def log_me(s):
     print(s)
 
 
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, th):
 
-    # TODO skip if len(kpts) == 0
-
-    kpts_reproj = kpts_r / scale
-    d_mat = torch.cdist(kpts, kpts_reproj)
+    kpts_reprojected = kpts_r / scale
+    d_mat = torch.cdist(kpts, kpts_reprojected)
     min0 = torch.min(d_mat, dim=0)
     min1 = torch.min(d_mat, dim=1)
 
@@ -38,9 +38,10 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, th):
     kpts_r_scales = kpts_r_scales[mask_th]
 
     dists = min0[0][mask_th]
-    diffs = (kpts0 - kpts_reproj[mask_th]) * scale
+    diffs = (kpts0 - kpts_reprojected[mask_th]) * scale
+
     if verify:
-        ds = torch.diag(torch.cdist(kpts0, kpts_reproj[mask_th]))
+        ds = torch.diag(torch.cdist(kpts0, kpts_reprojected[mask_th]))
         assert torch.allclose(ds, dists)
 
     return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs
@@ -50,23 +51,30 @@ def scale_pil(img, scale, show=False):
     """
     :param img:
     :param scale: in [0, 1]
+    :param show:
     :return:
     """
     h, w = img.size
     gcd = gcd_euclid(w, h)
 
     real_scale_gcd = round(gcd * scale)
-    # log_me("gcd: {}".format(gcd))
-    # log_me("real_scale_gcd: {}".format(real_scale_gcd))
+    real_scale = real_scale_gcd / gcd
 
-    w_sc = int(w / gcd * real_scale_gcd)
-    h_sc = int(h / gcd * real_scale_gcd)
+    fall_back = True
+    if real_scale == 0.0 or math.fabs(real_scale - scale) > 0.1:
+        if fall_back:
+            log_me("WARNING: scale={} => {}".format(real_scale, scale))
+            real_scale = scale
+        else:
+            raise Exception("scale {} cannot be effectively realized for w, h = {}, {} in integer domain".format(scale, w, h))
+
+    w_sc = int(w * real_scale)
+    h_sc = int(h * real_scale)
     img_r = img.resize((h_sc, w_sc), resample=PIL.Image.Resampling.LANCZOS)
     log_me("scaled to: {}".format(img_r.size))
     if show:
         show_pil(img_r)
 
-    real_scale = real_scale_gcd / gcd
     print("real scale: {}".format(real_scale))
     return img_r, real_scale
 
@@ -94,8 +102,6 @@ def get_default_detector():
 
 def detect(img_pil, scale_th, detector=get_default_detector(), show=False):
 
-    # TODO remove patch size
-
     npa = np.array(img_pil)
     h, w, c = npa.shape
 
@@ -105,9 +111,7 @@ def detect(img_pil, scale_th, detector=get_default_detector(), show=False):
     kpt_i = np.round(kpt_f).astype(int)
 
     scales = np.array([kp.size for kp in kpts])
-    # TODO fixme - not consistent
-    margin = np.ceil(scale_th).astype(int) + 3
-    #margin = patch_size // 2
+    margin = np.ceil(scales / 2).astype(int)
 
     mask = scales > scale_th
     mask = mask & (kpt_i[:, 0] >= margin) & (kpt_i[:, 1] >= margin)
@@ -125,74 +129,82 @@ def detect(img_pil, scale_th, detector=get_default_detector(), show=False):
     return torch.from_numpy(kpt_f), torch.from_numpy(scales)
 
 
-def get_patches(img_pil, kpt_f, kpt_scales, scale_th, show_few=False):
+def print_and_check_margins(kpt_i, margins_np, img_t):
+    print()
+    for i, kp_i in list(enumerate(kpt_i)):
+        t = ((kp_i[0] - margins_np[i]).item(),
+              (kp_i[0] + margins_np[i]).item() + 1,
+              (kp_i[1] - margins_np[i]).item(),
+              (kp_i[1] + margins_np[i]).item() + 1)
+        print(t, img_t.shape)
 
-    #assert scale_th % 2 == 1, "uncentered patches"
+
+def show_patches(patches, label, detect):
+
+    cols = 5
+    rows = 5
+
+    if detect:
+        detector = get_default_detector()
+
+    fig, axs = plt.subplots(rows, cols, figsize=(5, 5))
+    fig.suptitle(label)
+
+    for ix in range(rows):
+        for iy in range(cols):
+            axs[ix, iy].set_axis_off()
+            if ix * cols + iy >= len(patches):
+                axs[ix, iy].imshow(np.ones((32, 32, 3), np.uint8) * 255)
+                continue
+            patch_to_show = patches[ix * cols + iy].numpy().copy()
+            if detect:
+                kpts = detector.detect(patch_to_show, mask=None)
+                cv.drawKeypoints(patch_to_show, kpts, patch_to_show, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            axs[ix, iy].imshow(patch_to_show)
+    plt.show()
+    plt.close()
+
+
+def slice_patches(img, kpts, margins):
+    patches = [img[kp_i[0] - margins[i]: kp_i[0] + margins[i] + 1,
+               kp_i[1] - margins[i]: kp_i[1] + margins[i] + 1][None] for i, kp_i in enumerate(kpts)]
+    return [p[0] for p in patches]
+
+
+def get_patches(img_pil, kpt_f, kpt_scales, scale_th, show_few=False):
+    """
+    :param img_pil:
+    :param kpt_f:
+    :param kpt_scales:
+    :param scale_th:
+    :param show_few:
+    :return: patches: List[Tensor]
+    """
 
     img_n = np.array(img_pil)
     img_t = torch.tensor(img_n)
 
     kpt_i = torch.round(kpt_f).to(torch.int)
-    #margins = torch.tensor(np.ceil(kpt_scales / 2.0))
-    # margins_np = margins.to(torch.int).numpy()
-    margins_np = np.ones(kpt_scales.shape[0]) * scale_th
-    margins_np = np.ceil(margins_np).astype(int) // 2
+    margins = torch.ceil(kpt_scales / 2.0)
+    margins_np = margins.to(torch.int).numpy()
+    # print_and_check_margins(kpt_i, margins_np, img_t)
 
-    print()
-    for i, kp_i in list(enumerate(kpt_i)):
-        print(kp_i[0] - margins_np[i],
-              kp_i[0] + margins_np[i] + 1,
-              kp_i[1] - margins_np[i],
-              kp_i[1] + margins_np[i] + 1,
-              img_t.shape)
-
-    patches_l = [img_t[kp_i[0] - margins_np[i]: kp_i[0] + margins_np[i] + 1, kp_i[1] - margins_np[i]: kp_i[1] + margins_np[i] + 1][None] for i, kp_i in enumerate(kpt_i)]
-    patches_l = [patch[0] for patch in patches_l]
+    patches = slice_patches(img_t, kpt_i, margins_np)
 
     if show_few:
-        cols = 5
-        rows = 5
 
         detector = get_default_detector()
         kpts = detector.detect(img_n, mask=None)
         npac = img_n.copy()
         cv.drawKeypoints(img_n, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        img_tc = torch.tensor(npac)
+        ps_kpts = slice_patches(img_tc, kpt_i, margins_np)
 
-        patches_o = [npac[kp_i[0] - margins_np[i]: kp_i[0] + margins_np[i] + 1,
-                     kp_i[1] - margins_np[i]: kp_i[1] + margins_np[i] + 1][None] for i, kp_i in enumerate(kpt_i)]
-        patches_o = [p[0] for p in patches_o]
+        show_patches(ps_kpts, "Patches - original", detect=False)
+        show_patches(patches, "Patches - redetected", detect=True)
 
-        fig, axs = plt.subplots(rows, cols, figsize=(5, 5))
-        fig.suptitle("Few patches - original")
 
-        for ix in range(rows):
-            for iy in range(cols):
-                if ix * cols + iy >= len(patches_l):
-                    break
-                #axs[ix, iy].set_title("foo")
-                axs[ix, iy].set_axis_off()
-                patch_to_show = patches_o[ix * cols + iy].copy()
-                axs[ix, iy].imshow(patch_to_show)
-        plt.show()
-        plt.close()
-
-        fig, axs = plt.subplots(rows, cols, figsize=(5, 5))
-        fig.suptitle("Few patches - redetected")
-
-        for ix in range(rows):
-            for iy in range(cols):
-                if ix * cols + iy >= len(patches_l):
-                    break
-                #axs[ix, iy].set_title("foo")
-                axs[ix, iy].set_axis_off()
-                patch_to_show = patches_l[ix * cols + iy].numpy().copy()
-                kpts = detector.detect(patch_to_show, mask=None)
-                cv.drawKeypoints(patch_to_show, kpts, patch_to_show, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                axs[ix, iy].imshow(patch_to_show)
-        plt.show()
-        plt.close()
-
-    return patches_l
+    return patches
 
 
 def compare_patches(patches0, patches1, diffs):
@@ -238,27 +250,25 @@ def process_patches_for_file(file_path,
     # convert and show the image
     img, img_r, real_scale = get_img_tuple(file_path, scale)
 
-    scale_th = 15.0
-    # TODO check the consistency of scales
-    kpts, scales = detect(img, scale_th, show=show)
-    kpts_r, scales_r = detect(img_r, scale_th*real_scale, show=show)
+    min_scale_th = 15.0
+    kpts, scales = detect(img, min_scale_th, show=show)
+    kpts_r, scales_r = detect(img_r, min_scale_th*real_scale, show=show)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
-    # TODO check integer th (original value of 2)
     kpts, scales, kpts_r, scales_r, diffs = mnn(kpts, scales, kpts_r, scales_r, real_scale, err_th)
 
-    patches = get_patches(img, kpts, scales, scale_th=scale_th, show_few=show)
-    patches_r = get_patches(img_r, kpts_r, scales_r, scale_th=scale_th, show_few=show)
+    patches = get_patches(img, kpts, scales, scale_th=min_scale_th, show_few=show)
+    patches_r = get_patches(img_r, kpts_r, scales_r, scale_th=min_scale_th*real_scale, show_few=show)
 
     if compare:
         compare_patches(patches, patches_r, diffs)
 
     file_name_prefix = file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
     for i in range(len(patches)):
-        diff = diffs[i]
         patch = patches_r[i]
+        diff = (*diffs[i], patch.shape[0])
         file_name = "{}_{}.png".format(file_name_prefix, i)
         out_dict[file_name] = diff
         out_path = "{}/{}".format(out_dir, file_name)
@@ -302,8 +312,8 @@ def prepare_data():
 
     with open("{}/a_values.txt".format(out_dir), "w") as f:
         for k in data_dict:
-            data = data_dict[k].numpy()
-            f.write("{}, {}, {}\n".format(k, data[0], data[1]))
+            data = data_dict[k]
+            f.write("{}, {}, {}, {}\n".format(k, data[0].numpy(), data[1].numpy(), data[2]))
 
 
 # continue: encapsulate the params -> in some configurable object (torch-lightning)

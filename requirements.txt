@@ -1,3 +1,11 @@
 # install via conda->pip
 pytorch-lightning
 pip install opencv-python
+
+torch~=1.12.1
+torchvision~=0.13.1
+numpy~=1.23.2
+matplotlib~=3.5.3
+opencv-python~=4.6.0.66
+pillow~=9.2.0
+wandb~=0.13.3
