@@ -1,3 +1,4 @@
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2 as cv
@@ -6,7 +7,7 @@ import PIL
 import torch
 import os
 import math
-
+from config import *
 
 # FIXME: use proper logging
 def log_me(s):
@@ -100,18 +101,28 @@ def get_default_detector():
     return detector
 
 
-def detect(img_pil, scale_th, detector=get_default_detector(), show=False):
+def detect_kpts(img_pil, scale_th, const_patch_size, detector=get_default_detector(), show=False):
+
+    if const_patch_size is not None:
+            assert const_patch_size % 2 == 1, "doesn't work that way"
 
     npa = np.array(img_pil)
     h, w, c = npa.shape
 
     kpts = detector.detect(npa, mask=None)
+    if len(kpts) == 0:
+        return [], []
 
     kpt_f = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts])
     kpt_i = np.round(kpt_f).astype(int)
 
     scales = np.array([kp.size for kp in kpts])
-    margin = np.ceil(scales / 2).astype(int)
+    # NOTE in original image it just means it's not detected on the edge
+    # (the patch won't be put into the ds), which is still reasonable
+    if const_patch_size is not None:
+        margin = np.ones(scales.shape[0], dtype=int) * const_patch_size // 2
+    else:
+        margin = np.ceil(scales / 2).astype(int)
 
     mask = scales > scale_th
     mask = mask & (kpt_i[:, 0] >= margin) & (kpt_i[:, 1] >= margin)
@@ -171,7 +182,7 @@ def slice_patches(img, kpts, margins):
     return [p[0] for p in patches]
 
 
-def get_patches(img_pil, kpt_f, kpt_scales, scale_th, show_few=False):
+def get_patches(img_pil, kpt_f, kpt_scales, const_patch_size, show_few=False):
     """
     :param img_pil:
     :param kpt_f:
@@ -185,8 +196,12 @@ def get_patches(img_pil, kpt_f, kpt_scales, scale_th, show_few=False):
     img_t = torch.tensor(img_n)
 
     kpt_i = torch.round(kpt_f).to(torch.int)
-    margins = torch.ceil(kpt_scales / 2.0)
-    margins_np = margins.to(torch.int).numpy()
+    if const_patch_size is not None:
+        assert const_patch_size % 2 == 1, "doesn't work that way"
+        margins_np = np.ones(kpt_scales.shape[0], dtype=int) * const_patch_size // 2
+    else:
+        margins = torch.ceil(kpt_scales / 2.0)
+        margins_np = margins.to(torch.int).numpy()
     # print_and_check_margins(kpt_i, margins_np, img_t)
 
     patches = slice_patches(img_t, kpt_i, margins_np)
@@ -202,7 +217,6 @@ def get_patches(img_pil, kpt_f, kpt_scales, scale_th, show_few=False):
 
         show_patches(ps_kpts, "Patches - original", detect=False)
         show_patches(patches, "Patches - redetected", detect=True)
-
 
     return patches
 
@@ -238,84 +252,148 @@ def get_img_tuple(path, scale, show=False):
 
 
 def process_patches_for_file(file_path,
-                             out_dir,
-                             out_dict,
-                             scale,
-                             err_th,
+                             config,
+                             #md_file,
+                             out_map,
+                             key="",
                              compare=True,
                              show=False):
+    # out_dir = out_dir,
+    # scale = down_scale,
+    # err_th = err_th,
+    scale = config['down_scale']
+    err_th = config['err_th']
+    out_dir = get_full_ds_dir(config)
+    min_scale_th = config['min_scale_th']
+    const_patch_size = config.get('const_patch_size')
 
     print("Processing: {}".format(file_path))
 
     # convert and show the image
     img, img_r, real_scale = get_img_tuple(file_path, scale)
 
-    min_scale_th = 15.0
-    kpts, scales = detect(img, min_scale_th, show=show)
-    kpts_r, scales_r = detect(img_r, min_scale_th*real_scale, show=show)
+    kpts, scales = detect_kpts(img, min_scale_th, const_patch_size, show=show)
+    kpts_r, scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, show=show)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
     kpts, scales, kpts_r, scales_r, diffs = mnn(kpts, scales, kpts_r, scales_r, real_scale, err_th)
 
-    patches = get_patches(img, kpts, scales, scale_th=min_scale_th, show_few=show)
-    patches_r = get_patches(img_r, kpts_r, scales_r, scale_th=min_scale_th*real_scale, show_few=show)
+    patches = get_patches(img, kpts, scales, const_patch_size, show_few=show)
+    patches_r = get_patches(img_r, kpts_r, scales_r, const_patch_size, show_few=show)
 
     if compare:
         compare_patches(patches, patches_r, diffs)
 
-    file_name_prefix = file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
+    file_name_prefix = "{}_{}".format(key, file_path[file_path.rfind("/") + 1:file_path.rfind(".")])
     for i in range(len(patches)):
         patch = patches_r[i]
-        diff = (*diffs[i], patch.shape[0])
+        value = (*diffs[i], patch.shape[0])
         file_name = "{}_{}.png".format(file_name_prefix, i)
-        out_dict[file_name] = diff
-        out_path = "{}/{}".format(out_dir, file_name)
-        cv.imwrite(out_path, patch.numpy())
+        out_map[file_name] = (value[0].item(), value[1].item(), value[2])
+        img_out_path = "{}/{}".format(out_dir, file_name)
+        cv.imwrite(img_out_path, patch.numpy())
 
 
-def prepare_data():
+def prepare_data(config, in_dirs, keys):
 
-    repr_err_th = 2.0
-    down_scale = 0.3
+    #config = get_config()
+    # repr_err_th = 2.0
+    # down_scale = 0.3
+    # max_items = None
+    # in_dir = "./dataset/raw_data"
+    # #out_dir = "./dataset/var_sizes"
+    # patch_size = 33
+    # out_dir = "./dataset/const_size_{}".format(patch_size)
+    ## ends_with = ".tonemap.jpg"
+    #ends_with = '.jpg'
 
-    max_items = None
+    ends_with = config['ends_with']
+    max_items = config['max_items']
+    #in_dir = config['in_dir']
+    const_patch_size = config.get('const_patch_size')
+    if const_patch_size is not None:
+            assert const_patch_size % 2 == 1, "doesn't work that way"
 
-    in_dir = "./dataset/raw_data"
-    out_dir = "./dataset"
+    out_dir = get_full_ds_dir(config)
+    clean = config['clean_out_dir']
 
-    if max_items:
-        all = max_items
-    else:
-        all = len([fn for fn in os.listdir(in_dir) if fn.endswith(".tonemap.jpg")])
+    if clean:
+        try:
+            path = '{}/a_values.txt'.format(out_dir)
+            os.remove(path)
+        except:
+            print("couldn't remove {}".format(path))
+        files = glob.glob('{}/*.png'.format(out_dir))
+        for path in files:
+            try:
+                os.remove(path)
+            except:
+                print("couldn't remove {}".format(path))
 
-    data_dict = {}
-    counter = 0
-    for file_name in os.listdir(in_dir):
+    out_map = {}
+    all = max_items
 
-        if not file_name.endswith(".tonemap.jpg"):
-            continue
-        counter += 1
-        if max_items and counter > max_items:
-            break
+    # TODO zip?
+    for i, in_dir in enumerate(in_dirs):
 
-        path = "{}/{}".format(in_dir, file_name)
-        print("{}/{}".format(counter, all))
-        process_patches_for_file(file_path=path,
-                                 out_dir=out_dir,
-                                 out_dict=data_dict,
-                                 scale=down_scale,
-                                 err_th=repr_err_th,
-                                 compare=counter == 1,
-                                 show=counter == 1)
+        counter = 0
 
-    with open("{}/a_values.txt".format(out_dir), "w") as f:
-        for k in data_dict:
-            data = data_dict[k]
-            f.write("{}, {}, {}, {}\n".format(k, data[0].numpy(), data[1].numpy(), data[2]))
+        if not max_items:
+            all = len([fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)])
 
+        print("Processing {}".format(in_dir))
+        key = keys[i]
 
+        for file_name in os.listdir(in_dir):
+
+            if not file_name.endswith(ends_with):
+                continue
+            counter += 1
+            if max_items and counter > max_items:
+                break
+
+            path = "{}/{}".format(in_dir, file_name)
+            print("{}/{}".format(counter, all))
+            process_patches_for_file(file_path=path,
+                                     config=config,
+                                     out_map=out_map,
+                                     key=key,
+                                     compare=counter == 1,
+                                     show=counter == 1)
+
+    err = 0.0
+    for fn in out_map:
+        err_entry = torch.tensor(out_map[fn][:2])
+        err += (err_entry @ err_entry.T).item()
+    err = err / len(out_map)
+
+    with open("{}/a_values.txt".format(out_dir), "w") as md_file:
+        md_file.write("# entries: {}\n".format(len(out_map)))
+        md_file.write("# detector default mean error: {}\n".format(err))
+        for (fn, value) in out_map.items():
+            to_write = "{}, {}, {}, {}\n".format(fn, value[0], value[1], value[2])
+            #print("writing: {}".format(to_write))
+            md_file.write(to_write)
+    #print()
+
+# continue: train on the again created constant size ds
 # continue: encapsulate the params -> in some configurable object (torch-lightning)
 if __name__ == "__main__":
-    prepare_data()
+
+    config = get_config()
+    in_dirs = config['in_dirs']
+    keys = config['keys']
+
+    # repr_err_th = 2.0
+    # down_scale = 0.3
+    # max_items = None
+    # in_dir = "./dataset/raw_data"
+    # #out_dir = "./dataset/var_sizes"
+    # patch_size = 33
+    # out_dir = "./dataset/const_size_{}".format(patch_size)
+    ## ends_with = ".tonemap.jpg"
+    #ends_with = '.jpg'
+
+    prepare_data(config, in_dirs, keys)

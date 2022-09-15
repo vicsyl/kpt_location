@@ -12,10 +12,10 @@
  * warnings, TODOS in code
  * wandb
    * account and make it work (DONE)
-   * explores
+   * explore
  * scale of the patch (DONE)
- * correspondance of the scales
- * augment data
+ * correspondence of the scales !!
+ * augment data (how!!)
  * possibly check and/or estimate the dominant direction as well
  * detector can be disk or superpoint
  * even higher precision via 

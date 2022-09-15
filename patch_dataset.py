@@ -21,6 +21,7 @@ import torchvision
 from PIL import Image
 from torch.utils.data import random_split, DataLoader, Subset
 from torch.utils.data.dataset import Dataset
+from config import *
 
 
 def batched_random_split(dataset: Dataset[T], lengths: Sequence[int], batch_size, generator: Optional[Generator] = default_generator) -> List[Subset[T]]:
@@ -49,6 +50,8 @@ class PatchDataset(Dataset):
         metadata = {}
         with open("{}/a_values.txt".format(root_dir), "r") as f:
             for line in f.readlines():
+                if line.__contains__("#"):
+                    continue
                 tokens = line.strip().split(",")
                 file = tokens[0]
                 dx = float(tokens[1])
@@ -71,13 +74,6 @@ class PatchDataset(Dataset):
                 print("all batches for size {}: {} -> {}".format(size, l, l_final))
                 self.metadata_list.extend(group_bys[size][:l_final])
 
-        err = 0.0
-        for mt in self.metadata_list:
-            err_2d = torch.tensor(mt[1][:2])
-            err += (err_2d @ err_2d.T).item()
-        err = err / len(self.metadata_list)
-        print("'SIFT'/default error: {}".format(err))
-
     def __getitem__(self, index) -> Any:
         metadata = self.metadata_list[index]
         path = "{}/{}".format(self.root_dir, metadata[0])
@@ -89,24 +85,30 @@ class PatchDataset(Dataset):
         return len(self.metadata_list)
 
 
+# TODO add transforms (e.g. normalization)
 class PatchesDataModule(pl.LightningDataModule):
 
-    def __init__(self, root_dir, batch_size, batch_aware):
+    def __init__(self, conf):
         super().__init__()
-        self.batch_size = batch_size
-        # TODO add transforms (e.g. normalization)
-        self.dataset = PatchDataset(root_dir, batch_size)
-        self.batch_aware = batch_aware
+        train_conf = conf['train']
+        self.batch_size = train_conf['batch_size']
+        self.grouped_by_sizes = train_conf['grouped_by_sizes']
+        bs = self.batch_size if self.grouped_by_sizes else None
+        root_dir = get_full_ds_dir(conf)
+        self.dataset = PatchDataset(root_dir, batch_size=bs)
 
     def setup(self, stage: str):
         size = len(self.dataset)
 
-        # TODO batch aware
-        if self.batch_aware:
+        if self.grouped_by_sizes:
             assert size % self.batch_size == 0
-        part_size = (size // self.batch_size) // 4
-        parts = [part_size, part_size, part_size, size // self.batch_size - 3 * part_size]
-        self.train, self.validate, self.test, self.predict = batched_random_split(self.dataset, parts, self.batch_size)
+            part_size = (size // self.batch_size) // 4
+            parts = [part_size, part_size, part_size, size // self.batch_size - 3 * part_size]
+            self.train, self.validate, self.test, self.predict = batched_random_split(self.dataset, parts, self.batch_size)
+        else:
+            part_size = size // 4
+            parts = [part_size, part_size, part_size, size - 3 * part_size]
+            self.train, self.validate, self.test, self.predict = random_split(self.dataset, parts, self.batch_size)
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size)
@@ -124,7 +126,7 @@ class PatchesDataModule(pl.LightningDataModule):
 def iterate_dataset():
 
     # download, etc...
-    dm = PatchesDataModule("./dataset", batch_size=32, batch_aware=True)
+    dm = PatchesDataModule("./dataset", batch_size=32, grouped_by_sizes=True)
     dm.prepare_data()
 
     # splits/transforms
