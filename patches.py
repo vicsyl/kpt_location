@@ -71,7 +71,7 @@ def scale_pil(img, scale, show=False):
 
     w_sc = int(w * real_scale)
     h_sc = int(h * real_scale)
-    img_r = img.resize((h_sc, w_sc), resample=PIL.Image.Resampling.LANCZOS)
+    img_r = img.resize((h_sc, w_sc), resample=PIL.Image.LANCZOS)
     log_me("scaled to: {}".format(img_r.size))
     if show:
         show_pil(img_r)
@@ -360,8 +360,8 @@ def prepare_data(config, in_dirs, keys):
                                      config=config,
                                      out_map=out_map,
                                      key=key,
-                                     compare=counter == 1,
-                                     show=counter == 1)
+                                     compare=False,
+                                     show=False)
 
     err = 0.0
     for fn in out_map:

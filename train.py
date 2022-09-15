@@ -62,10 +62,10 @@ class PatchesModule(LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
 
-def main():
+def train(path='config/config.yaml'):
 
     wandb.init(project="kpt_location")
-    conf = get_config()
+    conf = get_config(path)
     train_conf = conf['train']
     wandb.config = train_conf
 
@@ -88,4 +88,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train()

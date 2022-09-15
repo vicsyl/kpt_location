@@ -1,7 +1,7 @@
 from omegaconf import OmegaConf
 
 
-def get_config(path = 'config/config.yaml'):
+def get_config(path='config/config.yaml'):
     return OmegaConf.load(path)
 
 
