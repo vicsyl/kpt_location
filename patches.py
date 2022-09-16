@@ -9,6 +9,7 @@ import os
 import math
 from config import *
 
+
 # FIXME: use proper logging
 def log_me(s):
     print(s)
@@ -118,7 +119,7 @@ def detect_kpts(img_pil, scale_th, const_patch_size, detector=get_default_detect
 
     scales = np.array([kp.size for kp in kpts])
     # NOTE in original image it just means it's not detected on the edge
-    # (the patch won't be put into the ds), which is still reasonable
+    # even though the patch will not be put into the ds, which is still reasonable
     if const_patch_size is not None:
         margin = np.ones(scales.shape[0], dtype=int) * const_patch_size // 2
     else:
@@ -253,14 +254,10 @@ def get_img_tuple(path, scale, show=False):
 
 def process_patches_for_file(file_path,
                              config,
-                             #md_file,
                              out_map,
                              key="",
                              compare=True,
                              show=False):
-    # out_dir = out_dir,
-    # scale = down_scale,
-    # err_th = err_th,
     scale = config['down_scale']
     err_th = config['err_th']
     out_dir = get_full_ds_dir(config)
@@ -298,20 +295,8 @@ def process_patches_for_file(file_path,
 
 def prepare_data(config, in_dirs, keys):
 
-    #config = get_config()
-    # repr_err_th = 2.0
-    # down_scale = 0.3
-    # max_items = None
-    # in_dir = "./dataset/raw_data"
-    # #out_dir = "./dataset/var_sizes"
-    # patch_size = 33
-    # out_dir = "./dataset/const_size_{}".format(patch_size)
-    ## ends_with = ".tonemap.jpg"
-    #ends_with = '.jpg'
-
     ends_with = config['ends_with']
     max_items = config['max_items']
-    #in_dir = config['in_dir']
     const_patch_size = config.get('const_patch_size')
     if const_patch_size is not None:
             assert const_patch_size % 2 == 1, "doesn't work that way"
@@ -335,7 +320,6 @@ def prepare_data(config, in_dirs, keys):
     out_map = {}
     all = max_items
 
-    # TODO zip?
     for i, in_dir in enumerate(in_dirs):
 
         counter = 0
@@ -369,31 +353,20 @@ def prepare_data(config, in_dirs, keys):
         err += (err_entry @ err_entry.T).item()
     err = err / len(out_map)
 
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
     with open("{}/a_values.txt".format(out_dir), "w") as md_file:
         md_file.write("# entries: {}\n".format(len(out_map)))
         md_file.write("# detector default mean error: {}\n".format(err))
         for (fn, value) in out_map.items():
             to_write = "{}, {}, {}, {}\n".format(fn, value[0], value[1], value[2])
-            #print("writing: {}".format(to_write))
             md_file.write(to_write)
-    #print()
 
-# continue: train on the again created constant size ds
-# continue: encapsulate the params -> in some configurable object (torch-lightning)
+
 if __name__ == "__main__":
 
     config = get_config()
     in_dirs = config['in_dirs']
     keys = config['keys']
-
-    # repr_err_th = 2.0
-    # down_scale = 0.3
-    # max_items = None
-    # in_dir = "./dataset/raw_data"
-    # #out_dir = "./dataset/var_sizes"
-    # patch_size = 33
-    # out_dir = "./dataset/const_size_{}".format(patch_size)
-    ## ends_with = ".tonemap.jpg"
-    #ends_with = '.jpg'
 
     prepare_data(config, in_dirs, keys)

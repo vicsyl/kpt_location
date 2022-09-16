@@ -16,15 +16,24 @@ class PatchesModule(LightningModule):
         in_features = resnet50.fc.in_features
         layers = list(resnet50.children())[:-1]
         self.feature_extractor = nn.Sequential(*layers)
+        self.freeze_feature_extractor = train_conf['freeze_feature_extractor']
         self.classifier = nn.Linear(in_features, 2)
         self.loss_function = nn.MSELoss()
         self.learning_rate = train_conf['learning_rate']
-        self.log = ''
+        self.enable_wandlog = train_conf.get('enable_wandlog', False)
+
+    def wandlog(self, obj):
+        if self.enable_wandlog:
+            wandb.log(obj)
 
     def forward(self, x):
-        # self.feature_extractor.eval()
-        # with torch.no_grad():
-        representations = self.feature_extractor(x).flatten(1)
+        if self.freeze_feature_extractor:
+            self.feature_extractor.eval()
+            with torch.no_grad():
+                features = self.feature_extractor(x)
+        else:
+            features = self.feature_extractor(x)
+        representations = features.flatten(1)
         x = self.classifier(representations)
         return x
 
@@ -32,9 +41,7 @@ class PatchesModule(LightningModule):
         xs, ys = batch
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
-        wandb.log({"loss": loss})
-        self.log += 'T'
-        #print("fskutecnosti train loss: {}".format(loss))
+        self.wandlog({"loss": loss, "training_loss": loss})
         return dict(
             loss=loss,
             log=dict(
@@ -46,9 +53,7 @@ class PatchesModule(LightningModule):
         xs, ys = batch[0], batch[1]
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
-        wandb.log({"loss": loss})
-        self.log += 'V'
-        #print("fskutecnosti val loss: {}".format(loss))
+        self.wandlog({"loss": loss, "validation_loss": loss})
         return dict(
             validation_loss=loss,
             log=dict(
@@ -56,35 +61,27 @@ class PatchesModule(LightningModule):
             )
         )
 
-    # TODO where are the parameters defined?
-    # TODO why not classifier!!!
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
 
 def train(path='config/config.yaml'):
 
-    wandb.init(project="kpt_location")
     conf = get_config(path)
     train_conf = conf['train']
-    wandb.config = train_conf
 
-    # wandb.config = {
-    #     "learning_rate": 0.001,
-    #     "epochs": 100,
-    #     "batch_size": 128
-    # }
+    # TODO gpu and externalize
 
-    # Optional
     model = PatchesModule(train_conf)
-    # what does this actually do?
-    wandb.watch(model)
+    if train_conf.get('enable_wandlog', False):
+        wandb.init(project="kpt_location")
+        # NOTE this doesn't show anywhere
+        wandb.config = train_conf
+        wandb.watch(model)
 
     dm = PatchesDataModule(conf)
     trainer = Trainer(max_epochs=conf['train']['max_epochs'])
     trainer.fit(model, datamodule=dm)
-    eval_ret = trainer.validate(model, datamodule=dm)
-    print("t/v: {}".format(model.log))
 
 
 if __name__ == "__main__":

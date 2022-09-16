@@ -4,15 +4,15 @@
 
 err_th: 2.0
 down_scale: 0.3
-in_dirs: ["./dataset/raw_data", "./dataset/raw_data"]
-keys: ["foo_key", "bar_key"]
+in_dirs: ["./dataset/raw_data"]
+keys: [""]
 
 #out_dir: "./dataset/var_sizes"
 #const_patch_size: null
 out_dir: "./dataset/const_size_"
 const_patch_size: 33
 
-max_items: 10
+max_items: null
 #ends_with: '.jpg'
 ends_with: '.tonemap.jpg'
 min_scale_th: 15.0
@@ -20,6 +20,9 @@ clean_out_dir: True
 
 train:
     batch_size: 32
-    grouped_by_sizes: True
+    grouped_by_sizes: False
     max_epochs: 10
     learning_rate: 0.01
+    enable_wandlog: False
+    freeze_feature_extractor: False
+

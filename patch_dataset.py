@@ -1,4 +1,3 @@
-# No 'default_generator' in torch/__init__.pyi
 from torch import randperm
 from torch import Generator
 from torch import default_generator
@@ -10,7 +9,6 @@ from typing import (
     Sequence,
     TypeVar,
 )
-
 T_co = TypeVar('T_co', covariant=True)
 T = TypeVar('T')
 
@@ -108,7 +106,7 @@ class PatchesDataModule(pl.LightningDataModule):
         else:
             part_size = size // 4
             parts = [part_size, part_size, part_size, size - 3 * part_size]
-            self.train, self.validate, self.test, self.predict = random_split(self.dataset, parts, self.batch_size)
+            self.train, self.validate, self.test, self.predict = random_split(self.dataset, parts)
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size)
