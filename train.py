@@ -80,7 +80,10 @@ def train(path='config/config.yaml'):
         wandb.watch(model)
 
     dm = PatchesDataModule(conf)
-    trainer = Trainer(max_epochs=conf['train']['max_epochs'])
+
+    trainer = Trainer(max_epochs=conf['train']['max_epochs'],
+                      accelerator=train_conf['accelerator'],
+                      )
     trainer.fit(model, datamodule=dm)
 
 
