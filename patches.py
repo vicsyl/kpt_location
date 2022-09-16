@@ -317,6 +317,9 @@ def prepare_data(config, in_dirs, keys):
             except:
                 print("couldn't remove {}".format(path))
 
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
+
     out_map = {}
     all = max_items
 
@@ -353,8 +356,6 @@ def prepare_data(config, in_dirs, keys):
         err += (err_entry @ err_entry.T).item()
     err = err / len(out_map)
 
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir, exist_ok=True)
     with open("{}/a_values.txt".format(out_dir), "w") as md_file:
         md_file.write("# entries: {}\n".format(len(out_map)))
         md_file.write("# detector default mean error: {}\n".format(err))
