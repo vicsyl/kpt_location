@@ -37,11 +37,20 @@ class PatchesModule(LightningModule):
         x = self.classifier(representations)
         return x
 
+    def log_stats(self, ys, ys_hat, prefix):
+        if self.enable_wandlog:
+            batch_size = ys.shape[0]
+            distance_loss = ((ys ** 2).sum(dim=1) ** 0.5 - (ys_hat ** 2).sum(dim=1) ** 0.5).abs().sum() / batch_size
+            wandb.log({"{}_distance_loss".format(prefix): distance_loss})
+            angle_loss = (torch.atan2(ys[:, 0], ys[:, 1]) - torch.atan2(ys_hat[:, 0], ys_hat[:, 1])).abs() / batch_size
+            wandb.log({"{}_angle_loss".format(prefix): angle_loss})
+
     def training_step(self, batch, batch_idx):
         xs, ys = batch
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
-        self.wandlog({"loss": loss, "training_loss": loss})
+        self.wandlog({"training_loss": loss})
+        self.log_stats(ys, ys_hat, "training")
         return dict(
             loss=loss,
             log=dict(
@@ -53,7 +62,8 @@ class PatchesModule(LightningModule):
         xs, ys = batch[0], batch[1]
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
-        self.wandlog({"loss": loss, "validation_loss": loss})
+        self.log_stats(ys, ys_hat, "validation")
+        self.wandlog({"validation_loss": loss})
         return dict(
             validation_loss=loss,
             log=dict(

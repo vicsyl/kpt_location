@@ -1,3 +1,6 @@
+import math
+
+import wandb
 from torch import randperm
 from torch import Generator
 from torch import default_generator
@@ -147,5 +150,56 @@ def iterate_dataset():
     dm.teardown(stage="test")
 
 
+def log_stats(ds_path):
+
+    wandb.init(project="kpt_location_error_analysis")
+
+    # = [x, x], where x = sqrt(2) / 2 * scale  (for scale ~0.3)
+    adjustment = [0.15, 0.15]
+
+    metadata_list = PatchDataset(ds_path, batch_size=None).metadata_list
+
+    distances = []
+    distances_adjusted = []
+    errors = []
+    errors_adjusted = []
+    angles = []
+    angles_adjusted = []
+    for _, value in metadata_list:
+        dxy = np.array(value[:2])
+        errors.append(dxy)
+
+        dxy_adjusted = dxy - adjustment
+        errors_adjusted.append(dxy_adjusted)
+
+        distances.append([math.sqrt(dxy[0] ** 2 + dxy[1] ** 2)])
+        distances_adjusted.append([math.sqrt(dxy_adjusted[0] ** 2 + dxy_adjusted[1] ** 2)])
+        angles.append([np.arctan2(dxy[0], dxy[1])])
+        angles_adjusted.append([np.arctan2(dxy_adjusted[0], dxy_adjusted[1])])
+
+    print("err mean: {}".format(np.array(errors).mean(axis=0)))
+    print("err abs mean: {}".format(np.abs(np.array(errors)).mean(axis=0)))
+    print("adjusted err mean: {}".format(np.array(errors_adjusted).mean(axis=0)))
+    print("adjusted err abs mean: {}".format(np.abs(np.array(errors_adjusted)).mean(axis=0)))
+    print("angles mean: {}".format(np.array(angles).mean(axis=0)))
+    print("angles abs mean: {}".format(np.abs(np.array(angles)).mean(axis=0)))
+    print("adjusted angles mean: {}".format(np.array(angles_adjusted).mean(axis=0)))
+    print("adjusted angles abs mean: {}".format(np.abs(np.array(angles_adjusted)).mean(axis=0)))
+
+    t_d = wandb.Table(data=distances, columns=["distance"])
+    wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="scale error")})
+
+    t_d = wandb.Table(data=distances_adjusted, columns=["distance"])
+    wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="scale error adjusted")})
+
+    t_d = wandb.Table(data=angles, columns=["angle"])
+    wandb.log({'angles': wandb.plot.histogram(t_d, "angle", title="angle error")})
+
+    t_d = wandb.Table(data=angles_adjusted, columns=["angle"])
+    wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
+
+
 if __name__ == "__main__":
-    iterate_dataset()
+    #iterate_dataset()
+    log_stats("dataset/const_size_33")
+    print("patch dataset")
