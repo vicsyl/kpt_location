@@ -58,7 +58,10 @@ class PatchDataset(Dataset):
                 dx = float(tokens[1])
                 dy = float(tokens[2])
                 size = int(tokens[3])
-                metadata[file] = (dx, dy, size)
+                scale = float(tokens[4])
+                scale_ratio = float(tokens[5])
+                size = int(tokens[3])
+                metadata[file] = (dx, dy, size, scale, scale_ratio)
         self.metadata_list = list(metadata.items())
 
         if batch_size is not None:
@@ -91,6 +94,12 @@ class PatchesDataModule(pl.LightningDataModule):
 
     def __init__(self, conf):
         super().__init__()
+
+        # NOTE to be changed
+        # == 2: leave test and predict out for now
+        # == 4: with test and predict ds
+        self.splits = 2
+
         train_conf = conf['train']
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
@@ -98,17 +107,28 @@ class PatchesDataModule(pl.LightningDataModule):
         root_dir = get_full_ds_dir(conf)
         self.dataset = PatchDataset(root_dir, batch_size=bs)
 
+    def prepend_parts(self, parts, part_size):
+        if self.splits == 2:
+            parts = [part_size, part_size] + parts
+        elif self.splits == 4:
+            parts = [0, 0] + parts
+        else:
+            raise "unexpected value for self.splits: {}".format(self.splits)
+        return parts
+
     def setup(self, stage: str):
         size = len(self.dataset)
 
         if self.grouped_by_sizes:
             assert size % self.batch_size == 0
-            part_size = (size // self.batch_size) // 4
-            parts = [part_size, part_size, part_size, size // self.batch_size - 3 * part_size]
+            part_size = (size // self.batch_size) // self.splits
+            parts = [part_size, size // self.batch_size - (self.splits - 1) * part_size]
+            parts = self.prepend_parts(parts, part_size)
             self.train, self.validate, self.test, self.predict = batched_random_split(self.dataset, parts, self.batch_size)
         else:
-            part_size = size // 4
-            parts = [part_size, part_size, part_size, size - 3 * part_size]
+            part_size = size // self.splits
+            parts = [part_size, part_size, part_size, size - (self.splits - 1) * part_size]
+            parts = self.prepend_parts(parts, part_size)
             self.train, self.validate, self.test, self.predict = random_split(self.dataset, parts)
 
     def train_dataloader(self):
@@ -150,56 +170,68 @@ def iterate_dataset():
     dm.teardown(stage="test")
 
 
-def log_stats(ds_path):
+def get_error_stats(entry_list, adjustment=[0.0, 0.0]):
 
-    wandb.init(project="kpt_location_error_analysis")
+    distances = []
+    errors = []
+    angles = []
+    for _, value in entry_list:
+        dxy = np.array(value[:2])
+        dxy_adjusted = dxy + adjustment
+        errors.append(dxy_adjusted)
+        distances.append([math.sqrt(dxy_adjusted[0] ** 2 + dxy_adjusted[1] ** 2)])
+        angles.append([np.arctan2(dxy_adjusted[0], dxy_adjusted[1])])
 
-    # = [x, x], where x = sqrt(2) / 2 * scale  (for scale ~0.3)
-    adjustment = [0.15, 0.15]
+    distances = np.array(distances)
+    errors = np.array(errors)
+    angles = np.array(angles)
+
+    return distances, errors, angles
+
+
+def mean_abs_mean(stat):
+    mean = stat.mean(axis=0)
+    abs_mean = np.abs(stat).mean(axis=0)
+    return mean, abs_mean
+
+
+def log_stats(ds_path, enable_wand):
+
+    def print_stat(stat, name):
+        mean, abs_mean = mean_abs_mean(stat)
+        print("{} mean: {}".format(name, mean))
+        print("{} abs mean: {}".format(name, abs_mean))
 
     metadata_list = PatchDataset(ds_path, batch_size=None).metadata_list
 
-    distances = []
-    distances_adjusted = []
-    errors = []
-    errors_adjusted = []
-    angles = []
-    angles_adjusted = []
-    for _, value in metadata_list:
-        dxy = np.array(value[:2])
-        errors.append(dxy)
+    distances, errors, angles = get_error_stats(metadata_list, [0.0, 0.0])
+    print_stat(distances, "distance")
+    print_stat(errors, "error")
+    print_stat(angles, "angle")
 
-        dxy_adjusted = dxy - adjustment
-        errors_adjusted.append(dxy_adjusted)
+    adjustment = [0.15, 0.15]
+    distances_adjusted, errors_adjusted, angles_adjusted = get_error_stats(metadata_list, adjustment)
+    print_stat(distances_adjusted, "adjusted distance")
+    print_stat(errors_adjusted, "adjusted error")
+    print_stat(angles_adjusted, "adjusted angle")
 
-        distances.append([math.sqrt(dxy[0] ** 2 + dxy[1] ** 2)])
-        distances_adjusted.append([math.sqrt(dxy_adjusted[0] ** 2 + dxy_adjusted[1] ** 2)])
-        angles.append([np.arctan2(dxy[0], dxy[1])])
-        angles_adjusted.append([np.arctan2(dxy_adjusted[0], dxy_adjusted[1])])
+    if enable_wand:
+        wandb.init(project="kpt_location_error_analysis")
 
-    print("err mean: {}".format(np.array(errors).mean(axis=0)))
-    print("err abs mean: {}".format(np.abs(np.array(errors)).mean(axis=0)))
-    print("adjusted err mean: {}".format(np.array(errors_adjusted).mean(axis=0)))
-    print("adjusted err abs mean: {}".format(np.abs(np.array(errors_adjusted)).mean(axis=0)))
-    print("angles mean: {}".format(np.array(angles).mean(axis=0)))
-    print("angles abs mean: {}".format(np.abs(np.array(angles)).mean(axis=0)))
-    print("adjusted angles mean: {}".format(np.array(angles_adjusted).mean(axis=0)))
-    print("adjusted angles abs mean: {}".format(np.abs(np.array(angles_adjusted)).mean(axis=0)))
+        t_d = wandb.Table(data=distances, columns=["distance"])
+        wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="scale error")})
 
-    t_d = wandb.Table(data=distances, columns=["distance"])
-    wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="scale error")})
+        t_d = wandb.Table(data=distances_adjusted, columns=["distance"])
+        wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="scale error adjusted")})
 
-    t_d = wandb.Table(data=distances_adjusted, columns=["distance"])
-    wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="scale error adjusted")})
+        t_d = wandb.Table(data=angles, columns=["angle"])
+        wandb.log({'angles': wandb.plot.histogram(t_d, "angle", title="angle error")})
 
-    t_d = wandb.Table(data=angles, columns=["angle"])
-    wandb.log({'angles': wandb.plot.histogram(t_d, "angle", title="angle error")})
-
-    t_d = wandb.Table(data=angles_adjusted, columns=["angle"])
-    wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
+        t_d = wandb.Table(data=angles_adjusted, columns=["angle"])
+        wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
 
 
 if __name__ == "__main__":
     #iterate_dataset()
-    log_stats("dataset/const_size_33")
+    log_stats("dataset/const_size_33", enable_wand=True)
     print("patch dataset")

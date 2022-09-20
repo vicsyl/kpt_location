@@ -3,6 +3,9 @@
 # dataset:
 
 err_th: 2.0
+# scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
+scale_ratio_th: 4.0
+
 down_scale: 0.3
 in_dirs: ["./dataset/raw_data"]
 keys: [""]
@@ -12,11 +15,13 @@ keys: [""]
 out_dir: "./dataset/const_size_"
 const_patch_size: 33
 
-max_items: null
+max_items: 10
 #ends_with: '.jpg'
 ends_with: '.tonemap.jpg'
 min_scale_th: 15.0
 clean_out_dir: True
+
+half_pixel_adjusted: True
 
 train:
     # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")

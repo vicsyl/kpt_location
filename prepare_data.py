@@ -8,6 +8,7 @@ import torch
 import os
 import math
 from config import *
+from patch_dataset import get_error_stats, mean_abs_mean
 
 
 # FIXME: use proper logging
@@ -15,23 +16,34 @@ def log_me(s):
     print(s)
 
 
-def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, th):
+def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
+
+    err_th = config['err_th']
+    scale_ratio_th = config['scale_ratio_th']
+    half_pixel_adjusted = config['half_pixel_adjusted']
+    #kpts_reprojected_or = kpts_r / scale
+    if half_pixel_adjusted:
+        magic_scale = scale / 2 # hypothesis
+        adjustment = torch.ones(2) * magic_scale
+        kpts_r = kpts_r + adjustment
 
     kpts_reprojected = kpts_r / scale
+    #kpts_reprojected_adj = kpts_reprojected - kpts_reprojected_or
+
     d_mat = torch.cdist(kpts, kpts_reprojected)
+
     min0 = torch.min(d_mat, dim=0)
     min1 = torch.min(d_mat, dim=1)
 
     mask = min1[1][min0[1]] == torch.arange(0, min0[1].shape[0])
-
-    mask_th = mask & (min0[0] < th)
+    mask_th = mask & (min0[0] < err_th)
 
     verify = True
     if verify:
         for i in range(min0[1].shape[0]):
             if mask_th[i]:
                 assert min1[1][min0[1][i]] == i
-                assert min0[0][i] < th
+                assert min0[0][i] < err_th
 
     kpts0 = kpts[min0[1][mask_th]]
     kpts_scales = kpts_scales[min0[1][mask_th]]
@@ -40,13 +52,23 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, th):
     kpts_r_scales = kpts_r_scales[mask_th]
 
     dists = min0[0][mask_th]
-    diffs = (kpts0 - kpts_reprojected[mask_th]) * scale
+    diffs = (kpts_reprojected[mask_th] - kpts0) * scale
 
     if verify:
         ds = torch.diag(torch.cdist(kpts0, kpts_reprojected[mask_th]))
         assert torch.allclose(ds, dists)
 
-    return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs
+    # now filter based on the scale ratio threshold
+    kpts_r_scales_backprojected = kpts_r_scales / scale
+    scale_ratios = kpts_r_scales_backprojected / kpts_scales
+    mask_ratio_th = 1 + torch.abs(1 - scale_ratios) < scale_ratio_th
+    diffs = diffs[mask_ratio_th]
+    kpts0 = kpts0[mask_ratio_th]
+    kpts1 = kpts1[mask_ratio_th]
+    kpts_scales = kpts_scales[mask_ratio_th]
+    kpts_r_scales = kpts_r_scales[mask_ratio_th]
+
+    return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs, scale_ratios[mask_ratio_th]
 
 
 def scale_pil(img, scale, show=False):
@@ -259,7 +281,6 @@ def process_patches_for_file(file_path,
                              compare=True,
                              show=False):
     scale = config['down_scale']
-    err_th = config['err_th']
     out_dir = get_full_ds_dir(config)
     min_scale_th = config['min_scale_th']
     const_patch_size = config.get('const_patch_size')
@@ -275,7 +296,7 @@ def process_patches_for_file(file_path,
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
-    kpts, scales, kpts_r, scales_r, diffs = mnn(kpts, scales, kpts_r, scales_r, real_scale, err_th)
+    kpts, scales, kpts_r, scales_r, diffs, scale_ratios = mnn(kpts, scales, kpts_r, scales_r, real_scale, config)
 
     patches = get_patches(img, kpts, scales, const_patch_size, show_few=show)
     patches_r = get_patches(img_r, kpts_r, scales_r, const_patch_size, show_few=show)
@@ -283,14 +304,35 @@ def process_patches_for_file(file_path,
     if compare:
         compare_patches(patches, patches_r, diffs)
 
-    file_name_prefix = "{}_{}".format(key, file_path[file_path.rfind("/") + 1:file_path.rfind(".")])
+    if key != "":
+        key = key + "_"
+    file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
     for i in range(len(patches)):
         patch = patches_r[i]
-        value = (*diffs[i], patch.shape[0])
+        data = (*diffs[i], patch.shape[0], scales[i], scale_ratios[i])
         file_name = "{}_{}.png".format(file_name_prefix, i)
-        out_map[file_name] = (value[0].item(), value[1].item(), value[2])
+        out_map[file_name] = data
         img_out_path = "{}/{}".format(out_dir, file_name)
         cv.imwrite(img_out_path, patch.numpy())
+
+
+def get_ds_stats(entries):
+    def adjust_min_max(min_max_stat, value):
+        if min_max_stat[0] > value:
+            min_max_stat[0] = value
+        if min_max_stat[1] < value:
+            min_max_stat[1] = value
+        return min_max_stat
+
+    patch_size_min_max = [10000, -1]
+    scale_min_max = [10000, -1]
+    scale_ratio_min_max = [10000, -1]
+    for _, value in entries:
+        patch_size_min_max = adjust_min_max(patch_size_min_max, value[2])
+        scale_min_max = adjust_min_max(scale_min_max, value[3])
+        scale_ratio_min_max = adjust_min_max(scale_ratio_min_max, value[4])
+
+    return patch_size_min_max, scale_min_max, scale_ratio_min_max
 
 
 def prepare_data(config, in_dirs, keys):
@@ -350,17 +392,33 @@ def prepare_data(config, in_dirs, keys):
                                      compare=False,
                                      show=False)
 
-    err = 0.0
-    for fn in out_map:
-        err_entry = torch.tensor(out_map[fn][:2])
-        err += (err_entry @ err_entry.T).item()
-    err = err / len(out_map)
+    def print_min_max_stat(file, stat, name):
+        file.write("# detector minimin {}: {}\n".format(name, stat[0]))
+        file.write("# detector maximum {}: {}\n".format(name, stat[1]))
 
+    def print_m_am_stat(file, stat, name, leave_abs_mean=False):
+        mean, abs_mean = mean_abs_mean(stat)
+        file.write("# detector mean {} error: {}\n".format(name, mean))
+        if not leave_abs_mean:
+            file.write("# detector absolute mean {} error: {}\n".format(name, abs_mean))
+
+    # TODO config
     with open("{}/a_values.txt".format(out_dir), "w") as md_file:
         md_file.write("# entries: {}\n".format(len(out_map)))
-        md_file.write("# detector default mean error: {}\n".format(err))
+        md_file.write("# schema: file_name, dx, dy, patch_size, original scale, reprojected scale/original scale\n")
+
+        distances, errors, angles = get_error_stats(out_map.items())
+        print_m_am_stat(md_file, distances, "distance", leave_abs_mean=True)
+        print_m_am_stat(md_file, errors, "")
+        print_m_am_stat(md_file, angles, "angle")
+
+        patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(out_map.items())
+        print_min_max_stat(md_file, patch_size_min_max, "patch size")
+        print_min_max_stat(md_file, scale_min_max, "original scale")
+        print_min_max_stat(md_file, scale_ratio_min_max, "scale ratio")
+
         for (fn, value) in out_map.items():
-            to_write = "{}, {}, {}, {}\n".format(fn, value[0], value[1], value[2])
+            to_write = "{}, {}, {}, {}, {}, {}\n".format(fn, *value)
             md_file.write(to_write)
 
 
