@@ -109,9 +109,9 @@ class PatchesDataModule(pl.LightningDataModule):
 
     def prepend_parts(self, parts, part_size):
         if self.splits == 2:
-            parts = [part_size, part_size] + parts
-        elif self.splits == 4:
             parts = [0, 0] + parts
+        elif self.splits == 4:
+            parts = [part_size, part_size] + parts
         else:
             raise "unexpected value for self.splits: {}".format(self.splits)
         return parts
@@ -124,12 +124,12 @@ class PatchesDataModule(pl.LightningDataModule):
             part_size = (size // self.batch_size) // self.splits
             parts = [part_size, size // self.batch_size - (self.splits - 1) * part_size]
             parts = self.prepend_parts(parts, part_size)
-            self.train, self.validate, self.test, self.predict = batched_random_split(self.dataset, parts, self.batch_size)
+            self.test, self.predict, self.train, self.validate = batched_random_split(self.dataset, parts, self.batch_size)
         else:
             part_size = size // self.splits
-            parts = [part_size, part_size, part_size, size - (self.splits - 1) * part_size]
+            parts = [part_size, size - (self.splits - 1) * part_size]
             parts = self.prepend_parts(parts, part_size)
-            self.train, self.validate, self.test, self.predict = random_split(self.dataset, parts)
+            self.test, self.predict, self.train, self.validate = random_split(self.dataset, parts)
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size)

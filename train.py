@@ -80,8 +80,6 @@ def train(path='config/config.yaml'):
     conf = get_config(path)
     train_conf = conf['train']
 
-    # TODO gpu and externalize
-
     model = PatchesModule(train_conf)
     if train_conf.get('enable_wandlog', False):
         wandb.init(project="kpt_location")
