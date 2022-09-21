@@ -37,12 +37,17 @@ def get_detector(config):
     # NOTE I stuck with the cv API as e.g. scale can be used
 
     name = config['detector'].lower()
+    return get_detector_by_name(name)
+
+
+def get_detector_by_name(name):
     if name == 'sift':
         return cv.SIFT_create()
     elif name == 'superpoint':
         return SuperPointDetector()
     else:
         raise "unrecognized detector: {}".format(name)
+
 
 class SuperPointDetector:
 
