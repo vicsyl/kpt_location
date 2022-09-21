@@ -14,6 +14,28 @@ class SyntheticConf:
     dist_to_grey_fnc: Callable
 
 
+def simple_corner_synth_builder(corner_type, radius, max_int=255.0):
+
+    assert corner_type in ["SE", "SW", "NW", "NE"]
+
+    def to_ret(conf):
+        max_dst = max(conf.img_size[0], conf.img_size[1]) * 10
+        w = np.indices(conf.img_size)
+        ys, xs = w[0], w[1]
+        # TODO just use conf.kpt_loc[0]
+        kpt_center_y = np.ones(conf.img_size) * conf.kpt_loc[0]
+        kpt_center_x = np.ones(conf.img_size) * conf.kpt_loc[1]
+        distances_y = (np.abs(ys - kpt_center_y) > radius).astype(dtype=int)
+        fact_distances_x = (xs <= conf.kpt_loc[1] - radius if corner_type[1] == "E" else xs >= conf.kpt_loc[1] - radius).astype(int) * max_dst
+        distances_y = distances_y + fact_distances_x
+        distances_x = (np.abs(xs - kpt_center_x) > radius).astype(dtype=int)
+        fact_distances_y = (ys <= conf.kpt_loc[0] - radius if corner_type[0] == "S" else ys >= conf.kpt_loc[0] + radius).astype(int) * max_dst
+        distances_x = distances_x + fact_distances_y
+        return (np.minimum(distances_y, distances_x) == 0).astype(dtype=np.uint8) * int(max_int)
+
+    return to_ret
+
+
 def corner_synth_builder(corner_type, inner_fce, radius):
 
     assert corner_type in ["SE", "SW", "NW", "NE"]
@@ -152,10 +174,11 @@ def main():
     kpt_loc = (50.0, 50.0)
     dist_to_grey_fncs = [
         #corner_synth_builder("SE", pyramid_distance_builder(radius=2.5), radius=2.5),
-        gauss_dist_to_grey_builder(sigma=2),
-        gauss_dist_to_grey_builder(sigma=4),
-        gauss_dist_to_grey_builder(sigma=6),
-        gauss_dist_to_grey_builder(sigma=8),
+        simple_corner_synth_builder("SE", radius=2),
+        # gauss_dist_to_grey_builder(sigma=2),
+        # gauss_dist_to_grey_builder(sigma=4),
+        # gauss_dist_to_grey_builder(sigma=6),
+        # gauss_dist_to_grey_builder(sigma=8),
         # hyperbolic_spike_builder(eps=0.1),
         # hyperbolic_spike_builder(eps=1.0),
         # hyperbolic_spike_builder(eps=5.0),
