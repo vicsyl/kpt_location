@@ -124,15 +124,19 @@ def get_default_detector():
     return detector
 
 
-def detect_kpts(img_pil, scale_th, const_patch_size, detector=get_default_detector(), show=False):
+def detect_kpts(img_np, scale_th, const_patch_size, config, detector=get_default_detector()):
 
     if const_patch_size is not None:
             assert const_patch_size % 2 == 1, "doesn't work that way"
 
-    npa = np.array(img_pil)
-    h, w, c = npa.shape
+    # npa_grey = cv.cvtColor(npa, cv.COLOR_BGR2GRAY);
+    # kpts_grey = detector.detect(npa_grey, mask=None)
+    # kpt_f_g = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts_grey])
+    # check = np.alltrue(kpt_f_g == kpt_f)
 
-    kpts = detector.detect(npa, mask=None)
+    h, w = img_np.shape[:2]
+
+    kpts = detector.detect(img_np, mask=None)
     if len(kpts) == 0:
         return [], []
 
@@ -153,12 +157,15 @@ def detect_kpts(img_pil, scale_th, const_patch_size, detector=get_default_detect
     kpt_f = kpt_f[mask]
     scales = scales[mask]
 
+    show = config['show_kpt_patches']
     if show:
-        npac = npa.copy()
-        cv.drawKeypoints(npa, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        npac = img_np.copy()
+        cv.drawKeypoints(img_np, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         plt.figure()
+        plt.title("kpts")
         plt.imshow(npac)
         plt.show()
+        plt.close()
 
     return torch.from_numpy(kpt_f), torch.from_numpy(scales)
 
@@ -205,9 +212,9 @@ def slice_patches(img, kpts, margins):
     return [p[0] for p in patches]
 
 
-def get_patches(img_pil, kpt_f, kpt_scales, const_patch_size, show_few=False):
+def get_patches(img_np, kpt_f, kpt_scales, const_patch_size, config):
     """
-    :param img_pil:
+    :param img_np:
     :param kpt_f:
     :param kpt_scales:
     :param scale_th:
@@ -215,8 +222,7 @@ def get_patches(img_pil, kpt_f, kpt_scales, const_patch_size, show_few=False):
     :return: patches: List[Tensor]
     """
 
-    img_n = np.array(img_pil)
-    img_t = torch.tensor(img_n)
+    img_t = torch.tensor(img_np)
 
     kpt_i = torch.round(kpt_f).to(torch.int)
     if const_patch_size is not None:
@@ -229,12 +235,13 @@ def get_patches(img_pil, kpt_f, kpt_scales, const_patch_size, show_few=False):
 
     patches = slice_patches(img_t, kpt_i, margins_np)
 
-    if show_few:
+    show = config['show_kpt_patches']
+    if show:
 
         detector = get_default_detector()
-        kpts = detector.detect(img_n, mask=None)
-        npac = img_n.copy()
-        cv.drawKeypoints(img_n, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        kpts = detector.detect(img_np, mask=None)
+        npac = img_np.copy()
+        cv.drawKeypoints(img_np, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         img_tc = torch.tensor(npac)
         ps_kpts = slice_patches(img_tc, kpt_i, margins_np)
 
@@ -263,7 +270,7 @@ def compare_patches(patches0, patches1, diffs):
     plt.show()
 
 
-def get_img_tuple(path, scale, show=False):
+def get_img_tuple(path, scale, config, show=False):
 
     img = Image.open(path)
     if show:
@@ -271,35 +278,42 @@ def get_img_tuple(path, scale, show=False):
     log_me("original size: {}".format(img.size))
 
     img_r, real_scale = scale_pil(img, scale=scale, show=show)
+    img = np.array(img)
+    img_r = np.array(img_r)
+
+    to_grey_scale = config['to_grey_scale']
+    if to_grey_scale:
+        img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img_r = cv.cvtColor(img_r, cv.COLOR_BGR2GRAY)
     return img, img_r, real_scale
 
 
 def process_patches_for_file(file_path,
                              config,
                              out_map,
-                             key="",
-                             compare=True,
-                             show=False):
+                             key=""):
+
     scale = config['down_scale']
     out_dir = get_full_ds_dir(config)
     min_scale_th = config['min_scale_th']
     const_patch_size = config.get('const_patch_size')
+    compare = config['compare_patches']
 
     print("Processing: {}".format(file_path))
 
     # convert and show the image
-    img, img_r, real_scale = get_img_tuple(file_path, scale)
+    img, img_r, real_scale = get_img_tuple(file_path, scale, config)
 
-    kpts, scales = detect_kpts(img, min_scale_th, const_patch_size, show=show)
-    kpts_r, scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, show=show)
+    kpts, scales = detect_kpts(img, min_scale_th, const_patch_size, config)
+    kpts_r, scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
     kpts, scales, kpts_r, scales_r, diffs, scale_ratios = mnn(kpts, scales, kpts_r, scales_r, real_scale, config)
 
-    patches = get_patches(img, kpts, scales, const_patch_size, show_few=show)
-    patches_r = get_patches(img_r, kpts_r, scales_r, const_patch_size, show_few=show)
+    patches = get_patches(img, kpts, scales, const_patch_size, config)
+    patches_r = get_patches(img_r, kpts_r, scales_r, const_patch_size, config)
 
     if compare:
         compare_patches(patches, patches_r, diffs)
@@ -388,9 +402,7 @@ def prepare_data(config, in_dirs, keys):
             process_patches_for_file(file_path=path,
                                      config=config,
                                      out_map=out_map,
-                                     key=key,
-                                     compare=False,
-                                     show=False)
+                                     key=key)
 
     def print_min_max_stat(file, stat, name):
         file.write("# detector minimin {}: {}\n".format(name, stat[0]))
@@ -424,7 +436,7 @@ def prepare_data(config, in_dirs, keys):
 
 if __name__ == "__main__":
 
-    config = get_config()
+    config = get_config()['dataset']
     in_dirs = config['in_dirs']
     keys = config['keys']
 

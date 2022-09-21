@@ -104,7 +104,7 @@ class PatchesDataModule(pl.LightningDataModule):
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
         bs = self.batch_size if self.grouped_by_sizes else None
-        root_dir = get_full_ds_dir(conf)
+        root_dir = get_full_ds_dir(conf['dataset'])
         self.dataset = PatchDataset(root_dir, batch_size=bs)
 
     def prepend_parts(self, parts, part_size):
