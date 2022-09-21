@@ -55,13 +55,16 @@ class PatchDataset(Dataset):
                     continue
                 tokens = line.strip().split(",")
                 file = tokens[0]
+                # file_name, dx, dy, patch_size, original kpt scale, resized kpt scale, scale ratio, resize scale
                 dx = float(tokens[1])
                 dy = float(tokens[2])
                 size = int(tokens[3])
-                scale = float(tokens[4])
-                scale_ratio = float(tokens[5])
+                orig_kpt_scale = float(tokens[4])
+                resized_kpt_scale = float(tokens[5])
+                scale_ratio = float(tokens[6])
+                resize_scale = float(tokens[7])
                 size = int(tokens[3])
-                metadata[file] = (dx, dy, size, scale, scale_ratio)
+                metadata[file] = (dx, dy, size, orig_kpt_scale, resized_kpt_scale, scale_ratio, resize_scale)
         self.metadata_list = list(metadata.items())
 
         if batch_size is not None:

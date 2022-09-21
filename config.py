@@ -1,4 +1,10 @@
 from omegaconf import OmegaConf
+import cv2 as cv
+
+import sys
+sys.path.append("./superpoint_forked")
+from superpoint import SuperPointDescriptor
+import torch
 
 
 def get_config(path='config/config.yaml'):
@@ -14,17 +20,25 @@ def get_full_ds_dir(config):
         return out_dir + str(path_size)
 
 
-def get_config_map():
-    return {
-        'err_th': 2.0,
-        'down_scale': 0.3,
-        'in_dir': "./dataset/raw_data",
-        #'out_dir': "./dataset/var_sizes",
-        'out_dir': "./dataset/const_size_",
-        'const_patch_size': 33,
-        'max_items': None,
-        #'ends_with': '.jpg',
-        'ends_with': '.tonemap.jpg',
-        'min_scale_th': 15.0,
-        'clean_out_dir': True
-    }
+def get_detector(config):
+    # TODO parameters for all
+    # NOTE I stuck with the cv API as e.g. scale can be used
+
+    name = config['detector'].lower()
+    if name == 'sift':
+        return cv.SIFT_create()
+    elif name == 'superpoint':
+        return SuperPointDetector()
+    else:
+        raise "unrecognized detector: {}".format(name)
+
+class SuperPointDetector:
+
+    def __init__(self, path=None, device: torch.device = torch.device('cpu')):
+        if not path:
+            path = "./superpoint_forked/superpoint_v1.pth"
+        self.super_point = SuperPointDescriptor(path, device)
+
+    def detect(self, img_np, mask=None):
+        pts, _ = self.super_point.detectAndComputeGrey(img_np, mask)
+        return pts

@@ -1,6 +1,7 @@
 # install via conda->pip
 pytorch-lightning
 pip install opencv-python
+pip install h5py
 
 torch~=1.12.1
 torchvision~=0.13.1

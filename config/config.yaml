@@ -2,9 +2,16 @@
 
 # dataset:
 dataset:
-    err_th: 2.0
+
+    detector: sift # SIFT, SUPERPOINT, case-insensitive
     # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
-    scale_ratio_th: 4.0
+    scale_ratio_th: 1.1
+    #scale_ratio_th: null # for superpoint
+    min_scale_th: 15.0
+    #min_scale_th: 30.0
+    #min_scale_th: 0.0 # for superpoint
+
+    err_th: 2.0
 
     down_scale: 0.3
     in_dirs: ["./dataset/raw_data"]
@@ -15,17 +22,17 @@ dataset:
     out_dir: "./dataset/const_size_"
     const_patch_size: 33
 
-    max_items: 10
+    max_items: 20
     #ends_with: '.jpg'
     ends_with: '.tonemap.jpg'
-    min_scale_th: 15.0
     clean_out_dir: True
     to_grey_scale: True
-    half_pixel_adjusted: True
+    half_pixel_adjusted: False
 
     show_kpt_patches: False
     compare_patches: False
-
+    integer_scale: False # try to scale so that the new size is exactly an integer
+    dynamic_resizing: False # not for superpoint
 
 train:
     # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")

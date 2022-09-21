@@ -2,6 +2,7 @@
 __pycache__/
 .idea
 snippets
+superpoint_forked
 dataset
 lightning_logs
 wandb
