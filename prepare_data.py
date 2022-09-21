@@ -1,3 +1,4 @@
+import copy
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ import torch
 import os
 import math
 from config import *
-from patch_dataset import get_error_stats, mean_abs_mean
+from patch_dataset import get_error_stats, mean_abs_mean, DataRecord
 
 
 # FIXME: use proper logging
@@ -308,23 +309,32 @@ def augment_patch(patch, diffs):
 
     patches = [patch]
     diff_l = [diffs]
-    for _ in range(3):
+    augment_keys = ["original"]
+    for i in range(3):
         patch = torch.rot90(patch, 1, [0, 1])
         patches.append(patch)
         diffs = -diffs[1], diffs[0]
         diff_l.append(diffs)
+        augment_keys.append("rotated_{}".format((i + 1) * 90))
     patches = patches + [patch_r_y, patch_r_x]
     diff_l = diff_l + [diffs_r_y, diffs_r_x]
-    return patches, diff_l
+    augment_keys = augment_keys + ["reflected_y", "reflected_x"]
+    return patches, diff_l, augment_keys
 
 
-def augment_and_write_patch(patch, diffs, kpt_scales_orig, kpt_scales_r, scale_ratios, real_scale, file_name_prefix, out_map, out_dir):
+def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir):
 
-    patches_aug, diff_aug = augment_patch(patch, diffs)
-    for a_i, patch_aug in enumerate(patches_aug):
-        data = (*diff_aug[a_i], patch_aug.shape[0], kpt_scales_orig, kpt_scales_r, scale_ratios, real_scale)
-        file_name = "{}_{}.png".format(file_name_prefix, a_i)
-        out_map[file_name] = data
+    patches_aug, diffs_aug, augmented_keys = augment_patch(patch, (dr.dy, dr.dx))
+    for index, patch_aug in enumerate(patches_aug):
+        dy, dx = diffs_aug[index]
+        if index > 0:
+            dr = copy.copy(dr)
+        else:
+            assert dr.dy == dy and dr.dx == dx
+        dr.dy, dr.dx = dy, dx
+        dr.augmented = augmented_keys[index]
+        file_name = "{}_{}.png".format(file_name_prefix, index)
+        out_map[file_name] = dr
         img_out_path = "{}/{}".format(out_dir, file_name)
         cv.imwrite(img_out_path, patch_aug.numpy())
 
@@ -332,7 +342,8 @@ def augment_and_write_patch(patch, diffs, kpt_scales_orig, kpt_scales_r, scale_r
 def process_patches_for_file_dynamic(file_path,
                                      config,
                                      out_map,
-                                     key=""):
+                                     key="",
+                                     max_items=None):
 
     out_dir = get_full_ds_dir(config)
     min_scale_th = config['min_scale_th']
@@ -353,8 +364,12 @@ def process_patches_for_file_dynamic(file_path,
     if len(kpts) == 0:
         return
 
+    counter = 0
     matched = set()
     for kpt_scale_index, kpt_scale in enumerate(kpt_scales):
+
+        if max_items and counter > max_items:
+            break
 
         kpts_orig = kpts
         kpt_scales_orig = kpt_scales
@@ -396,42 +411,51 @@ def process_patches_for_file_dynamic(file_path,
             key = key + "_"
         file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")] + "_" + str(kpt_scale_index)
         for i in range(len(patches)):
+            counter += 1
+            if max_items and counter > max_items:
+                break
             patch = patches_r[i]
+            dr = DataRecord(
+                dy=diffs[i][0].item(),
+                dx=diffs[i][1].item(),
+                patch_size=patch.shape[0],
+                kpt_orig_scale=kpt_scales_orig[i].item(),
+                kpt_resize_scale=kpt_scales_r[i].item(),
+                scale_ratio=scale_ratios[i].item(),
+                real_scale=real_scale,
+                img_scale_y=img_r.shape[0]/np_img_orig.shape[0],
+                img_scale_x=img_r.shape[0]/np_img_orig.shape[0],
+                original_img_size_y=np_img_orig.shape[0],
+                original_img_size_x=np_img_orig.shape[1],
+                resized_img_size_y=img_r.shape[0],
+                resized_img_size_x=img_r.shape[1],
+                augmented=None
+            )
             augment_and_write_patch(patch,
-                                    diffs[i],
-                                    kpt_scales_orig[i],
-                                    kpt_scales_r[i],
-                                    scale_ratios[i],
-                                    real_scale,
+                                    dr,
                                     "{}_{}".format(file_name_prefix, i),
                                     out_map,
                                     out_dir)
-
-            patches_aug, diff_aug = augment_patch(patch, diffs[i])
-            for a_i in range(len(patches_aug)):
-                data = (*diff_aug[a_i], patches_aug[a_i].shape[0], kpt_scales_orig[i], kpt_scales_r[i], scale_ratios[i], real_scale)
-                file_name = "{}_{}_{}.png".format(file_name_prefix, i, a_i)
-                out_map[file_name] = data
-                img_out_path = "{}/{}".format(out_dir, file_name)
-                cv.imwrite(img_out_path, patch.numpy())
 
 
 def process_patches_for_file(file_path,
                              config,
                              out_map,
-                             key=""):
+                             key="",
+                             max_items=None):
 
     dynamic_resizing = config['dynamic_resizing']
     if dynamic_resizing:
-        process_patches_for_file_dynamic(file_path, config, out_map, key)
+        process_patches_for_file_dynamic(file_path, config, out_map, key, max_items)
     else:
-        process_patches_for_file_simple(file_path, config, out_map, key)
+        process_patches_for_file_simple(file_path, config, out_map, key, max_items)
 
 
 def process_patches_for_file_simple(file_path,
                                     config,
                                     out_map,
-                                    key=""):
+                                    key="",
+                                    max_items=None):
 
     scale = config['down_scale']
     out_dir = get_full_ds_dir(config)
@@ -444,16 +468,16 @@ def process_patches_for_file_simple(file_path,
     # convert and show the image
     img, img_r, real_scale = get_img_tuple(file_path, scale, config)
 
-    kpts, scales = detect_kpts(img, min_scale_th, const_patch_size, config)
-    kpts_r, scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
+    kpts, kpt_scales = detect_kpts(img, min_scale_th, const_patch_size, config)
+    kpts_r, kpt_scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
-    kpts, scales, kpts_r, scales_r, diffs, scale_ratios = mnn(kpts, scales, kpts_r, scales_r, real_scale, config)
+    kpts, kpt_scales, kpts_r, kpt_scales_r, diffs, scale_ratios = mnn(kpts, kpt_scales, kpts_r, kpt_scales_r, real_scale, config)
 
-    patches = get_patches(img, kpts, scales, const_patch_size, config)
-    patches_r = get_patches(img_r, kpts_r, scales_r, const_patch_size, config)
+    patches = get_patches(img, kpts, kpt_scales, const_patch_size, config)
+    patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
 
     if compare:
         compare_patches(patches, patches_r, diffs)
@@ -462,37 +486,47 @@ def process_patches_for_file_simple(file_path,
         key = key + "_"
     file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
     for i in range(len(patches)):
+        if max_items and i > max_items:
+            break
         patch = patches_r[i]
+        dr = DataRecord(
+            dy=diffs[i][0].item(),
+            dx=diffs[i][1].item(),
+            patch_size=patch.shape[0],
+            kpt_orig_scale=kpt_scales[i].item(),
+            kpt_resize_scale=kpt_scales_r[i].item(),
+            scale_ratio=scale_ratios[i].item(),
+            real_scale=real_scale,
+            img_scale_y=img_r.shape[0] / img.shape[0],
+            img_scale_x=img_r.shape[0] / img.shape[0],
+            original_img_size_y=img.shape[0],
+            original_img_size_x=img.shape[1],
+            resized_img_size_y=img_r.shape[0],
+            resized_img_size_x=img_r.shape[1],
+            augmented=None
+        )
         augment_and_write_patch(patch,
-                                diffs[i],
-                                scales[i],
-                                scales_r[i],
-                                scale_ratios[i],
-                                real_scale,
+                                dr,
                                 "{}_{}".format(file_name_prefix, i),
-                                out_map, out_dir)
-        # data = (*diffs[i], patch.shape[0], scales[i], scales_r[i], scale_ratios[i], real_scale)
-        # file_name = "{}_{}.png".format(file_name_prefix, i)
-        # out_map[file_name] = data
-        # img_out_path = "{}/{}".format(out_dir, file_name)
-        # cv.imwrite(img_out_path, patch.numpy())
+                                out_map,
+                                out_dir)
 
 
 def get_ds_stats(entries):
     def adjust_min_max(min_max_stat, value):
-        if min_max_stat[0] > value:
+        if min_max_stat[0] is None or min_max_stat[0] > value:
             min_max_stat[0] = value
-        if min_max_stat[1] < value:
+        if min_max_stat[1] is None or min_max_stat[1] < value:
             min_max_stat[1] = value
         return min_max_stat
 
-    patch_size_min_max = [10000, -1]
-    scale_min_max = [10000, -1]
-    scale_ratio_min_max = [10000, -1]
-    for _, value in entries:
-        patch_size_min_max = adjust_min_max(patch_size_min_max, value[2])
-        scale_min_max = adjust_min_max(scale_min_max, value[3])
-        scale_ratio_min_max = adjust_min_max(scale_ratio_min_max, value[4])
+    patch_size_min_max = [None, None]
+    scale_min_max = [None, None]
+    scale_ratio_min_max = [None, None]
+    for _, data_record in entries:
+        patch_size_min_max = adjust_min_max(patch_size_min_max, data_record.patch_size)
+        scale_min_max = adjust_min_max(scale_min_max, data_record.kpt_orig_scale)
+        scale_ratio_min_max = adjust_min_max(scale_ratio_min_max, data_record.scale_ratio)
 
     return patch_size_min_max, scale_min_max, scale_ratio_min_max
 
@@ -525,7 +559,7 @@ def prepare_data(config, in_dirs, keys):
         os.makedirs(out_dir, exist_ok=True)
 
     out_map = {}
-    all = max_items
+    all = "?1?" if max_items is not None else None
 
     for i, in_dir in enumerate(in_dirs):
 
@@ -550,22 +584,21 @@ def prepare_data(config, in_dirs, keys):
             process_patches_for_file(file_path=path,
                                      config=config,
                                      out_map=out_map,
-                                     key=key)
+                                     key=key,
+                                     max_items=max_items)
 
     def print_min_max_stat(file, stat, name):
-        file.write("# detector minimin {}: {}\n".format(name, stat[0]))
-        file.write("# detector maximum {}: {}\n".format(name, stat[1]))
+        file.write("# detector {} (min, max): ({}, {})\n".format(name, stat[0], stat[1]))
 
     def print_m_am_stat(file, stat, name, leave_abs_mean=False):
         mean, abs_mean = mean_abs_mean(stat)
-        file.write("# detector mean {} error: {}\n".format(name, mean))
-        if not leave_abs_mean:
-            file.write("# detector absolute mean {} error: {}\n".format(name, abs_mean))
+        if leave_abs_mean:
+            file.write("# detector mean {} error: {}\n".format(name, mean))
+        else:
+            file.write("# detector mean and absolute mean {} error: {}, {}\n".format(name, mean, abs_mean))
 
-    # TODO config
     with open("{}/a_values.txt".format(out_dir), "w") as md_file:
         md_file.write("# entries: {}\n".format(len(out_map)))
-        md_file.write("# schema: file_name, dy, dx, patch_size, original kpt scale, resized kpt scale, scale ratio, resize scale\n")
 
         distances, errors, angles = get_error_stats(out_map.items())
         print_m_am_stat(md_file, distances, "distance", leave_abs_mean=True)
@@ -577,8 +610,9 @@ def prepare_data(config, in_dirs, keys):
         print_min_max_stat(md_file, scale_min_max, "original scale")
         print_min_max_stat(md_file, scale_ratio_min_max, "scale ratio")
 
+        md_file.write("# schema: {}\n".format(DataRecord.schema()))
         for (fn, value) in out_map.items():
-            to_write = "{}, {}, {}, {}, {}, {}, {}, {}\n".format(fn, *value)
+            to_write = "{}, {}\n".format(fn, value.line_str())
             md_file.write(to_write)
 
 

@@ -75,14 +75,14 @@ class PatchesModule(LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
 
-def train(path='config/config.yaml'):
+def train(path='config/config.yaml', wandb_project="kpt_location_training_private"):
 
     conf = get_config(path)
     train_conf = conf['train']
 
     model = PatchesModule(train_conf)
     if train_conf.get('enable_wandlog', False):
-        wandb.init(project="kpt_location")
+        wandb.init(project=wandb_project)
         # NOTE this doesn't show anywhere
         wandb.config = train_conf
         wandb.watch(model)

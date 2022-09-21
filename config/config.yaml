@@ -40,8 +40,8 @@ train:
     gpus: [0]
     batch_size: 32
     grouped_by_sizes: False
-    max_epochs: 10
+    max_epochs: 1
     learning_rate: 0.01
     enable_wandlog: False
     freeze_feature_extractor: False
-
+    dataset_splits: 2 # 2 = train, validate, (4 = + test, predict)

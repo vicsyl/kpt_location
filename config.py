@@ -8,7 +8,19 @@ import torch
 
 
 def get_config(path='config/config.yaml'):
-    return OmegaConf.load(path)
+    config = OmegaConf.load(path)
+    # TODO others
+    validate_wrt_detector(config)
+    return config
+
+
+def validate_wrt_detector(config):
+    detector_name = config['dataset']['detector'].lower()
+    if detector_name == 'superpoint':
+        msg = "invalid value for superpoint detector"
+        assert config['scale_ratio_th'] is None, msg
+        min_scale_th = config['min_scale_th']
+        assert min_scale_th == 0.0, msg # TODO None?
 
 
 def get_full_ds_dir(config):

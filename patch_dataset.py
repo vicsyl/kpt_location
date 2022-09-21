@@ -1,9 +1,12 @@
+import dataclasses
 import math
 
 import wandb
 from torch import randperm
 from torch import Generator
 from torch import default_generator
+
+from dataclasses import dataclass
 
 from typing import (
     Any,
@@ -23,6 +26,68 @@ from PIL import Image
 from torch.utils.data import random_split, DataLoader, Subset
 from torch.utils.data.dataset import Dataset
 from config import *
+
+
+# others: match_args=True, kw_only=False, slots=False
+@dataclass(init=True, repr=True, eq=True, order=True, unsafe_hash=False, frozen=False)
+class DataRecord:
+
+    dy: float
+    dx: float
+    patch_size: int
+    kpt_orig_scale: float
+    kpt_resize_scale: float
+    scale_ratio: float
+    real_scale: float
+    img_scale_y: float
+    img_scale_x: float
+    original_img_size_y: int
+    original_img_size_x: int
+    resized_img_size_y: int
+    resized_img_size_x: int
+    augmented: str  # original, rotated_$angles, reflected_$axis
+
+    def is_augmented(self):
+        return self.augmented != "original"
+
+    def line_str(self):
+        return ", ".join([str(i) for i in dataclasses.astuple(self)])
+
+    @staticmethod
+    def schema():
+        return ", ".join(DataRecord.__match_args__)
+
+    @staticmethod
+    def read_from_tokens(tokens):
+        tokens = [token.strip() for token in tokens]
+        return DataRecord(
+            dx=float(tokens[0]),
+            dy=float(tokens[1]),
+            patch_size=int(tokens[2]),
+            kpt_orig_scale=float(tokens[3]),
+            kpt_resize_scale=float(tokens[4]),
+            scale_ratio=float(tokens[5]),
+            real_scale=float(tokens[6]),
+            img_scale_y=float(tokens[7]),
+            img_scale_x=float(tokens[8]),
+            original_img_size_y=int(tokens[9]),
+            original_img_size_x=int(tokens[10]),
+            resized_img_size_y=int(tokens[11]),
+            resized_img_size_x=int(tokens[12]),
+            augmented=tokens[13])
+
+    @staticmethod
+    def read_metadata_list_from_file(file_path):
+        mt_d = {}
+        with open(file_path, "r") as f:
+            for line in f.readlines():
+                if line.__contains__("#"):
+                    continue
+                tokens = line.strip().split(",")
+                file = tokens[0].strip()
+                dr = DataRecord.read_from_tokens(tokens[1:])
+                mt_d[file] = dr
+        return list(mt_d.items())
 
 
 def batched_random_split(dataset: Dataset[T], lengths: Sequence[int], batch_size, generator: Optional[Generator] = default_generator) -> List[Subset[T]]:
@@ -48,25 +113,10 @@ class PatchDataset(Dataset):
     def __init__(self, root_dir, batch_size) -> None:
         super().__init__()
         self.root_dir = root_dir
-        metadata = {}
-        with open("{}/a_values.txt".format(root_dir), "r") as f:
-            for line in f.readlines():
-                if line.__contains__("#"):
-                    continue
-                tokens = line.strip().split(",")
-                file = tokens[0]
-                # file_name, dx, dy, patch_size, original kpt scale, resized kpt scale, scale ratio, resize scale
-                dx = float(tokens[1])
-                dy = float(tokens[2])
-                size = int(tokens[3])
-                orig_kpt_scale = float(tokens[4])
-                resized_kpt_scale = float(tokens[5])
-                scale_ratio = float(tokens[6])
-                resize_scale = float(tokens[7])
-                size = int(tokens[3])
-                metadata[file] = (dx, dy, size, orig_kpt_scale, resized_kpt_scale, scale_ratio, resize_scale)
-        self.metadata_list = list(metadata.items())
 
+        self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
+
+        # NOTE probbly broken
         if batch_size is not None:
             group_bys = {}
             for mt in self.metadata_list:
@@ -86,7 +136,10 @@ class PatchDataset(Dataset):
         path = "{}/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
-        return patch_t, torch.tensor(metadata[1][:2])
+        if patch_t.shape[0] == 1:
+            patch_t = patch_t.expand(3, -1, -1)
+        y = torch.tensor([metadata[1].dy, metadata[1].dx])
+        return patch_t, y
 
     def __len__(self) -> int:
         return len(self.metadata_list)
@@ -101,9 +154,10 @@ class PatchesDataModule(pl.LightningDataModule):
         # NOTE to be changed
         # == 2: leave test and predict out for now
         # == 4: with test and predict ds
-        self.splits = 2
 
         train_conf = conf['train']
+        self.splits = train_conf['dataset_splits']
+        assert self.splits in [2, 4]
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
         bs = self.batch_size if self.grouped_by_sizes else None
@@ -178,8 +232,10 @@ def get_error_stats(entry_list, adjustment=[0.0, 0.0]):
     distances = []
     errors = []
     angles = []
-    for _, value in entry_list:
-        dxy = np.array(value[:2])
+    for _, data_record in entry_list:
+        if data_record.is_augmented():
+            continue
+        dxy = np.array([data_record.dy, data_record.dx])
         dxy_adjusted = dxy + adjustment
         errors.append(dxy_adjusted)
         distances.append([math.sqrt(dxy_adjusted[0] ** 2 + dxy_adjusted[1] ** 2)])
@@ -234,7 +290,36 @@ def log_stats(ds_path, enable_wand):
         wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
 
 
+def t_data_record():
+
+    dr = DataRecord(
+        dy=1.0,
+        dx=2.0,
+        patch_size=33,
+        kpt_orig_scale=100.0,
+        kpt_resize_scale=10.0,
+        scale_ratio=1.1,
+        real_scale=0.3,
+        img_scale_y=0.3,
+        img_scale_x=0.354548454,
+        original_img_size_y=1080,
+        original_img_size_x=1960,
+        resized_img_size_y=108,
+        resized_img_size_x=196,
+        augmented="original"
+    )
+    tp1 = dr.__match_args__
+    tp1 = DataRecord.__match_args__
+    print("tuple 1: {}".format(tp1))
+    tp2 = dataclasses.astuple(dr)
+    print("tuple 2: {}".format(tp2))
+    print("img_scale_x {}".format(dr.img_scale_x))
+    print("ls: '{}'".format(dr.line_str()))
+    print("schema: {}".format(DataRecord.schema()))
+
+
 if __name__ == "__main__":
     #iterate_dataset()
-    log_stats("dataset/const_size_33", enable_wand=True)
+    log_stats("dataset/const_size_33", enable_wand=False)
+    #t_data_record()
     print("patch dataset")
