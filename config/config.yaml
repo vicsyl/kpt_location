@@ -3,13 +3,13 @@
 # dataset:
 dataset:
 
-    detector: sift # SIFT, SUPERPOINT, case-insensitive
+    detector: SUPERPOINT # SIFT, SUPERPOINT, case-insensitive
     # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
-    scale_ratio_th: 1.1
-    #scale_ratio_th: null # for superpoint
-    min_scale_th: 15.0
+    #scale_ratio_th: 1.1
+    scale_ratio_th: null # for superpoint
+    #min_scale_th: 15.0
     #min_scale_th: 30.0
-    #min_scale_th: 0.0 # for superpoint
+    min_scale_th: 0.0 # for superpoint
 
     err_th: 2.0
 
@@ -22,7 +22,7 @@ dataset:
     out_dir: "./dataset/const_size_"
     const_patch_size: 33
 
-    max_items: 20
+    max_items: null
     #ends_with: '.jpg'
     ends_with: '.tonemap.jpg'
     clean_out_dir: True

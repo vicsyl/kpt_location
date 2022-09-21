@@ -15,7 +15,8 @@ def get_config(path='config/config.yaml'):
 
 
 def validate_wrt_detector(config):
-    detector_name = config['dataset']['detector'].lower()
+    config = config['dataset']
+    detector_name = config['detector'].lower()
     if detector_name == 'superpoint':
         msg = "invalid value for superpoint detector"
         assert config['scale_ratio_th'] is None, msg

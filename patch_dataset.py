@@ -254,7 +254,7 @@ def mean_abs_mean(stat):
     return mean, abs_mean
 
 
-def log_stats(ds_path, enable_wand):
+def log_stats(ds_path, wand_project):
 
     def print_stat(stat, name):
         mean, abs_mean = mean_abs_mean(stat)
@@ -274,8 +274,27 @@ def log_stats(ds_path, enable_wand):
     print_stat(errors_adjusted, "adjusted error")
     print_stat(angles_adjusted, "adjusted angle")
 
-    if enable_wand:
-        wandb.init(project="kpt_location_error_analysis")
+    group = True
+    if group:
+
+        def analyse_unique(stat, name):
+            groups = np.unique(stat, return_counts=True, axis=0)
+            indices = np.flip(np.argsort(groups[1]))
+            values = groups[0][indices]
+            counts = groups[1][indices]
+            print("{} values:".format(name))
+            for value in values:
+                print(value)
+            print("{} counts:".format(name))
+            for count in counts:
+                print(count)
+
+        analyse_unique(errors, "errors")
+        analyse_unique(angles, "angles")
+
+    if wand_project:
+
+        wandb.init(project=wand_project)
 
         t_d = wandb.Table(data=distances, columns=["distance"])
         wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="scale error")})
@@ -320,6 +339,6 @@ def t_data_record():
 
 if __name__ == "__main__":
     #iterate_dataset()
-    log_stats("dataset/const_size_33", enable_wand=False)
+    #wand_project = "kpt_location_error_analysis_private"
+    log_stats("dataset/const_size_33", wand_project=None)
     #t_data_record()
-    print("patch dataset")
