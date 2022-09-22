@@ -97,8 +97,8 @@ def scale_pil(img, scale, config, show=False):
             else:
                 raise Exception("scale {} cannot be effectively realized for w, h = {}, {} in integer domain".format(scale, w, h))
 
-    w_sc = int(w * real_scale)
-    h_sc = int(h * real_scale)
+    w_sc = round(w * real_scale)
+    h_sc = round(h * real_scale)
     img_r = img.resize((h_sc, w_sc), resample=PIL.Image.LANCZOS)
     #log_me("scaled to: {}".format(img_r.size))
     if show:
@@ -598,6 +598,7 @@ def prepare_data(config, in_dirs, keys):
 
         distances, errors, angles = get_error_stats(out_map.items())
         print_m_am_stat(md_file, distances, "distance", leave_abs_mean=True)
+        print_m_am_stat(md_file, distances ** 2, "distance squared", leave_abs_mean=True)
         print_m_am_stat(md_file, errors, "")
         print_m_am_stat(md_file, angles, "angle")
 
