@@ -1,11 +1,6 @@
 from omegaconf import OmegaConf
 import cv2 as cv
 
-import sys
-sys.path.append("./superpoint_forked")
-from superpoint import SuperPointDescriptor
-import torch
-
 
 def get_config(path='config/config.yaml'):
     config = OmegaConf.load(path)
@@ -47,18 +42,7 @@ def get_detector_by_name(name):
     if name == 'sift':
         return cv.SIFT_create()
     elif name == 'superpoint':
+        from superpoint_local import SuperPointDetector
         return SuperPointDetector()
     else:
         raise "unrecognized detector: {}".format(name)
-
-
-class SuperPointDetector:
-
-    def __init__(self, path=None, device: torch.device = torch.device('cpu')):
-        if not path:
-            path = "./superpoint_forked/superpoint_v1.pth"
-        self.super_point = SuperPointDescriptor(path, device)
-
-    def detect(self, img_np, mask=None):
-        pts, _ = self.super_point.detectAndComputeGrey(img_np, mask)
-        return pts
