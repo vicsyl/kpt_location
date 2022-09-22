@@ -610,6 +610,11 @@ def prepare_data(config, in_dirs, keys):
         print_min_max_stat(md_file, scale_min_max, "original scale")
         print_min_max_stat(md_file, scale_ratio_min_max, "scale ratio")
 
+        md_file.write("### CONFIG ###\n")
+        for k, v in list(config.items()):
+            md_file.write("\t\t\t{}: {}\n".format(k, v))
+        md_file.write("### CONFIG ###\n")
+
         md_file.write("# schema: {}\n".format(DataRecord.schema()))
         for (fn, value) in out_map.items():
             to_write = "{}, {}\n".format(fn, value.line_str())
