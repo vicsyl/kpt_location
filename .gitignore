@@ -4,6 +4,7 @@ __pycache__/
 snippets
 superpoint_forked
 dataset
+scenes
 lightning_logs
 wandb
 notes.md
