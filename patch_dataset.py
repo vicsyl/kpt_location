@@ -55,7 +55,10 @@ class DataRecord:
 
     @staticmethod
     def schema():
-        return ", ".join(DataRecord.__match_args__)
+        # NOTE - __match_args__ cannot use it on Colab as it's only since python 3.10 (3.6 on Colab)
+        return "dy, dx, patch_size, kpt_orig_scale, kpt_resize_scale, scale_ratio, real_scale, \
+img_scale_y, img_scale_x, original_img_size_y, original_img_size_x, \
+resized_img_size_y, resized_img_size_x, augmented"
 
     @staticmethod
     def read_from_tokens(tokens):
@@ -327,11 +330,12 @@ def t_data_record():
         resized_img_size_x=196,
         augmented="original"
     )
-    tp1 = dr.__match_args__
-    tp1 = DataRecord.__match_args__
-    print("tuple 1: {}".format(tp1))
-    tp2 = dataclasses.astuple(dr)
-    print("tuple 2: {}".format(tp2))
+    tp1 = dr.schema()
+    print("schema 1: {}".format(tp1))
+    tp2 = DataRecord.schema()
+    print("schema 2: {}".format(tp2))
+    tp3 = dataclasses.astuple(dr)
+    print("astuple: {}".format(tp3))
     print("img_scale_x {}".format(dr.img_scale_x))
     print("ls: '{}'".format(dr.line_str()))
     print("schema: {}".format(DataRecord.schema()))
@@ -340,5 +344,5 @@ def t_data_record():
 if __name__ == "__main__":
     #iterate_dataset()
     #wand_project = "kpt_location_error_analysis_private"
-    log_stats("dataset/const_size_33", wand_project=None)
-    #t_data_record()
+    #log_stats("dataset/const_size_33", wand_project=None)
+    t_data_record()
