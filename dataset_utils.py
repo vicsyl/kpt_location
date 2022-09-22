@@ -45,25 +45,30 @@ def list_scenes(base_dir):
 
 def clean_scene(scene_path):
 
+    def remove_all(path):
+        print("removing {}".format(path))
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+
     pattern = re.compile("^scene_cam.*final_preview$")
     print("Cleaning scene in {}".format(scene_path))
 
     for cur_dir_name in list(os.listdir(scene_path)):
         if cur_dir_name != "images":
             full_path = "{}/{}".format(scene_path, cur_dir_name)
-            print("removing {}".format(full_path))
-            shutil.rmtree(full_path)
+            remove_all(full_path)
 
     path = "{}/images".format(scene_path)
     for cur_dir_name in list(os.listdir(path)):
         if pattern.match(cur_dir_name) is None:
             full_path = "{}/{}".format(path, cur_dir_name)
-            print("removing {}".format(full_path))
-            shutil.rmtree(full_path)
+            remove_all(full_path)
 
 
 if __name__ == "__main__":
-    #clean_scene("scenes/ai_001_001_foo")
+    clean_scene("scenes/ai_001_001_foo")
     # for s in list_scenes("scenes"):
     #     print(s)
-    dirs, keys = get_dirs_and_keys(1000, "./scenes")
+    # dirs, keys = get_dirs_and_keys(1000, "./scenes")

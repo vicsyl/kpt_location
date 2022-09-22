@@ -15,13 +15,15 @@ def get_config(path='config/config.yaml'):
 
 
 def validate_wrt_detector(config):
-    config = config['dataset']
-    detector_name = config['detector'].lower()
+    dataset_config = config['dataset']
+    detector_name = dataset_config['detector'].lower()
     if detector_name == 'superpoint':
         msg = "invalid value for superpoint detector"
-        assert config['scale_ratio_th'] is None, msg
-        min_scale_th = config['min_scale_th']
-        assert min_scale_th == 0.0, msg # TODO None?
+        assert dataset_config['scale_ratio_th'] is None, msg
+        min_scale_th = dataset_config['min_scale_th']
+        assert min_scale_th == 0.0, msg # TODO allow None
+        # NOTE: scale_ratio_th is None
+        assert not dataset_config['dynamic_resizing'], msg
 
 
 def get_full_ds_dir(config):

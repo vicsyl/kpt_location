@@ -101,11 +101,11 @@ def scale_pil(img, scale, config, show=False):
     w_sc = int(w * real_scale)
     h_sc = int(h * real_scale)
     img_r = img.resize((h_sc, w_sc), resample=PIL.Image.LANCZOS)
-    log_me("scaled to: {}".format(img_r.size))
+    #log_me("scaled to: {}".format(img_r.size))
     if show:
         show_pil(img_r)
 
-    print("real scale: {}".format(real_scale))
+    #print("real scale: {}".format(real_scale))
     return img_r, real_scale
 
 
@@ -278,7 +278,7 @@ def get_pil_img(path, show=False):
     img = Image.open(path)
     if show:
         show_pil(img)
-    log_me("original size: {}".format(img.size))
+    #log_me("original size: {}".format(img.size))
     return img
 
 
@@ -351,8 +351,6 @@ def process_patches_for_file_dynamic(file_path,
     compare = config['compare_patches']
     scale_ratio_th = config['scale_ratio_th']
 
-    print("Processing: {}".format(file_path))
-
     # convert and show the image
     pil_img_orig = get_pil_img(file_path)
     np_img_orig = np.array(pil_img_orig)
@@ -375,7 +373,7 @@ def process_patches_for_file_dynamic(file_path,
         kpt_scales_orig = kpt_scales
 
         cur_kpt = kpts_orig[kpt_scale_index]
-        print("scale for kpt: {}".format(cur_kpt))
+        #print("scale for kpt: {}".format(cur_kpt))
 
         # FIXME test *2?
         scale = (const_patch_size / scale_ratio_th) / kpt_scale.item()
@@ -399,7 +397,7 @@ def process_patches_for_file_dynamic(file_path,
         for i, kpt in enumerate(kpts_orig):
             if not matched.__contains__(kpt):
                 matched.add(kpt)
-                print("matched kpt: {}".format(kpt))
+                #print("matched kpt: {}".format(kpt))
                 mask[i] = True
         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
         patches = get_patches(np_img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
@@ -462,8 +460,6 @@ def process_patches_for_file_simple(file_path,
     min_scale_th = config['min_scale_th']
     const_patch_size = config.get('const_patch_size')
     compare = config['compare_patches']
-
-    print("Processing: {}".format(file_path))
 
     # convert and show the image
     img, img_r, real_scale = get_img_tuple(file_path, scale, config)
@@ -568,7 +564,7 @@ def prepare_data(config, in_dirs, keys):
         if not max_items:
             all = len([fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)])
 
-        print("Processing {}".format(in_dir))
+        print("Processing dir {}: {}/{}".format(in_dir, i, len(in_dirs)))
         key = keys[i]
 
         for file_name in os.listdir(in_dir):
@@ -580,7 +576,7 @@ def prepare_data(config, in_dirs, keys):
                 break
 
             path = "{}/{}".format(in_dir, file_name)
-            print("{}/{}".format(counter, all))
+            print("Processing file {}: {}/{}".format(path, counter, all))
             process_patches_for_file(file_path=path,
                                      config=config,
                                      out_map=out_map,
