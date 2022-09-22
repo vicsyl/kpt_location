@@ -23,8 +23,8 @@ def get_dirs_and_keys(dirs_to_process, base_dir):
                 key = full_path[len(base_dir) + 1:].replace("/", "_")
                 in_dirs.append(full_path)
                 keys.append(key)
-                print(full_path)
-                print(key)
+                # print(full_path)
+                # print(key)
 
     print("in_dirs: {}".format(in_dirs))
     print("keys: {}".format(keys))
@@ -32,7 +32,6 @@ def get_dirs_and_keys(dirs_to_process, base_dir):
 
 
 def list_scenes(base_dir):
-    print("Listing scenes in {}".format(base_dir))
     pattern = re.compile("^ai_0.._0..$")
     paths = []
     for cur_dir_name in list(os.listdir(base_dir)):
@@ -68,7 +67,7 @@ def clean_scene(scene_path):
 
 
 if __name__ == "__main__":
-    clean_scene("scenes/ai_001_001_foo")
+    # clean_scene("scenes/ai_001_001_foo")
     # for s in list_scenes("scenes"):
     #     print(s)
-    # dirs, keys = get_dirs_and_keys(1000, "./scenes")
+    dirs, keys = get_dirs_and_keys(1000, "./scenes")
