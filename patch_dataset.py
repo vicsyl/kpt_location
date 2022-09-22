@@ -136,7 +136,7 @@ class PatchDataset(Dataset):
 
     def __getitem__(self, index) -> Any:
         metadata = self.metadata_list[index]
-        path = "{}/{}".format(self.root_dir, metadata[0])
+        path = "{}/data/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
         if patch_t.shape[0] == 1:
@@ -277,7 +277,7 @@ def log_stats(ds_path, wand_project):
     print_stat(errors_adjusted, "adjusted error")
     print_stat(angles_adjusted, "adjusted angle")
 
-    group = True
+    group = False
     if group:
 
         def analyse_unique(stat, name):
@@ -300,10 +300,10 @@ def log_stats(ds_path, wand_project):
         wandb.init(project=wand_project)
 
         t_d = wandb.Table(data=distances, columns=["distance"])
-        wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="scale error")})
+        wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="distance of error")})
 
         t_d = wandb.Table(data=distances_adjusted, columns=["distance"])
-        wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="scale error adjusted")})
+        wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="distance of error adjusted")})
 
         t_d = wandb.Table(data=angles, columns=["angle"])
         wandb.log({'angles': wandb.plot.histogram(t_d, "angle", title="angle error")})
@@ -344,5 +344,5 @@ def t_data_record():
 if __name__ == "__main__":
     #iterate_dataset()
     #wand_project = "kpt_location_error_analysis_private"
-    #log_stats("dataset/const_size_33", wand_project=None)
-    t_data_record()
+    log_stats("dataset/const_size_adj_33", wand_project=None)
+    #t_data_record()

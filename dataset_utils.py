@@ -23,8 +23,6 @@ def get_dirs_and_keys(dirs_to_process, base_dir):
                 key = full_path[len(base_dir) + 1:].replace("/", "_")
                 in_dirs.append(full_path)
                 keys.append(key)
-                # print(full_path)
-                # print(key)
 
     print("in_dirs: {}".format(in_dirs))
     print("keys: {}".format(keys))

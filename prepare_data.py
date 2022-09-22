@@ -29,7 +29,6 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
         kpts_r = kpts_r + adjustment
 
     kpts_reprojected = kpts_r / scale
-    #kpts_reprojected_adj = kpts_reprojected - kpts_reprojected_or
 
     d_mat = torch.cdist(kpts, kpts_reprojected)
 
@@ -335,7 +334,7 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir):
         dr.augmented = augmented_keys[index]
         file_name = "{}_{}.png".format(file_name_prefix, index)
         out_map[file_name] = dr
-        img_out_path = "{}/{}".format(out_dir, file_name)
+        img_out_path = "{}/data/{}".format(out_dir, file_name)
         cv.imwrite(img_out_path, patch_aug.numpy())
 
 
@@ -551,8 +550,9 @@ def prepare_data(config, in_dirs, keys):
             except:
                 print("couldn't remove {}".format(path))
 
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir, exist_ok=True)
+    data_dir_path = "{}/data".format(out_dir)
+    if not os.path.exists(data_dir_path):
+        os.makedirs(data_dir_path, exist_ok=True)
 
     out_map = {}
     all = "?1?" if max_items is not None else None
@@ -608,7 +608,7 @@ def prepare_data(config, in_dirs, keys):
 
         md_file.write("### CONFIG ###\n")
         for k, v in list(config.items()):
-            md_file.write("\t\t\t{}: {}\n".format(k, v))
+            md_file.write("#\t\t\t{}: {}\n".format(k, v))
         md_file.write("### CONFIG ###\n")
 
         md_file.write("# schema: {}\n".format(DataRecord.schema()))
