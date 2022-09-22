@@ -3,15 +3,15 @@
 # dataset:
 dataset:
 
-    detector: SUPERPOINT # SIFT, SUPERPOINT, case-insensitive
+    detector: SIFT # SIFT, SUPERPOINT, case-insensitive
     # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
-    #scale_ratio_th: 1.1
-    scale_ratio_th: null # for superpoint
-    #min_scale_th: 15.0
+    scale_ratio_th: 1.1
+    #scale_ratio_th: null # for superpoint
+    min_scale_th: 15.0
     #min_scale_th: 30.0
-    min_scale_th: 0.0 # for superpoint
+    #min_scale_th: 0.0 # for superpoint
 
-    err_th: 2.0
+    err_th: 0.6
 
     down_scale: 0.3
     in_dirs: ["./dataset/raw_data"]
@@ -19,19 +19,25 @@ dataset:
 
     #out_dir: "./dataset/var_sizes"
     #const_patch_size: null
-    out_dir: "./dataset/const_size_"
+    out_dir: "./dataset/const_size_adj_"
     const_patch_size: 33
 
     max_items: null
     #ends_with: '.jpg'
     ends_with: '.tonemap.jpg'
-    clean_out_dir: True
+    clean_out_dir: False
     to_grey_scale: True
-    half_pixel_adjusted: False
 
+    # integer_scale: False
+        # half_pixel_adjusted: False # detector mean and absolute mean  error: [-0.28356487 -0.21455591], [0.30774027 0.25704312]
+        # half_pixel_adjusted: True # detector mean and absolute mean  error: [-0.18705359 -0.11418428], [0.22638076 0.1877843 ]
+    # integer_scale: True
+        # half_pixel_adjusted: True # detector mean and absolute mean  error: [-0.03177921 -0.0211645 ], [0.13180855 0.14932021]
+        # half_pixel_adjusted: False # detector mean and absolute mean  error: [-0.16186243 -0.14097777], [0.20132749 0.19954897]
+    half_pixel_adjusted: False
     show_kpt_patches: False
     compare_patches: False
-    integer_scale: False # try to scale so that the new size is exactly an integer
+    integer_scale: True # try to scale so that the new size is exactly an integer
     dynamic_resizing: False # not for superpoint
 
 train:

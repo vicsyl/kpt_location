@@ -20,6 +20,7 @@ def log_me(s):
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     err_th = config['err_th']
+    err_th = err_th / scale
     scale_ratio_th = config['scale_ratio_th']
     half_pixel_adjusted = config['half_pixel_adjusted']
     #kpts_reprojected_or = kpts_r / scale
@@ -37,6 +38,7 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     mask = min1[1][min0[1]] == torch.arange(0, min0[1].shape[0])
     mask_th = mask & (min0[0] < err_th)
+    #print("mask_th: {}/{}".format(mask_th.sum(), mask_th.shape[0]))
 
     verify = True
     if verify:
@@ -69,6 +71,7 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
         kpts_scales = kpts_scales[mask_ratio_th]
         kpts_r_scales = kpts_r_scales[mask_ratio_th]
         scale_ratios = scale_ratios[mask_ratio_th]
+        #print("mask_ratio_th: {}/{}".format(mask_ratio_th.sum(), mask_ratio_th.shape[0]))
 
     return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs, scale_ratios
 
@@ -616,6 +619,17 @@ def prepare_data(config, in_dirs, keys):
         for (fn, value) in out_map.items():
             to_write = "{}, {}\n".format(fn, value.line_str())
             md_file.write(to_write)
+
+
+def data_by_scale():
+
+
+    config = get_config()['dataset']
+    in_dirs = config['in_dirs']
+    keys = config['keys']
+
+    prepare_data(config, in_dirs, keys)
+
 
 
 if __name__ == "__main__":
