@@ -40,7 +40,7 @@ def list_scenes(base_dir):
     return paths
 
 
-def clean_scene(scene_path):
+def clean_scene(scene_path, ends_with=None):
 
     def remove_all(path):
         print("removing {}".format(path))
@@ -59,13 +59,20 @@ def clean_scene(scene_path):
 
     path = "{}/images".format(scene_path)
     for cur_dir_name in list(os.listdir(path)):
+        full_path = "{}/{}".format(path, cur_dir_name)
         if pattern.match(cur_dir_name) is None:
             full_path = "{}/{}".format(path, cur_dir_name)
             remove_all(full_path)
+        else:
+            if ends_with:
+                for cur_image_name in list(os.listdir(full_path)):
+                    if not cur_image_name.endswith(ends_with):
+                        remove_all("{}/{}".format(full_path, cur_image_name))
 
 
 if __name__ == "__main__":
     # clean_scene("scenes/ai_001_001_foo")
     # for s in list_scenes("scenes"):
     #     print(s)
-    dirs, keys = get_dirs_and_keys(1000, "./scenes")
+    # dirs, keys = get_dirs_and_keys(1000, "./scenes")
+    clean_scene("scenes/ai_001_001", '.tonemap.jpg')
