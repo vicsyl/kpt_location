@@ -2,7 +2,7 @@ import copy
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2 as cv
+import wandb
 from PIL import Image
 import PIL
 import torch
@@ -12,9 +12,9 @@ from config import *
 from patch_dataset import get_error_stats, mean_abs_mean, DataRecord
 
 
-# FIXME: use proper logging
-def log_me(s):
-    print(s)
+def wand_log_me(msg, conf):
+    if conf['enable_wandlog']:
+        wandb.log(msg)
 
 
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
@@ -38,7 +38,6 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     mask = min1[1][min0[1]] == torch.arange(0, min0[1].shape[0])
     mask_th = mask & (min0[0] < err_th)
-    #print("mask_th: {}/{}".format(mask_th.sum(), mask_th.shape[0]))
 
     verify = True
     if verify:
@@ -71,7 +70,6 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
         kpts_scales = kpts_scales[mask_ratio_th]
         kpts_r_scales = kpts_r_scales[mask_ratio_th]
         scale_ratios = scale_ratios[mask_ratio_th]
-        #print("mask_ratio_th: {}/{}".format(mask_ratio_th.sum(), mask_ratio_th.shape[0]))
 
     return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs, scale_ratios
 
@@ -92,10 +90,10 @@ def scale_pil(img, scale, config, show=False):
         real_scale_gcd = round(gcd * scale)
         real_scale = real_scale_gcd / gcd
 
-        fall_back = True
+        fall_back = False
         if real_scale == 0.0 or math.fabs(real_scale - scale) > 0.1:
             if fall_back:
-                log_me("WARNING: scale={} => {}".format(real_scale, scale))
+                wand_log_me("WARNING: scale={} => {}".format(real_scale, scale), config)
                 real_scale = scale
             else:
                 raise Exception("scale {} cannot be effectively realized for w, h = {}, {} in integer domain".format(scale, w, h))
@@ -103,11 +101,9 @@ def scale_pil(img, scale, config, show=False):
     w_sc = round(w * real_scale)
     h_sc = round(h * real_scale)
     img_r = img.resize((h_sc, w_sc), resample=PIL.Image.LANCZOS)
-    #log_me("scaled to: {}".format(img_r.size))
     if show:
         show_pil(img_r)
 
-    #print("real scale: {}".format(real_scale))
     return img_r, real_scale
 
 
@@ -284,18 +280,44 @@ def get_pil_img(path, show=False):
     return img
 
 
-def get_img_tuple(path, scale, config, show=False):
+def possibly_refl_image(config, img):
+    refl = config.get('reflection', None)
+    if refl:
+        refl = refl.upper()
+    if refl == "XY":
+        img = img.T
+    elif refl == "Y":
+        img = np.flip(img, 0).copy()
+    elif refl == "X":
+        img = np.flip(img, 1).copy()
+    elif not refl:
+        pass
+    else:
+        raise Exception("unknown value for reflection: {}".format(refl))
+    return img
 
-    img = get_pil_img(path, show)
 
-    img_r, real_scale = scale_pil(img, scale=scale, config=config, show=show)
-    img = np.array(img)
-    img_r = np.array(img_r)
-
+def possibly_to_grey_scale(config, img):
     to_grey_scale = config['to_grey_scale']
     if to_grey_scale:
         img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        img_r = cv.cvtColor(img_r, cv.COLOR_BGR2GRAY)
+    return img
+
+
+def pil_img_transforms(img, config):
+        img = np.array(img)
+        img = possibly_to_grey_scale(config, img)
+        img = possibly_refl_image(config, img)
+        return img
+
+
+def get_img_tuple(path, scale, config, show=False):
+
+    img = get_pil_img(path, show)
+    img_r, real_scale = scale_pil(img, scale=scale, config=config, show=show)
+    img = pil_img_transforms(img, config)
+    img_r = pil_img_transforms(img_r, config)
+
     return img, img_r, real_scale
 
 
@@ -324,7 +346,7 @@ def augment_patch(patch, diffs):
     return patches, diff_l, augment_keys
 
 
-def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir):
+def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, write_data=True):
 
     patches_aug, diffs_aug, augmented_keys = augment_patch(patch, (dr.dy, dr.dx))
     for index, patch_aug in enumerate(patches_aug):
@@ -338,7 +360,8 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir):
         file_name = "{}_{}.png".format(file_name_prefix, index)
         out_map[file_name] = dr
         img_out_path = "{}/data/{}".format(out_dir, file_name)
-        cv.imwrite(img_out_path, patch_aug.numpy())
+        if write_data:
+            cv.imwrite(img_out_path, patch_aug.numpy())
 
 
 def process_patches_for_file_dynamic(file_path,
@@ -354,11 +377,8 @@ def process_patches_for_file_dynamic(file_path,
     scale_ratio_th = config['scale_ratio_th']
 
     # convert and show the image
-    pil_img_orig = get_pil_img(file_path)
-    np_img_orig = np.array(pil_img_orig)
-    to_grey_scale = config['to_grey_scale']
-    if to_grey_scale:
-        np_img_orig = cv.cvtColor(np_img_orig, cv.COLOR_BGR2GRAY)
+    img_orig_pil = get_pil_img(file_path)
+    img_orig = pil_img_transforms(img_orig_pil)
 
     kpts, kpt_scales = detect_kpts(np_img_orig, min_scale_th, const_patch_size=None, config=config)
     if len(kpts) == 0:
@@ -374,17 +394,11 @@ def process_patches_for_file_dynamic(file_path,
         kpts_orig = kpts
         kpt_scales_orig = kpt_scales
 
-        cur_kpt = kpts_orig[kpt_scale_index]
-        #print("scale for kpt: {}".format(cur_kpt))
-
         # FIXME test *2?
         scale = (const_patch_size / scale_ratio_th) / kpt_scale.item()
 
-        img_r, real_scale = scale_pil(pil_img_orig, scale, config=config)
-        # FIXME dry
-        img_r = np.array(img_r)
-        if to_grey_scale:
-            img_r = cv.cvtColor(img_r, cv.COLOR_BGR2GRAY)
+        img_r, real_scale = scale_pil(img_orig_pil, scale, config=config)
+        img_r = pil_img_transforms(img_r, config)
 
         kpts_r, kpt_scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
         if len(kpts_r) == 0:
@@ -399,7 +413,6 @@ def process_patches_for_file_dynamic(file_path,
         for i, kpt in enumerate(kpts_orig):
             if not matched.__contains__(kpt):
                 matched.add(kpt)
-                #print("matched kpt: {}".format(kpt))
                 mask[i] = True
         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
         patches = get_patches(np_img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
@@ -431,11 +444,13 @@ def process_patches_for_file_dynamic(file_path,
                 resized_img_size_x=img_r.shape[1],
                 augmented=None
             )
+            write_data = config['write_data']
             augment_and_write_patch(patch,
                                     dr,
                                     "{}_{}".format(file_name_prefix, i),
                                     out_map,
-                                    out_dir)
+                                    out_dir,
+                                    write_data)
 
 
 def process_patches_for_file(file_path,
@@ -503,11 +518,13 @@ def process_patches_for_file_simple(file_path,
             resized_img_size_x=img_r.shape[1],
             augmented=None
         )
+        write_data = config['write_data']
         augment_and_write_patch(patch,
                                 dr,
                                 "{}_{}".format(file_name_prefix, i),
                                 out_map,
-                                out_dir)
+                                out_dir,
+                                write_data)
 
 
 def get_ds_stats(entries):
@@ -553,9 +570,11 @@ def prepare_data(config, in_dirs, keys):
             except:
                 print("couldn't remove {}".format(path))
 
-    data_dir_path = "{}/data".format(out_dir)
-    if not os.path.exists(data_dir_path):
-        os.makedirs(data_dir_path, exist_ok=True)
+    write_data = config['write_data']
+    if write_data:
+        data_dir_path = "{}/data".format(out_dir)
+        if not os.path.exists(data_dir_path):
+            os.makedirs(data_dir_path, exist_ok=True)
 
     out_map = {}
     all = "?1?" if max_items is not None else None
@@ -586,56 +605,131 @@ def prepare_data(config, in_dirs, keys):
                                      key=key,
                                      max_items=max_items)
 
+    if write_data:
+        with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
+            write_metada(md_file, out_map, config)
+
+        with open("{}/a_values.txt".format(out_dir), "w") as md_file:
+            write_metada(md_file, out_map, config)
+
+            md_file.write("# schema: {}\n".format(DataRecord.schema()))
+            for (fn, value) in out_map.items():
+                to_write = "{}, {}\n".format(fn, value.line_str())
+                md_file.write(to_write)
+
+    return list(out_map.items())
+
+
+def write_metada(file, out_map, config):
+
+    detector_name = config['detector'].upper()
+
     def print_min_max_stat(file, stat, name):
-        file.write("# detector {} (min, max): ({}, {})\n".format(name, stat[0], stat[1]))
+        file.write("# {} {} (min, max): ({}, {})\n".format(detector_name, name, stat[0], stat[1]))
 
-    def print_m_am_stat(file, stat, name, leave_abs_mean=False):
+    def print_m_am_stat(file, stat, name, leave_abs_mean=False, leave_std_dev=False):
         mean, abs_mean = mean_abs_mean(stat)
-        if leave_abs_mean:
-            file.write("# detector mean {} error: {}\n".format(name, mean))
+        std_dev = np.sqrt(stat.var(axis=0))
+
+        file.write("# {} mean {} error: {}\n".format(detector_name, name, mean))
+        if not leave_abs_mean:
+            file.write("# {} absolute mean {} error: {}\n".format(detector_name, name, abs_mean))
+        if not leave_std_dev:
+            file.write("# {} std dev of {} error: {}\n".format(detector_name, name, std_dev))
+
+    file.write("# entries: {}\n".format(len(out_map)))
+
+    distances, errors, angles = get_error_stats(out_map.items())
+    print_m_am_stat(file, distances, "distance", leave_abs_mean=True)
+    print_m_am_stat(file, distances ** 2, "distance squared", leave_abs_mean=True)
+    print_m_am_stat(file, errors, "")
+    print_m_am_stat(file, angles, "angle")
+
+    patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(out_map.items())
+    print_min_max_stat(file, patch_size_min_max, "patch size")
+    print_min_max_stat(file, scale_min_max, "original scale")
+    print_min_max_stat(file, scale_ratio_min_max, "scale ratio")
+
+    file.write("### CONFIG ###\n")
+    for k, v in list(config.items()):
+        file.write("#\t\t\t{}: {}\n".format(k, v))
+    file.write("### CONFIG ###\n")
+
+
+def get_wand_name(config, entry_list):
+
+    wandb_tags_keys = config['wandb_tags_keys']
+    name = ""
+    for wandb_tags_key in wandb_tags_keys:
+        if wandb_tags_key == "magic_items":
+            name = name + ":items=" + str(len(entry_list))
+        elif wandb_tags_key.startswith("no_key"):
+            wandb_tags_key = wandb_tags_key[7:]
+            value = config.get(wandb_tags_key, None)
+            if value:
+                name = name + ":" + str(value)
         else:
-            file.write("# detector mean and absolute mean {} error: {}, {}\n".format(name, mean, abs_mean))
+            value = config.get(wandb_tags_key, None)
+            if value:
+                name = name + ":{}={}".format(wandb_tags_key, str(value))
 
-    with open("{}/a_values.txt".format(out_dir), "w") as md_file:
-        md_file.write("# entries: {}\n".format(len(out_map)))
-
-        distances, errors, angles = get_error_stats(out_map.items())
-        print_m_am_stat(md_file, distances, "distance", leave_abs_mean=True)
-        print_m_am_stat(md_file, distances ** 2, "distance squared", leave_abs_mean=True)
-        print_m_am_stat(md_file, errors, "")
-        print_m_am_stat(md_file, angles, "angle")
-
-        patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(out_map.items())
-        print_min_max_stat(md_file, patch_size_min_max, "patch size")
-        print_min_max_stat(md_file, scale_min_max, "original scale")
-        print_min_max_stat(md_file, scale_ratio_min_max, "scale ratio")
-
-        md_file.write("### CONFIG ###\n")
-        for k, v in list(config.items()):
-            md_file.write("#\t\t\t{}: {}\n".format(k, v))
-        md_file.write("### CONFIG ###\n")
-
-        md_file.write("# schema: {}\n".format(DataRecord.schema()))
-        for (fn, value) in out_map.items():
-            to_write = "{}, {}\n".format(fn, value.line_str())
-            md_file.write(to_write)
+    return name
 
 
-def data_by_scale():
-
+def prepare_data_by_scale(wand_project="mean_std_dev"):
 
     config = get_config()['dataset']
     in_dirs = config['in_dirs']
     keys = config['keys']
 
-    prepare_data(config, in_dirs, keys)
+    values = [scale_int / 10 for scale_int in range(1, 10)]
+    means = []
+    std_devs = []
 
+    for scale in values:
+        config['down_scale'] = scale
+        dn = config['detector']
+        config['out_dir'] = "dataset/{}_int_scale_{}_size_".format(dn, scale).replace(".", "_")
+        print(list(config.items()))
+        entry_list = prepare_data(config, in_dirs, keys)
+        _, errors, _ = get_error_stats(entry_list)
+        mean, _ = mean_abs_mean(errors)
+        means.append(mean.tolist())
+        std_dev = np.sqrt(errors.var(axis=0)).tolist()
+        std_devs.append(std_dev)
+
+    std_devs = np.array(std_devs)
+    means = np.array(means)
+
+    if wand_project:
+
+        # tags...
+        wandb.init(project=wand_project, name=get_wand_name(config, entry_list))
+
+        data = [[x, y] for (x, y) in zip(values, means[:, 1])]
+        table = wandb.Table(data=data, columns=["scale", "mean error x"])
+        wandb.log({"mean error x": wandb.plot.line(table, "scale", "mean error x", title="Mean error(x) as a function of scale")})
+
+        data = [[x, y] for (x, y) in zip(values, means[:, 0])]
+        table = wandb.Table(data=data, columns=["scale", "mean error y"])
+        wandb.log({"mean error y": wandb.plot.line(table, "scale", "mean error y", title="Mean error(y) as a function of scale")})
+
+        data = [[x, y] for (x, y) in zip(values, std_devs[:, 1])]
+        table = wandb.Table(data=data, columns=["scale", "std dev x"])
+        wandb.log({"std dev(x)": wandb.plot.line(table, "scale", "std dev x", title="Std dev(x) of error as a function of scale")})
+
+        data = [[x, y] for (x, y) in zip(values, std_devs[:, 0])]
+        table = wandb.Table(data=data, columns=["scale", "std dev y"])
+        wandb.log({"std dev(y)": wandb.plot.line(table, "scale", "std dev y", title="Std dev(y) of error as a function of scale")})
+
+
+def simple_prepare_data():
+    config = get_config()['dataset']
+    in_dirs = config['in_dirs']
+    keys = config['keys']
+    prepare_data(config, in_dirs, keys)
 
 
 if __name__ == "__main__":
-
-    config = get_config()['dataset']
-    in_dirs = config['in_dirs']
-    keys = config['keys']
-
-    prepare_data(config, in_dirs, keys)
+    #prepare_data_by_scale()
+    simple_prepare_data()

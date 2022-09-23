@@ -4,8 +4,6 @@ sys.path.append("./superpoint_forked")
 from superpoint import SuperPointDescriptor
 
 
-print("FOO")
-
 class SuperPointDetector:
 
     def __init__(self, path=None, device: torch.device = torch.device('cpu')):

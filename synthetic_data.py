@@ -12,6 +12,7 @@ class SyntheticConf:
     img_size: tuple
     kpt_loc: tuple
     dist_to_grey_fnc: Callable
+    #name
 
 
 def simple_corner_synth_builder(corner_type, radius, max_int=255.0):
@@ -155,6 +156,9 @@ def analyze_kpts(kpts, img, conf, detector_name):
     plt.show()
     plt.close()
 
+    if len(kpts) == 0:
+        return None
+
     kpt_locs = np.array([[kpt.pt[1], kpt.pt[0]] for kpt in kpts])
     kpt_scales = np.array([kpt.size for kpt in kpts])
     dists = np.linalg.norm(kpt_locs - conf.kpt_loc, axis=1)
@@ -173,15 +177,15 @@ def main():
     img_size = (100, 100)
     kpt_loc = (50.0, 50.0)
     dist_to_grey_fncs = [
-        #corner_synth_builder("SE", pyramid_distance_builder(radius=2.5), radius=2.5),
+        corner_synth_builder("SE", pyramid_distance_builder(radius=2.5), radius=2.5),
         simple_corner_synth_builder("SE", radius=2),
-        # gauss_dist_to_grey_builder(sigma=2),
-        # gauss_dist_to_grey_builder(sigma=4),
-        # gauss_dist_to_grey_builder(sigma=6),
-        # gauss_dist_to_grey_builder(sigma=8),
-        # hyperbolic_spike_builder(eps=0.1),
-        # hyperbolic_spike_builder(eps=1.0),
-        # hyperbolic_spike_builder(eps=5.0),
+        gauss_dist_to_grey_builder(sigma=2),
+        gauss_dist_to_grey_builder(sigma=4),
+        gauss_dist_to_grey_builder(sigma=6),
+        gauss_dist_to_grey_builder(sigma=8),
+        hyperbolic_spike_builder(eps=0.1),
+        hyperbolic_spike_builder(eps=1.0),
+        hyperbolic_spike_builder(eps=5.0),
     ]
     confs = [SyntheticConf(
         img_size=img_size,
@@ -193,8 +197,8 @@ def main():
 
     errors = []
 
-    for i in range(0, 5):
-        shift = i * 5
+    for shift_index in range(0, 1):
+        shift = shift_index * 5
         for conf in confs:
             conf.kpt_loc = (kpt_loc[0] + shift, kpt_loc[1] + shift)
             img = get_synthetic_image(conf)
@@ -203,9 +207,9 @@ def main():
             detector = get_detector_by_name(detector_name)
             kpts = detector.detect(img, None)
 
+            print("conf: {}".format(conf))
             best_kpt = analyze_kpts(kpts, img, conf, detector_name)
 
-            print("conf: {}".format(conf))
             print("kpts: {}".format(len(kpts)))
             if not best_kpt:
                 print("NO KPT DETECTED")
@@ -219,6 +223,7 @@ def main():
             errors.append(err)
 
     print("All errors: {}".format(errors))
+
 
 if __name__ == "__main__":
     main()
