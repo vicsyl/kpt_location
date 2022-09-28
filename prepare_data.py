@@ -17,6 +17,41 @@ def wand_log_me(msg, conf):
         wandb.log(msg)
 
 
+def mnn_generic(pts1, pts2, err_th):
+
+    assert len(pts1.shape) == len(pts2.shape)
+
+    pts1_r, pts2_r = pts1, pts2
+    if len(pts1.shape) == 1:
+        err_th *= math.sqrt(2)
+        pts1_r, pts2_r = pts1[:, None].repeat(1, 2), pts2[:, None].repeat(1, 2)
+
+    d_mat = torch.cdist(pts1_r, pts2_r)
+
+    min0_values, min0_indices = torch.min(d_mat, dim=0)
+    min1_values, min1_indices = torch.min(d_mat, dim=1)
+
+    mask = min1_indices[min0_indices] == torch.arange(0, min0_indices.shape[0])
+    mask2_boolean = mask & (min0_values < err_th)
+
+    verify = True
+    if verify:
+        for i in range(min0_indices.shape[0]):
+            if mask2_boolean[i]:
+                assert min1_indices[min0_indices[i]] == i
+                assert min0_values[i] < err_th
+
+    mask1 = min0_indices[mask2_boolean]
+    pts1_new = pts1[mask1]
+    pts2_new = pts2[mask2_boolean]
+
+    mask2 = mask2_boolean.nonzero()[:, 0]
+    if mask1.shape[0] != mask2.shape[0]:
+        print()
+
+    return pts1_new, pts2_new, mask1, mask2
+
+
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     err_th = config['err_th']
@@ -136,12 +171,12 @@ def check_grey(img_np, detector, kpt_f):
     check_COLOR_RGB2GRAY = np.alltrue(check_COLOR_RGB2GRAY_all)
 
 
-def detect_kpts(img_np, scale_th, const_patch_size, config):
+def detect_kpts(img_np, scale_th, const_patch_size, config, check_const_patch_size=True):
 
     detector = get_detector(config)
 
-    if const_patch_size is not None:
-            assert const_patch_size % 2 == 1, "doesn't work that way"
+    if check_const_patch_size and const_patch_size is not None:
+             assert const_patch_size % 2 == 1, "doesn't work that way"
 
     h, w = img_np.shape[:2]
 
@@ -179,7 +214,9 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
         plt.show()
         plt.close()
 
-    return torch.from_numpy(kpt_f), torch.from_numpy(scales)
+    # in [0, 360]
+    orientations = torch.tensor([kpt.angle for kpt in kpts])[mask]
+    return torch.from_numpy(kpt_f), torch.from_numpy(scales), orientations
 
 
 def print_and_check_margins(kpt_i, margins_np, img_t):
@@ -391,7 +428,7 @@ def process_patches_for_file_dynamic(file_path,
     img_orig_pil = get_pil_img(file_path)
     img_orig = pil_img_transforms(img_orig_pil)
 
-    kpts, kpt_scales = detect_kpts(img_orig, min_scale_th, const_patch_size=None, config=config)
+    kpts, kpt_scales, _ = detect_kpts(img_orig, min_scale_th, const_patch_size=None, config=config)
     if len(kpts) == 0:
         return
 
@@ -411,7 +448,7 @@ def process_patches_for_file_dynamic(file_path,
         img_r, real_scale = scale_pil(img_orig_pil, scale, config=config)
         img_r = pil_img_transforms(img_r, config)
 
-        kpts_r, kpt_scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
+        kpts_r, kpt_scales_r, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
         if len(kpts_r) == 0:
             continue
 
@@ -492,8 +529,8 @@ def process_patches_for_file_simple(file_path,
     # convert and show the image
     img, img_r, real_scale = get_img_tuple(file_path, scale, config)
 
-    kpts, kpt_scales = detect_kpts(img, min_scale_th, const_patch_size, config)
-    kpts_r, kpt_scales_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
+    kpts, kpt_scales, _ = detect_kpts(img, min_scale_th, const_patch_size, config)
+    kpts_r, kpt_scales_r, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
@@ -557,35 +594,115 @@ def get_ds_stats(entries):
     return patch_size_min_max, scale_min_max, scale_ratio_min_max
 
 
-def prepare_data(config, in_dirs, keys):
-
-    ends_with = config['ends_with']
-    max_items = config['max_items']
-    const_patch_size = config.get('const_patch_size')
-    if const_patch_size is not None:
-            assert const_patch_size % 2 == 1, "doesn't work that way"
-
-    out_dir = get_full_ds_dir(config)
-    clean = config['clean_out_dir']
-
-    if clean:
-        try:
-            path = '{}/a_values.txt'.format(out_dir)
-            os.remove(path)
-        except:
-            print("couldn't remove {}".format(path))
-        files = glob.glob('{}/*.png'.format(out_dir))
-        for path in files:
-            try:
-                os.remove(path)
-            except:
-                print("couldn't remove {}".format(path))
-
-    write_data = config['write_data']
+def prepare_and_clean_dir(dataset_config):
+    out_dir = get_full_ds_dir(dataset_config)
+    clean = dataset_config['clean_out_dir']
+    write_data = dataset_config['write_data']
     if write_data:
         data_dir_path = "{}/data".format(out_dir)
         if not os.path.exists(data_dir_path):
             os.makedirs(data_dir_path, exist_ok=True)
+        if clean:
+            try:
+                path = '{}/a_values.txt'.format(out_dir)
+                os.remove(path)
+            except:
+                print("couldn't remove {}".format(path))
+            files = glob.glob('{}/*.png'.format(out_dir))
+            for path in files:
+                try:
+                    os.remove(path)
+                except:
+                    print("couldn't remove {}".format(path))
+
+
+def possibly_write_data(dataset_config, out_map):
+    write_data = dataset_config['write_data']
+    if write_data:
+        out_dir = get_full_ds_dir(dataset_config)
+        with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
+            write_metada(md_file, out_map, dataset_config)
+
+        with open("{}/a_values.txt".format(out_dir), "w") as md_file:
+            write_metada(md_file, out_map, dataset_config)
+
+            md_file.write("# schema: {}\n".format(DataRecord.schema()))
+            for (fn, value) in out_map.items():
+                to_write = "{}, {}\n".format(fn, value.line_str())
+                md_file.write(to_write)
+
+
+def read_img(file_path, config):
+    img_pil = get_pil_img(file_path)
+    img_np = pil_img_transforms(img_pil, config)
+    return img_np, img_pil
+
+
+def reflection_experiment(file_path, config):
+
+    img_np_o, img_pil = read_img(file_path, config)
+    kpts_0, _, _ = detect_kpts(img_np_o, 0.0, 0.0, config, False)
+
+    img_xy = img_np_o.T
+    img_y = np.flip(img_np_o, 0).copy()
+
+    # given img_x
+    img_x = np.flip(img_np_o, 1).copy()
+    kpts_1, _, _ = detect_kpts(img_x, 0.0, 0.0, config, False)
+
+    print("number of orig kpts: {}, {}".format(kpts_0.shape[0], kpts_1.shape[0]))
+
+    kpts_0_new_1d, kpts_1_new_1d, mask_0, mask_1 = mnn_generic(kpts_0[:, 0], kpts_1[:, 0], err_th=1.0)
+
+    print("number of new kpts: {}, {}".format(kpts_0_new_1d.shape[0], kpts_1_new_1d.shape[0]))
+    distances = (kpts_1_new_1d - kpts_0_new_1d).abs() # only one dimensional
+    print("distances in 1 D - min: {}, max: {}".format(distances.min(), distances.max()))
+
+    # verify ?
+    kpts_0_new, kpts_1_new = kpts_0[mask_0], kpts_1[mask_1]
+    centers_flip_axis = (kpts_0_new[:, 1] + kpts_1_new[:, 1]) / 2
+    print("symmetry on the other axis (shape={}): min: {}, max: {}".format(img_np_o.shape[1], centers_flip_axis.min(), centers_flip_axis.max()))
+    # histogram?
+    mean_centers = centers_flip_axis.mean()
+    var_centers = centers_flip_axis.var()
+    print("centers mean: {}, var: {}".format(mean_centers, var_centers))
+
+
+def reflection_experiment_loop():
+
+    dataset_config = get_config()['dataset']
+    in_dirs = dataset_config['in_dirs']
+    keys = dataset_config['keys']
+
+    ends_with = dataset_config['ends_with']
+    max_items = dataset_config['max_items']
+
+    all_file_counter = 0
+    out_map = {}
+    for i, in_dir in enumerate(in_dirs):
+
+        cur_dir_files = [fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)]
+        new_len = min(max_items - all_file_counter, len(cur_dir_files))
+        cur_dir_files = cur_dir_files[:new_len]
+        all_file_counter += new_len
+
+        print("Processing dir {}: {}/{}".format(in_dir, i, len(in_dirs)))
+        key = keys[i]
+
+        for file_name in cur_dir_files:
+            path = "{}/{}".format(in_dir, file_name)
+            reflection_experiment(path, dataset_config)
+
+
+def prepare_data(dataset_config, in_dirs, keys):
+
+    ends_with = dataset_config['ends_with']
+    max_items = dataset_config['max_items']
+    const_patch_size = dataset_config.get('const_patch_size')
+    if const_patch_size is not None:
+            assert const_patch_size % 2 == 1, "doesn't work that way"
+
+    prepare_and_clean_dir(dataset_config)
 
     out_map = {}
     all = "?1?" if max_items is not None else None
@@ -611,23 +728,12 @@ def prepare_data(config, in_dirs, keys):
             path = "{}/{}".format(in_dir, file_name)
             print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map)))
             process_patches_for_file(file_path=path,
-                                     config=config,
+                                     config=dataset_config,
                                      out_map=out_map,
                                      key=key,
                                      max_items=max_items)
 
-    if write_data:
-        with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
-            write_metada(md_file, out_map, config)
-
-        with open("{}/a_values.txt".format(out_dir), "w") as md_file:
-            write_metada(md_file, out_map, config)
-
-            md_file.write("# schema: {}\n".format(DataRecord.schema()))
-            for (fn, value) in out_map.items():
-                to_write = "{}, {}\n".format(fn, value.line_str())
-                md_file.write(to_write)
-
+    possibly_write_data(dataset_config, out_map)
     return list(out_map.items())
 
 
@@ -742,5 +848,6 @@ def simple_prepare_data():
 
 
 if __name__ == "__main__":
-    #prepare_data_by_scale()
-    simple_prepare_data()
+    # prepare_data_by_scale()
+    # simple_prepare_data()
+    reflection_experiment_loop()
