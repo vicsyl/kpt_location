@@ -123,17 +123,25 @@ def gcd_euclid(a, b):
         return gcd_euclid(b, c)
 
 
+def check_grey(img_np, detector, kpt_f):
+    npa_grey = cv.cvtColor(img_np, cv.COLOR_BGR2GRAY);
+    kpts_grey = detector.detect(npa_grey, mask=None)
+    kpt_f_g = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts_grey])
+    check_COLOR_BGR2GRAY_all = kpt_f_g == kpt_f
+    check_COLOR_BGR2GRAY = np.alltrue(check_COLOR_BGR2GRAY_all)
+    npa_grey = cv.cvtColor(img_np, cv.COLOR_RGB2GRAY);
+    kpts_grey = detector.detect(npa_grey, mask=None)
+    kpt_f_g = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts_grey])
+    check_COLOR_RGB2GRAY_all = kpt_f_g == kpt_f
+    check_COLOR_RGB2GRAY = np.alltrue(check_COLOR_RGB2GRAY_all)
+
+
 def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     detector = get_detector(config)
 
     if const_patch_size is not None:
             assert const_patch_size % 2 == 1, "doesn't work that way"
-
-    # npa_grey = cv.cvtColor(npa, cv.COLOR_BGR2GRAY);
-    # kpts_grey = detector.detect(npa_grey, mask=None)
-    # kpt_f_g = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts_grey])
-    # check = np.alltrue(kpt_f_g == kpt_f)
 
     h, w = img_np.shape[:2]
 
@@ -143,6 +151,9 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     kpt_f = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts])
     kpt_i = np.round(kpt_f).astype(int)
+
+    # this is to check against grey scale handling in SuperPoint
+    check_grey(img_np, detector, kpt_f)
 
     scales = np.array([kp.size for kp in kpts])
     # NOTE in original image it just means it's not detected on the edge
@@ -380,7 +391,7 @@ def process_patches_for_file_dynamic(file_path,
     img_orig_pil = get_pil_img(file_path)
     img_orig = pil_img_transforms(img_orig_pil)
 
-    kpts, kpt_scales = detect_kpts(np_img_orig, min_scale_th, const_patch_size=None, config=config)
+    kpts, kpt_scales = detect_kpts(img_orig, min_scale_th, const_patch_size=None, config=config)
     if len(kpts) == 0:
         return
 
@@ -415,7 +426,7 @@ def process_patches_for_file_dynamic(file_path,
                 matched.add(kpt)
                 mask[i] = True
         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
-        patches = get_patches(np_img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
+        patches = get_patches(img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
         patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
         if compare:
             compare_patches(patches, patches_r, diffs)
@@ -436,10 +447,10 @@ def process_patches_for_file_dynamic(file_path,
                 kpt_resize_scale=kpt_scales_r[i].item(),
                 scale_ratio=scale_ratios[i].item(),
                 real_scale=real_scale,
-                img_scale_y=img_r.shape[0]/np_img_orig.shape[0],
-                img_scale_x=img_r.shape[0]/np_img_orig.shape[0],
-                original_img_size_y=np_img_orig.shape[0],
-                original_img_size_x=np_img_orig.shape[1],
+                img_scale_y=img_r.shape[0]/img_orig.shape[0],
+                img_scale_x=img_r.shape[0]/img_orig.shape[0],
+                original_img_size_y=img_orig.shape[0],
+                original_img_size_x=img_orig.shape[1],
                 resized_img_size_y=img_r.shape[0],
                 resized_img_size_x=img_r.shape[1],
                 augmented=None
@@ -598,7 +609,7 @@ def prepare_data(config, in_dirs, keys):
                 break
 
             path = "{}/{}".format(in_dir, file_name)
-            print("Processing file {}: {}/{}".format(path, counter, all))
+            print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map)))
             process_patches_for_file(file_path=path,
                                      config=config,
                                      out_map=out_map,
