@@ -23,8 +23,9 @@ def mnn_generic(pts1, pts2, err_th):
 
     pts1_r, pts2_r = pts1, pts2
     if len(pts1.shape) == 1:
-        err_th *= math.sqrt(2)
         pts1_r, pts2_r = pts1[:, None].repeat(1, 2), pts2[:, None].repeat(1, 2)
+        pts1_r[:, 1] = 0.0
+        pts2_r[:, 1] = 0.0
 
     d_mat = torch.cdist(pts1_r, pts2_r)
 
@@ -171,11 +172,28 @@ def check_grey(img_np, detector, kpt_f):
     check_COLOR_RGB2GRAY = np.alltrue(check_COLOR_RGB2GRAY_all)
 
 
-def detect_kpts(img_np, scale_th, const_patch_size, config, check_const_patch_size=True):
+def detect_kpts_simple(img_np, config, show=False, title="kpts"):
+
+    detector = get_detector(config)
+    kpts = detector.detect(img_np, mask=None)
+    # kpt_f = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts])
+    # check_grey(img_np, detector, kpt_f)
+    if show:
+        npac = img_np.copy()
+        cv.drawKeypoints(img_np, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        plt.figure()
+        plt.title(title)
+        plt.imshow(npac)
+        plt.show()
+        plt.close()
+    return kpts
+
+
+def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     detector = get_detector(config)
 
-    if check_const_patch_size and const_patch_size is not None:
+    if const_patch_size is not None:
              assert const_patch_size % 2 == 1, "doesn't work that way"
 
     h, w = img_np.shape[:2]
@@ -638,21 +656,10 @@ def read_img(file_path, config):
     return img_np, img_pil
 
 
-def reflection_experiment(file_path, config):
+def analyze_reflection(img_np_o, kpts_0, kpts_1, axis_flipped, err_th=0.01):
 
-    img_np_o, img_pil = read_img(file_path, config)
-    kpts_0, _, _ = detect_kpts(img_np_o, 0.0, 0.0, config, False)
-
-    img_xy = img_np_o.T
-    img_y = np.flip(img_np_o, 0).copy()
-
-    # given img_x
-    img_x = np.flip(img_np_o, 1).copy()
-    kpts_1, _, _ = detect_kpts(img_x, 0.0, 0.0, config, False)
-
-    print("number of orig kpts: {}, {}".format(kpts_0.shape[0], kpts_1.shape[0]))
-
-    kpts_0_new_1d, kpts_1_new_1d, mask_0, mask_1 = mnn_generic(kpts_0[:, 0], kpts_1[:, 0], err_th=1.0)
+    axis_not_flipped = 1 - axis_flipped
+    kpts_0_new_1d, kpts_1_new_1d, mask_0, mask_1 = mnn_generic(kpts_0[:, axis_not_flipped], kpts_1[:, axis_not_flipped], err_th=err_th)
 
     print("number of new kpts: {}, {}".format(kpts_0_new_1d.shape[0], kpts_1_new_1d.shape[0]))
     distances = (kpts_1_new_1d - kpts_0_new_1d).abs() # only one dimensional
@@ -661,24 +668,103 @@ def reflection_experiment(file_path, config):
     # verify ?
     kpts_0_new, kpts_1_new = kpts_0[mask_0], kpts_1[mask_1]
     centers_flip_axis = (kpts_0_new[:, 1] + kpts_1_new[:, 1]) / 2
-    print("symmetry on the other axis (shape={}): min: {}, max: {}".format(img_np_o.shape[1], centers_flip_axis.min(), centers_flip_axis.max()))
+    print("symmetry on the other axis (shape={}): min: {}, max: {}".format(img_np_o.shape[axis_flipped], centers_flip_axis.min(), centers_flip_axis.max()))
     # histogram?
     mean_centers = centers_flip_axis.mean()
     var_centers = centers_flip_axis.var()
     print("centers mean: {}, var: {}".format(mean_centers, var_centers))
 
 
-def reflection_experiment_loop():
+def draw_flipped_kpts(img_np, kpts_original, kpts_to_flip, expected_center, axis_flipped, title):
+    new_l = []
+    for kpt in kpts_original:
+        kpt.size = 50
+        kpt.angle = math.pi / 2
+    for kpt in kpts_to_flip:
+        kp_l = list(kpt.pt)
+        kp_l[1 - axis_flipped] = 2 * expected_center - kp_l[1 - axis_flipped]
+        size=25
+        angle=0
+        new_l.append(cv.KeyPoint(kp_l[0], kp_l[1], size, angle=angle))
+    kpts_all_cv = list(kpts_original)
+    kpts_all_cv.extend(new_l)
+    img_kpts = img_np.copy()
+    cv.drawKeypoints(img_kpts, kpts_all_cv, img_kpts, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    plt.figure()
+    title = "{}: {}".format(title, len(kpts_all_cv))
+    plt.title(title)
+    plt.imshow(img_kpts)
+    plt.show()
+    plt.close()
+
+
+def reflection_experiment(file_path, config, axis_flipped):
+
+    axis_not_flipped = 1 - axis_flipped
+    img_np_o, img_pil = read_img(file_path, config)
+    expected_center = (img_np_o.shape[axis_flipped] - 0.5) / 2.0
+
+    kpts_0_cv = detect_kpts_simple(img_np_o, config, show=False, title="kpts in original")
+    kpts_0 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
+    # orientations = torch.tensor([kpt.angle for kpt in kpts_0])
+    # scales = torch.tensor([kp.size for kp in kpts_0])
+
+    img_flipped = np.flip(img_np_o, axis_flipped).copy()
+
+    kpts_1_cv = detect_kpts_simple(img_flipped, config, show=False, title="kpts in img with flipped x axis")
+    kpts_1 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_1_cv])
+    #draw_flipped_kpts(img_np_o, kpts_0_cv, kpts_1_cv, expected_center, axis_flipped, "original and reflected all")
+
+    #analyze_reflection(img_np_o, kpts_0, kpts_1, axis_flipped=1)
+    print("number of kpts: {}, {}".format(kpts_0.shape[0], kpts_1.shape[0]))
+
+    kpts_0_new_1d, kpts_1_new_1d, mask_00, mask_10 = mnn_generic(kpts_0[:, axis_not_flipped], kpts_1[:, axis_not_flipped], err_th=0.1)
+
+    print("number of filtered kpts: {}, {}".format(kpts_0_new_1d.shape[0], kpts_1_new_1d.shape[0]))
+    distances = (kpts_1_new_1d - kpts_0_new_1d).abs() # only one dimensional
+    print("distances in 1D (where mnn was done) - min: {}, max: {}".format(distances.min(), distances.max()))
+
+    # verify ?
+    kpts_0_new, kpts_1_new = kpts_0[mask_00], kpts_1[mask_10]
+    expected_center = (img_np_o.shape[axis_flipped] - 0.5) / 2.0
+
+    kpts_1_new_flipped_back = torch.clone(kpts_1_new)
+    kpts_1_new_flipped_back[:, axis_flipped] = 2 * expected_center - kpts_1_new_flipped_back[:, axis_flipped]
+    _, _, mask_01, mask_11 = mnn_generic(kpts_0_new, kpts_1_new_flipped_back, err_th=3.0)
+    print("number of filtered kpts: {}".format(mask_01.shape[0]))
+    kpts_0_new, kpts_1_new = kpts_0_new[mask_01], kpts_1_new[mask_11]
+
+    def get_lists(i_l, torch_mask):
+        m_l = torch_mask.tolist()
+        matched_l, unmatched_l = [], []
+        for index, item in enumerate(i_l):
+            if index in m_l:
+                matched_l.append(item)
+            else:
+                unmatched_l.append(item)
+        return matched_l, unmatched_l
+
+    kpts_0_cv_matched, kpts_0_cv_unmatched = get_lists(kpts_0_cv, mask_00[mask_01])
+    kpts_1_cv_matched, kpts_1_cv_unmatched = get_lists(kpts_1_cv, mask_10[mask_11])
+    draw_flipped_kpts(img_np_o, kpts_0_cv_matched, kpts_1_cv_matched, expected_center, axis_flipped, "matched keypoints")
+    draw_flipped_kpts(img_np_o, kpts_0_cv_unmatched, kpts_1_cv_unmatched, expected_center, axis_flipped, "unmatched keypoints")
+
+    centers_flip_axis = (kpts_0_new[:, axis_flipped] + kpts_1_new[:, axis_flipped]) / 2
+    print("symmetry on the other axis (shape={}): min: {}, max: {}".format(img_np_o.shape[axis_flipped], centers_flip_axis.min(), centers_flip_axis.max()))
+    mean_centers = centers_flip_axis.mean()
+    var_centers = centers_flip_axis.var()
+    print("centers mean: {}, var: {}".format(mean_centers, var_centers))
+
+
+def reflection_experiment_loop(axis_flipped):
 
     dataset_config = get_config()['dataset']
     in_dirs = dataset_config['in_dirs']
-    keys = dataset_config['keys']
 
     ends_with = dataset_config['ends_with']
     max_items = dataset_config['max_items']
 
     all_file_counter = 0
-    out_map = {}
     for i, in_dir in enumerate(in_dirs):
 
         cur_dir_files = [fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)]
@@ -687,11 +773,10 @@ def reflection_experiment_loop():
         all_file_counter += new_len
 
         print("Processing dir {}: {}/{}".format(in_dir, i, len(in_dirs)))
-        key = keys[i]
 
         for file_name in cur_dir_files:
             path = "{}/{}".format(in_dir, file_name)
-            reflection_experiment(path, dataset_config)
+            reflection_experiment(path, dataset_config, axis_flipped=axis_flipped)
 
 
 def prepare_data(dataset_config, in_dirs, keys):
@@ -850,4 +935,5 @@ def simple_prepare_data():
 if __name__ == "__main__":
     # prepare_data_by_scale()
     # simple_prepare_data()
-    reflection_experiment_loop()
+    for axis_flipped in [0, 1]:
+        reflection_experiment_loop(axis_flipped)
