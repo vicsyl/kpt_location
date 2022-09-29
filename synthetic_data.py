@@ -174,7 +174,7 @@ def analyze_kpts(kpts, img, conf, detector_name):
 
 
 def main():
-    img_size = (100, 100)
+    img_size = (101, 101)
     kpt_loc = (50.0, 50.0)
     dist_to_grey_fncs = [
         corner_synth_builder("SE", pyramid_distance_builder(radius=2.5), radius=2.5),
