@@ -47,9 +47,6 @@ def mnn_generic(pts1, pts2, err_th):
     pts2_new = pts2[mask2_boolean]
 
     mask2 = mask2_boolean.nonzero()[:, 0]
-    if mask1.shape[0] != mask2.shape[0]:
-        print()
-
     return pts1_new, pts2_new, mask1, mask2
 
 
@@ -702,7 +699,7 @@ def reflection_experiment(file_path, config, axis_flipped):
 
     axis_not_flipped = 1 - axis_flipped
     img_np_o, img_pil = read_img(file_path, config)
-    expected_center = (img_np_o.shape[axis_flipped] - 0.5) / 2.0
+    #expected_center = (img_np_o.shape[axis_flipped] - 0.5) / 2.0
 
     kpts_0_cv = detect_kpts_simple(img_np_o, config, show=False, title="kpts in original")
     kpts_0 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
@@ -718,7 +715,7 @@ def reflection_experiment(file_path, config, axis_flipped):
     #analyze_reflection(img_np_o, kpts_0, kpts_1, axis_flipped=1)
     print("number of kpts: {}, {}".format(kpts_0.shape[0], kpts_1.shape[0]))
 
-    kpts_0_new_1d, kpts_1_new_1d, mask_00, mask_10 = mnn_generic(kpts_0[:, axis_not_flipped], kpts_1[:, axis_not_flipped], err_th=0.1)
+    kpts_0_new_1d, kpts_1_new_1d, mask_00, mask_10 = mnn_generic(kpts_0[:, axis_not_flipped], kpts_1[:, axis_not_flipped], err_th=1.5)
 
     print("number of filtered kpts: {}, {}".format(kpts_0_new_1d.shape[0], kpts_1_new_1d.shape[0]))
     distances = (kpts_1_new_1d - kpts_0_new_1d).abs() # only one dimensional
@@ -726,8 +723,8 @@ def reflection_experiment(file_path, config, axis_flipped):
 
     # verify ?
     kpts_0_new, kpts_1_new = kpts_0[mask_00], kpts_1[mask_10]
-    expected_center = (img_np_o.shape[axis_flipped] - 0.5) / 2.0
 
+    expected_center = (img_np_o.shape[axis_flipped] - 0.5) / 2.0
     kpts_1_new_flipped_back = torch.clone(kpts_1_new)
     kpts_1_new_flipped_back[:, axis_flipped] = 2 * expected_center - kpts_1_new_flipped_back[:, axis_flipped]
     _, _, mask_01, mask_11 = mnn_generic(kpts_0_new, kpts_1_new_flipped_back, err_th=3.0)
