@@ -1,5 +1,6 @@
 from omegaconf import OmegaConf
 import cv2 as cv
+from kornia_sift import NumpyKorniaSiftDetector
 
 
 def get_config(path='config/config.yaml'):
@@ -41,6 +42,8 @@ def get_detector(config):
 def get_detector_by_name(name):
     if name == 'sift':
         return cv.SIFT_create()
+    elif name == 'sift_kornia':
+        return NumpyKorniaSiftDetector()
     elif name == 'superpoint':
         from superpoint_local import SuperPointDetector
         return SuperPointDetector()

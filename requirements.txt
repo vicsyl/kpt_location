@@ -2,6 +2,7 @@
 pytorch-lightning
 pip install opencv-python
 pip install h5py
+pip install kornia
 
 torch~=1.12.1
 torchvision~=0.13.1

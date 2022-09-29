@@ -8,4 +8,5 @@ scenes
 lightning_logs
 wandb
 notes
+.ipynb_checkpoints
 *notes.md
