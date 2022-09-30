@@ -554,9 +554,13 @@ def prepare_and_clean_dir(dataset_config):
             try:
                 path = '{}/a_values.txt'.format(out_dir)
                 os.remove(path)
+                path = '{}/a_metadata.txt'.format(out_dir)
+                os.remove(path)
             except:
                 print("couldn't remove {}".format(path))
-            files = glob.glob('{}/*.png'.format(out_dir))
+            glob_str = '{}/data/*.png'.format(out_dir)
+            files = glob.glob(glob_str)
+            print("will be removing {} files for glob '{}'".format(len(files), glob_str))
             for path in files:
                 try:
                     os.remove(path)
