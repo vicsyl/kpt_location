@@ -6,14 +6,15 @@ dataset:
     reflection: null
     write_data: True
     wandb_tags_keys: ["no_key_detector", "magic_items", "integer_scale", "reflection"]
+    augment: lazy # eager, lazy, null
 
-    detector: SIFT # SIFT, SUPERPOINT, case-insensitive
+    detector: SIFT # SIFT, SUPERPOINT, SIFT_KORNIA case-insensitive
     # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
-    scale_ratio_th: 1.1
-    #scale_ratio_th: null # for superpoint
-    min_scale_th: 15.0
+    #scale_ratio_th: 1.1
+    scale_ratio_th: null # for superpoint
+    #min_scale_th: 15.0
     #min_scale_th: 30.0
-    # min_scale_th: 0.0 # for superpoint
+    min_scale_th: 0.0 # for superpoint
 
     err_th: 0.6
 
@@ -23,24 +24,26 @@ dataset:
 
     #out_dir: "./dataset/var_sizes"
     #const_patch_size: null
-    out_dir: "./dataset/sift_not_int_"
+    out_dir: "./dataset/foo"
     const_patch_size: 33
 
-    max_items: null
+    max_items: 5
     #ends_with: '.jpg'
     ends_with: '.tonemap.jpg'
     clean_out_dir: False
-    to_grey_scale: True
+    to_grey_scale: False
 
     # TODO another scenario: move to training - i.e. just normalize to zero mean
     half_pixel_adjusted: False
     show_kpt_patches: False
     compare_patches: False
-    integer_scale: False # try to scale so that the new size is exactly an integer
+    integer_scale: True # try to scale so that the new size is exactly an integer
     dynamic_resizing: False # not for superpoint
 
 train:
     # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
+    # FIXME - duplicated in data and train
+    augment: lazy # eager, lazy, null
     accelerator: 'cpu'
     gpus: [0]
     batch_size: 32
