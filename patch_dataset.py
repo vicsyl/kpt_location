@@ -113,14 +113,16 @@ def batched_random_split(dataset: Dataset[T], lengths: Sequence[int], batch_size
 
 class PatchDataset(Dataset):
 
-    def __init__(self, root_dir, batch_size) -> None:
+    def __init__(self, root_dir, config) -> None:
         super().__init__()
         self.root_dir = root_dir
-
         self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
+        self.batch_size = config['batch_size']
+        self.grouped_by_sizes = config['grouped_by_sizes']
+        self.augment = (config['augment'].lower() == "lazy")
 
-        # NOTE probbly broken
-        if batch_size is not None:
+        # NOTE probably broken
+        if self.grouped_by_sizes:
             group_bys = {}
             for mt in self.metadata_list:
                 size = mt[1][2]
@@ -130,22 +132,53 @@ class PatchDataset(Dataset):
             self.metadata_list = []
             for size in group_bys:
                 l = len(group_bys[size])
-                l_final = l - l % batch_size
+                l_final = l - l % self.batch_size
                 print("all batches for size {}: {} -> {}".format(size, l, l_final))
                 self.metadata_list.extend(group_bys[size][:l_final])
 
     def __getitem__(self, index) -> Any:
-        metadata = self.metadata_list[index]
+
+        md_index = index
+        if self.augment:
+            md_index = md_index // 6
+        metadata = self.metadata_list[md_index]
+        dx, dy = metadata[1].dx, metadata[1].dy
         path = "{}/data/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
+        if self.augment and index % 6 != 0:
+            augment_index = index % 6
+            patches_aug, diffs_aug, _ = augment_patch(patch_t, (dy, dx))
+            patch_t = patches_aug[augment_index]
+            dy, dx = diffs_aug[augment_index]
         if patch_t.shape[0] == 1:
             patch_t = patch_t.expand(3, -1, -1)
-        y = torch.tensor([metadata[1].dy, metadata[1].dx])
+        y = torch.tensor([dy, dx])
         return patch_t, y
 
     def __len__(self) -> int:
         return len(self.metadata_list)
+
+
+def augment_patch(patch, diffs):
+    patch_r_y = torch.flip(patch, dims=[0])
+    diffs_r_y = -diffs[0], diffs[1]
+    patch_r_x = torch.flip(patch, dims=[1])
+    diffs_r_x = diffs[0], -diffs[1]
+
+    patches = [patch]
+    diff_l = [diffs]
+    augment_keys = ["original"]
+    for i in range(3):
+        patch = torch.rot90(patch, 1, [0, 1])
+        patches.append(patch)
+        diffs = -diffs[1], diffs[0]
+        diff_l.append(diffs)
+        augment_keys.append("rotated_{}".format((i + 1) * 90))
+    patches = patches + [patch_r_y, patch_r_x]
+    diff_l = diff_l + [diffs_r_y, diffs_r_x]
+    augment_keys = augment_keys + ["reflected_y", "reflected_x"]
+    return patches, diff_l, augment_keys
 
 
 # TODO add transforms (e.g. normalization)
@@ -163,9 +196,8 @@ class PatchesDataModule(pl.LightningDataModule):
         assert self.splits in [2, 4]
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
-        bs = self.batch_size if self.grouped_by_sizes else None
         root_dir = get_full_ds_dir(conf['dataset'])
-        self.dataset = PatchDataset(root_dir, batch_size=bs)
+        self.dataset = PatchDataset(root_dir, conf)
 
     def prepend_parts(self, parts, part_size):
         if self.splits == 2:
@@ -207,7 +239,12 @@ class PatchesDataModule(pl.LightningDataModule):
 def iterate_dataset():
 
     # download, etc...
-    dm = PatchesDataModule("./dataset", batch_size=32, grouped_by_sizes=True)
+    config = {
+        "batch_size": 32,
+        "grouped_by_sizes": True,
+    }
+    # FIXME won't work anyway
+    dm = PatchesDataModule("./dataset", config)
     dm.prepare_data()
 
     # splits/transforms

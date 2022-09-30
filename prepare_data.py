@@ -9,7 +9,7 @@ import torch
 import os
 import math
 from config import *
-from patch_dataset import get_error_stats, mean_abs_mean, DataRecord
+from patch_dataset import *
 
 
 def wand_log_me(msg, conf):
@@ -124,6 +124,7 @@ def gcd_euclid(a, b):
 
 
 def check_grey(img_np, detector, kpt_f):
+    # For SIFT only the check_COLOR_BGR2GRAY is true
     npa_grey = cv.cvtColor(img_np, cv.COLOR_BGR2GRAY);
     kpts_grey = detector.detect(npa_grey, mask=None)
     kpt_f_g = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts_grey])
@@ -153,7 +154,7 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
     kpt_i = np.round(kpt_f).astype(int)
 
     # this is to check against grey scale handling in SuperPoint
-    check_grey(img_np, detector, kpt_f)
+    # check_grey(img_np, detector, kpt_f)
 
     scales = np.array([kp.size for kp in kpts])
     # NOTE in original image it just means it's not detected on the edge
@@ -313,7 +314,7 @@ def possibly_refl_image(config, img):
 def possibly_to_grey_scale(config, img):
     to_grey_scale = config['to_grey_scale']
     if to_grey_scale:
-        img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
     return img
 
 
@@ -338,30 +339,14 @@ def apply_mask(mask, np_list):
     return tuple([npa[mask] for npa in np_list])
 
 
-def augment_patch(patch, diffs):
-    patch_r_y = torch.flip(patch, dims=[0])
-    diffs_r_y = -diffs[0], diffs[1]
-    patch_r_x = torch.flip(patch, dims=[1])
-    diffs_r_x = diffs[0], -diffs[1]
+def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, config):
 
-    patches = [patch]
-    diff_l = [diffs]
-    augment_keys = ["original"]
-    for i in range(3):
-        patch = torch.rot90(patch, 1, [0, 1])
-        patches.append(patch)
-        diffs = -diffs[1], diffs[0]
-        diff_l.append(diffs)
-        augment_keys.append("rotated_{}".format((i + 1) * 90))
-    patches = patches + [patch_r_y, patch_r_x]
-    diff_l = diff_l + [diffs_r_y, diffs_r_x]
-    augment_keys = augment_keys + ["reflected_y", "reflected_x"]
-    return patches, diff_l, augment_keys
-
-
-def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, write_data=True):
-
-    patches_aug, diffs_aug, augmented_keys = augment_patch(patch, (dr.dy, dr.dx))
+    write_data = config['write_data']
+    augment_mode = config['augment'].lower()
+    if "eager" == augment_mode:
+        patches_aug, diffs_aug, augmented_keys = augment_patch(patch, (dr.dy, dr.dx))
+    else:
+        patches_aug, diffs_aug, augmented_keys = [patch], [(dr.dy, dr.dx)], ["original"]
     for index, patch_aug in enumerate(patches_aug):
         dy, dx = diffs_aug[index]
         if index > 0:
@@ -457,13 +442,12 @@ def process_patches_for_file_dynamic(file_path,
                 resized_img_size_x=img_r.shape[1],
                 augmented=None
             )
-            write_data = config['write_data']
             augment_and_write_patch(patch,
                                     dr,
                                     "{}_{}".format(file_name_prefix, i),
                                     out_map,
                                     out_dir,
-                                    write_data)
+                                    config)
 
 
 def process_patches_for_file(file_path,
@@ -531,13 +515,12 @@ def process_patches_for_file_simple(file_path,
             resized_img_size_x=img_r.shape[1],
             augmented=None
         )
-        write_data = config['write_data']
         augment_and_write_patch(patch,
                                 dr,
                                 "{}_{}".format(file_name_prefix, i),
                                 out_map,
                                 out_dir,
-                                write_data)
+                                config)
 
 
 def get_ds_stats(entries):
@@ -623,7 +606,7 @@ def prepare_data(dataset_config, in_dirs, keys):
         if not max_items:
             all = len([fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)])
 
-        print("Processing dir {}: {}/{}".format(in_dir, i, len(in_dirs)))
+        print("Processing dir {}: {}/{}".format(in_dir, i + 1, len(in_dirs)))
         key = keys[i]
 
         for file_name in os.listdir(in_dir):
