@@ -148,8 +148,8 @@ class PatchDataset(Dataset):
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
         if self.augment and index % 6 != 0:
             augment_index = index % 6
-            patches_aug, diffs_aug, _ = augment_patch(patch_t, (dy, dx))
-            patch_t = patches_aug[augment_index]
+            patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx))
+            patch_t = patches_aug[augment_index][None]
             dy, dx = diffs_aug[augment_index]
         if patch_t.shape[0] == 1:
             patch_t = patch_t.expand(3, -1, -1)
