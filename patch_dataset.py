@@ -113,13 +113,13 @@ def batched_random_split(dataset: Dataset[T], lengths: Sequence[int], batch_size
 
 class PatchDataset(Dataset):
 
-    def __init__(self, root_dir, config) -> None:
+    def __init__(self, root_dir, train_config) -> None:
         super().__init__()
         self.root_dir = root_dir
         self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
-        self.batch_size = config['batch_size']
-        self.grouped_by_sizes = config['grouped_by_sizes']
-        self.augment = (config['augment'].lower() == "lazy")
+        self.batch_size = train_config['batch_size']
+        self.grouped_by_sizes = train_config['grouped_by_sizes']
+        self.augment = (train_config['augment'].lower() == "lazy")
 
         # NOTE probably broken
         if self.grouped_by_sizes:
@@ -197,7 +197,7 @@ class PatchesDataModule(pl.LightningDataModule):
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
         root_dir = get_full_ds_dir(conf['dataset'])
-        self.dataset = PatchDataset(root_dir, conf)
+        self.dataset = PatchDataset(root_dir, train_conf)
 
     def prepend_parts(self, parts, part_size):
         if self.splits == 2:
@@ -301,6 +301,7 @@ def log_stats(ds_path, wand_project):
         print("{} mean: {}".format(name, mean))
         print("{} abs mean: {}".format(name, abs_mean))
 
+    # FIXME
     metadata_list = PatchDataset(ds_path, batch_size=None).metadata_list
 
     distances, errors, angles = get_error_stats(metadata_list, [0.0, 0.0])
