@@ -2,7 +2,7 @@ import torch
 import sys
 sys.path.append("./superpoint_forked")
 from superpoint import SuperPointDescriptor
-
+import cv2 as cv
 
 class SuperPointDetector:
 
@@ -12,5 +12,7 @@ class SuperPointDetector:
         self.super_point = SuperPointDescriptor(path, device)
 
     def detect(self, img_np, mask=None):
+        if len(img_np.shape) == 3:
+            img_np = cv.cvtColor(img_np, cv.COLOR_RGB2GRAY)
         pts, _ = self.super_point.detectAndComputeGrey(img_np, mask)
         return pts

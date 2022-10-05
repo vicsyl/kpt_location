@@ -1,3 +1,4 @@
+import time
 import copy
 import glob
 import numpy as np
@@ -299,7 +300,8 @@ def possibly_refl_image(config, img):
     if refl:
         refl = refl.upper()
     if refl == "XY":
-        img = img.T
+        img = np.flip(img, 0).copy()
+        img = np.flip(img, 1).copy()
     elif refl == "Y":
         img = np.flip(img, 0).copy()
     elif refl == "X":
@@ -365,8 +367,7 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, confi
 def process_patches_for_file_dynamic(file_path,
                                      config,
                                      out_map,
-                                     key="",
-                                     max_items=None):
+                                     key=""):
 
     out_dir = get_full_ds_dir(config)
     min_scale_th = config['min_scale_th']
@@ -383,10 +384,11 @@ def process_patches_for_file_dynamic(file_path,
         return
 
     counter = 0
+    max_scales = None # NOTE not implemented
     matched = set()
     for kpt_scale_index, kpt_scale in enumerate(kpt_scales):
 
-        if max_items and counter > max_items:
+        if max_scales and counter > max_scales:
             break
 
         kpts_orig = kpts
@@ -423,7 +425,7 @@ def process_patches_for_file_dynamic(file_path,
         file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")] + "_" + str(kpt_scale_index)
         for i in range(len(patches)):
             counter += 1
-            if max_items and counter > max_items:
+            if max_scales and counter > max_scales:
                 break
             patch = patches_r[i]
             dr = DataRecord(
@@ -453,21 +455,19 @@ def process_patches_for_file_dynamic(file_path,
 def process_patches_for_file(file_path,
                              config,
                              out_map,
-                             key="",
-                             max_items=None):
+                             key=""):
 
     dynamic_resizing = config['dynamic_resizing']
     if dynamic_resizing:
-        process_patches_for_file_dynamic(file_path, config, out_map, key, max_items)
+        process_patches_for_file_dynamic(file_path, config, out_map, key)
     else:
-        process_patches_for_file_simple(file_path, config, out_map, key, max_items)
+        process_patches_for_file_simple(file_path, config, out_map, key)
 
 
 def process_patches_for_file_simple(file_path,
                                     config,
                                     out_map,
-                                    key="",
-                                    max_items=None):
+                                    key=""):
 
     scale = config['down_scale']
     out_dir = get_full_ds_dir(config)
@@ -496,8 +496,6 @@ def process_patches_for_file_simple(file_path,
         key = key + "_"
     file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
     for i in range(len(patches)):
-        if max_items and i > max_items:
-            break
         patch = patches_r[i]
         dr = DataRecord(
             dy=diffs[i][0].item(),
@@ -593,7 +591,7 @@ def read_img(file_path, config):
 def prepare_data(dataset_config, in_dirs, keys):
 
     ends_with = dataset_config['ends_with']
-    max_items = dataset_config['max_items']
+    max_files = dataset_config['max_files']
     const_patch_size = dataset_config.get('const_patch_size')
     if const_patch_size is not None:
             assert const_patch_size % 2 == 1, "doesn't work that way"
@@ -601,13 +599,13 @@ def prepare_data(dataset_config, in_dirs, keys):
     prepare_and_clean_dir(dataset_config)
 
     out_map = {}
-    all = "?1?" if max_items is not None else None
+    all = str(max_files) if max_files is not None else None
 
     for i, in_dir in enumerate(in_dirs):
 
         counter = 0
 
-        if not max_items:
+        if not max_files:
             all = len([fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)])
 
         print("Processing dir {}: {}/{}".format(in_dir, i + 1, len(in_dirs)))
@@ -618,7 +616,7 @@ def prepare_data(dataset_config, in_dirs, keys):
             if not file_name.endswith(ends_with):
                 continue
             counter += 1
-            if max_items and counter > max_items:
+            if max_files and counter > max_files:
                 break
 
             path = "{}/{}".format(in_dir, file_name)
@@ -626,8 +624,7 @@ def prepare_data(dataset_config, in_dirs, keys):
             process_patches_for_file(file_path=path,
                                      config=dataset_config,
                                      out_map=out_map,
-                                     key=key,
-                                     max_items=max_items)
+                                     key=key)
 
     possibly_write_data(dataset_config, out_map)
     return list(out_map.items())
@@ -695,11 +692,12 @@ def prepare_data_by_scale(wand_project="mean_std_dev"):
     in_dirs = config['in_dirs']
     keys = config['keys']
 
-    values = [scale_int / 10 for scale_int in range(1, 10)]
+    scales = [scale_int / 10 for scale_int in range(1, 10)]
     means = []
     std_devs = []
 
-    for scale in values:
+    for i, scale in enumerate(scales):
+        start_time = time.time()
         config['down_scale'] = scale
         dn = config['detector']
         config['out_dir'] = "dataset/{}_int_scale_{}_size_".format(dn, scale).replace(".", "_")
@@ -710,6 +708,8 @@ def prepare_data_by_scale(wand_project="mean_std_dev"):
         means.append(mean.tolist())
         std_dev = np.sqrt(errors.var(axis=0)).tolist()
         std_devs.append(std_dev)
+        end_time = time.time()
+        print("{}. out of {} scales took {:.4f} seconds.".format(i + 1, len(scales), end_time - start_time))
 
     std_devs = np.array(std_devs)
     means = np.array(means)
@@ -719,30 +719,33 @@ def prepare_data_by_scale(wand_project="mean_std_dev"):
         # tags...
         wandb.init(project=wand_project, name=get_wand_name(config, entry_list))
 
-        data = [[x, y] for (x, y) in zip(values, means[:, 1])]
+        data = [[x, y] for (x, y) in zip(scales, means[:, 1])]
         table = wandb.Table(data=data, columns=["scale", "mean error x"])
         wandb.log({"mean error x": wandb.plot.line(table, "scale", "mean error x", title="Mean error(x) as a function of scale")})
 
-        data = [[x, y] for (x, y) in zip(values, means[:, 0])]
+        data = [[x, y] for (x, y) in zip(scales, means[:, 0])]
         table = wandb.Table(data=data, columns=["scale", "mean error y"])
         wandb.log({"mean error y": wandb.plot.line(table, "scale", "mean error y", title="Mean error(y) as a function of scale")})
 
-        data = [[x, y] for (x, y) in zip(values, std_devs[:, 1])]
+        data = [[x, y] for (x, y) in zip(scales, std_devs[:, 1])]
         table = wandb.Table(data=data, columns=["scale", "std dev x"])
         wandb.log({"std dev(x)": wandb.plot.line(table, "scale", "std dev x", title="Std dev(x) of error as a function of scale")})
 
-        data = [[x, y] for (x, y) in zip(values, std_devs[:, 0])]
+        data = [[x, y] for (x, y) in zip(scales, std_devs[:, 0])]
         table = wandb.Table(data=data, columns=["scale", "std dev y"])
         wandb.log({"std dev(y)": wandb.plot.line(table, "scale", "std dev y", title="Std dev(y) of error as a function of scale")})
 
 
 def simple_prepare_data():
+    start_time = time.time()
     config = get_config()['dataset']
     in_dirs = config['in_dirs']
     keys = config['keys']
     prepare_data(config, in_dirs, keys)
+    end_time = time.time()
+    print("it took {:.4f} seconds.".format(end_time - start_time))
 
 
 if __name__ == "__main__":
-    # prepare_data_by_scale()
-    simple_prepare_data()
+    prepare_data_by_scale()
+    #simple_prepare_data()
