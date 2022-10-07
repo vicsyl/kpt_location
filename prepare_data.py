@@ -1,15 +1,13 @@
-import time
 import copy
 import glob
-import numpy as np
-import matplotlib.pyplot as plt
-import wandb
-from PIL import Image
-import PIL
-import torch
 import os
-import math
-from config import *
+import time
+
+import PIL
+import matplotlib.pyplot as plt
+import torch
+from PIL import Image
+
 from patch_dataset import *
 
 
@@ -34,7 +32,10 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     d_mat = torch.cdist(kpts, kpts_reprojected)
 
+    # min0 => minima of resized
     min0 = torch.min(d_mat, dim=0)
+    k = 3
+    up_to_k_min = torch.topk(d_mat, k, largest=False, axis=0).values # [k, dim]
     min1 = torch.min(d_mat, dim=1)
 
     mask = min1[1][min0[1]] == torch.arange(0, min0[1].shape[0])
@@ -72,7 +73,11 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
         kpts_r_scales = kpts_r_scales[mask_ratio_th]
         scale_ratios = scale_ratios[mask_ratio_th]
 
-    return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs, scale_ratios
+    min_distances_reprojected = min0[0] * scale
+    up_to_k_min = up_to_k_min * scale
+    assert torch.all(up_to_k_min[0, :] == min_distances_reprojected)
+    # distances for reprojected
+    return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs, scale_ratios, up_to_k_min
 
 
 def scale_pil(img, scale, config, show=False):
@@ -358,7 +363,7 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, confi
         dr.dy, dr.dx = dy, dx
         dr.augmented = augmented_keys[index]
         file_name = "{}_{}.png".format(file_name_prefix, index)
-        out_map[file_name] = dr
+        out_map["metadata"][file_name] = dr
         img_out_path = "{}/data/{}".format(out_dir, file_name)
         if write_data:
             cv.imwrite(img_out_path, patch_aug.numpy())
@@ -404,7 +409,7 @@ def process_patches_for_file_dynamic(file_path,
         if len(kpts_r) == 0:
             continue
 
-        kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = mnn(kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, real_scale, config)
+        kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, real_scale, config)
 
         #check kpt_scales_r
         mask = (kpt_scales_r < const_patch_size) & (kpt_scales_r > const_patch_size - 2)
@@ -464,6 +469,21 @@ def process_patches_for_file(file_path,
         process_patches_for_file_simple(file_path, config, out_map, key)
 
 
+def ensure_keys(m: map, keys: list):
+    for key in keys:
+        if not m.__contains__(key):
+            m[key] = {}
+        m = m[key]
+
+
+def update_min_dists(min_distances_reprojected, out_map):
+    ensure_keys(out_map, ["other", "minimal_dists"])
+    if len(out_map["other"]["minimal_dists"]) == 0:
+        out_map["other"]["minimal_dists"] = min_distances_reprojected.numpy()
+    else:
+        out_map["other"]["minimal_dists"] = np.hstack((out_map["other"]["minimal_dists"], min_distances_reprojected))
+
+
 def process_patches_for_file_simple(file_path,
                                     config,
                                     out_map,
@@ -484,7 +504,8 @@ def process_patches_for_file_simple(file_path,
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
-    kpts, kpt_scales, kpts_r, kpt_scales_r, diffs, scale_ratios = mnn(kpts, kpt_scales, kpts_r, kpt_scales_r, real_scale, config)
+    kpts, kpt_scales, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts, kpt_scales, kpts_r, kpt_scales_r, real_scale, config)
+    update_min_dists(up_to_k_min, out_map)
 
     patches = get_patches(img, kpts, kpt_scales, const_patch_size, config)
     patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
@@ -540,11 +561,17 @@ def get_ds_stats(entries):
     return patch_size_min_max, scale_min_max, scale_ratio_min_max
 
 
+def write_st(dataset_conf):
+    write_metadata = dataset_conf['write_metadata']
+    write_data = dataset_conf['write_data']
+    log_dists = dataset_conf['log_dists']
+    return write_metadata or write_data or log_dists
+
+
 def prepare_and_clean_dir(dataset_config):
     out_dir = get_full_ds_dir(dataset_config)
     clean = dataset_config['clean_out_dir']
-    write_data = dataset_config['write_data']
-    if write_data:
+    if write_st(dataset_config):
         data_dir_path = "{}/data".format(out_dir)
         if not os.path.exists(data_dir_path):
             os.makedirs(data_dir_path, exist_ok=True)
@@ -566,9 +593,19 @@ def prepare_and_clean_dir(dataset_config):
                     print("couldn't remove {}".format(path))
 
 
-def possibly_write_data(dataset_config, out_map):
-    write_data = dataset_config['write_data']
-    if write_data:
+def log_table(data, column, table_ref=None, title=None):
+    if not title:
+        title = column
+    if not table_ref:
+        table_ref = column
+    t_d = wandb.Table(data=data, columns=[column])
+    wandb.log({table_ref: wandb.plot.histogram(t_d, column, title=title)})
+
+
+def possibly_write_metadata(dataset_config, orig_out_map):
+    write_metadata = dataset_config['write_metadata']
+    if write_metadata:
+        out_map = orig_out_map["metadata"]
         out_dir = get_full_ds_dir(dataset_config)
         with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
             write_metada(md_file, out_map, dataset_config)
@@ -580,6 +617,28 @@ def possibly_write_data(dataset_config, out_map):
             for (fn, value) in out_map.items():
                 to_write = "{}, {}\n".format(fn, value.line_str())
                 md_file.write(to_write)
+
+    distances = orig_out_map["other"]["minimal_dists"]
+    print("number of distance items: {}x{}".format(*distances.shape[:2]))
+
+    log_dists = dataset_config['log_dists']
+    if log_dists:
+        wandb.init(project="kpt_location_error_analysis_private", name=get_wand_name(dataset_config, entry_list=None, extra_key="minimal_distance"))
+
+        distances = orig_out_map["other"]["minimal_dists"]
+        print("number of distance items: {}x{}".format(*distances.shape[:2]))
+
+        def log_k_distance(k):
+            prefix = "" if k == 0 else "{}th ".format(k + 1)
+            log_table(distances[k][:, None], column="{}distance".format(prefix), table_ref="{}distances".format(prefix), title="{}distance of error".format(prefix))
+            log_table(np.sqrt(distances[k][:, None]), column="sqt({}distances)".format(prefix), title="sqt({}distances) of error".format(prefix))
+
+        max_k = 3
+        for i in range(max_k):
+            log_k_distance(i)
+
+        first_second_ratio = distances[1][:, None] / distances[0][:, None]
+        log_table(first_second_ratio, column="1st to 2nd ratio")
 
 
 def read_img(file_path, config):
@@ -598,7 +657,7 @@ def prepare_data(dataset_config, in_dirs, keys):
 
     prepare_and_clean_dir(dataset_config)
 
-    out_map = {}
+    out_map = {"metadata": {}}
     all = str(max_files) if max_files is not None else None
 
     for i, in_dir in enumerate(in_dirs):
@@ -611,7 +670,7 @@ def prepare_data(dataset_config, in_dirs, keys):
         print("Processing dir {}: {}/{}".format(in_dir, i + 1, len(in_dirs)))
         key = keys[i]
 
-        for file_name in os.listdir(in_dir):
+        for file_name in sorted(os.listdir(in_dir)):
 
             if not file_name.endswith(ends_with):
                 continue
@@ -620,14 +679,15 @@ def prepare_data(dataset_config, in_dirs, keys):
                 break
 
             path = "{}/{}".format(in_dir, file_name)
-            print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map)))
+            print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map["metadata"])))
             process_patches_for_file(file_path=path,
                                      config=dataset_config,
                                      out_map=out_map,
                                      key=key)
+            print(" ...  distances: {}".format(len(out_map["other"]["minimal_dists"])))
 
-    possibly_write_data(dataset_config, out_map)
-    return list(out_map.items())
+    possibly_write_metadata(dataset_config, out_map)
+    return list(out_map["metadata"].items())
 
 
 def write_metada(file, out_map, config):
@@ -666,41 +726,23 @@ def write_metada(file, out_map, config):
     file.write("### CONFIG ###\n")
 
 
-def get_wand_name(config, entry_list):
-
-    wandb_tags_keys = config['wandb_tags_keys']
-    name = ""
-    for wandb_tags_key in wandb_tags_keys:
-        if wandb_tags_key == "magic_items":
-            name = name + ":items=" + str(len(entry_list))
-        elif wandb_tags_key.startswith("no_key"):
-            wandb_tags_key = wandb_tags_key[7:]
-            value = config.get(wandb_tags_key, None)
-            if value:
-                name = name + ":" + str(value)
-        else:
-            value = config.get(wandb_tags_key, None)
-            if value:
-                name = name + ":{}={}".format(wandb_tags_key, str(value))
-
-    return name
-
-
-def prepare_data_by_scale(wand_project="mean_std_dev"):
+def prepare_data_by_scale(wandb_project="mean_std_dev"):
 
     config = get_config()['dataset']
     in_dirs = config['in_dirs']
     keys = config['keys']
 
-    scales = [scale_int / 10 for scale_int in range(1, 10)]
+    #scales = [scale_int / 10 for scale_int in range(1, 10)]
+    scales = [0.1]
     means = []
     std_devs = []
 
     for i, scale in enumerate(scales):
         start_time = time.time()
         config['down_scale'] = scale
-        dn = config['detector']
-        config['out_dir'] = "dataset/{}_int_scale_{}_size_".format(dn, scale).replace(".", "_")
+        #dn = config['detector']
+        #config['out_dir'] = "dataset/{}_30_files_int_scale_{}_size_".format(dn, scale).replace(".", "_")
+        set_config_dir_scale_scheme(config, scale)
         print(list(config.items()))
         entry_list = prepare_data(config, in_dirs, keys)
         _, errors, _ = get_error_stats(entry_list)
@@ -714,10 +756,10 @@ def prepare_data_by_scale(wand_project="mean_std_dev"):
     std_devs = np.array(std_devs)
     means = np.array(means)
 
-    if wand_project:
+    if wandb_project:
 
         # tags...
-        wandb.init(project=wand_project, name=get_wand_name(config, entry_list))
+        wandb.init(project=wandb_project, name=get_wand_name(config, entry_list))
 
         data = [[x, y] for (x, y) in zip(scales, means[:, 1])]
         table = wandb.Table(data=data, columns=["scale", "mean error x"])
@@ -747,5 +789,5 @@ def simple_prepare_data():
 
 
 if __name__ == "__main__":
-    prepare_data_by_scale()
+    prepare_data_by_scale(wandb_project=None)
     #simple_prepare_data()

@@ -4,7 +4,7 @@ import torchvision.models as models
 from pytorch_lightning import LightningModule, Trainer
 
 import wandb
-from patch_dataset import PatchesDataModule
+from patch_dataset import PatchesDataModule, get_wand_name
 from config import *
 
 
@@ -82,7 +82,7 @@ def train(path='config/config.yaml', wandb_project="kpt_location_training_privat
 
     model = PatchesModule(train_conf)
     if train_conf.get('enable_wandlog', False):
-        wandb.init(project=wandb_project)
+        wandb.init(project=wandb_project, name=get_wand_name(conf['dataset'], entry_list=None))
         # NOTE this doesn't show anywhere
         wandb.config = train_conf
         wandb.watch(model)

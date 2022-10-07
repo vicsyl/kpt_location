@@ -28,6 +28,26 @@ from torch.utils.data.dataset import Dataset
 from config import *
 
 
+def get_wand_name(config, entry_list, extra_key=None):
+
+    wandb_tags_keys = config['wandb_tags_keys']
+    name = extra_key + "_" if extra_key else ""
+    for wandb_tags_key in wandb_tags_keys:
+        if wandb_tags_key == "magic_items":
+            name = name + ":items=" + str(len(entry_list))
+        elif wandb_tags_key.startswith("no_key"):
+            wandb_tags_key = wandb_tags_key[7:]
+            value = config.get(wandb_tags_key, None)
+            if value:
+                name = name + ":" + str(value)
+        else:
+            value = config.get(wandb_tags_key, None)
+            if value:
+                name = name + ":{}={}".format(wandb_tags_key, str(value))
+
+    return name
+
+
 # others: match_args=True, kw_only=False, slots=False
 @dataclass(init=True, repr=True, eq=True, order=True, unsafe_hash=False, frozen=False)
 class DataRecord:
@@ -294,26 +314,26 @@ def mean_abs_mean(stat):
     return mean, abs_mean
 
 
-def log_stats(ds_path, wand_project):
+def log_stats(ds_path, wandb_project, config):
 
     def print_stat(stat, name):
         mean, abs_mean = mean_abs_mean(stat)
         print("{} mean: {}".format(name, mean))
         print("{} abs mean: {}".format(name, abs_mean))
 
-    # FIXME
-    metadata_list = PatchDataset(ds_path, batch_size=None).metadata_list
+    train_config = config['train']
+    metadata_list = PatchDataset(ds_path, train_config).metadata_list
 
     distances, errors, angles = get_error_stats(metadata_list, [0.0, 0.0])
     print_stat(distances, "distance")
     print_stat(errors, "error")
     print_stat(angles, "angle")
 
-    adjustment = [0.15, 0.15]
-    distances_adjusted, errors_adjusted, angles_adjusted = get_error_stats(metadata_list, adjustment)
-    print_stat(distances_adjusted, "adjusted distance")
-    print_stat(errors_adjusted, "adjusted error")
-    print_stat(angles_adjusted, "adjusted angle")
+    #adjustment = [0.15, 0.15]
+    # distances_adjusted, errors_adjusted, angles_adjusted = get_error_stats(metadata_list, adjustment)
+    # print_stat(distances_adjusted, "adjusted distance")
+    # print_stat(errors_adjusted, "adjusted error")
+    # print_stat(angles_adjusted, "adjusted angle")
 
     group = False
     if group:
@@ -333,21 +353,24 @@ def log_stats(ds_path, wand_project):
         analyse_unique(errors, "errors")
         analyse_unique(angles, "angles")
 
-    if wand_project:
+    if wandb_project:
 
-        wandb.init(project=wand_project)
+        wandb.init(project=wandb_project, name=get_wand_name(config['dataset'], entry_list=None))
 
         t_d = wandb.Table(data=distances, columns=["distance"])
         wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="distance of error")})
 
-        t_d = wandb.Table(data=distances_adjusted, columns=["distance"])
-        wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="distance of error adjusted")})
+        t_d = wandb.Table(data=np.sqrt(distances), columns=["sqt(distances)"])
+        wandb.log({'sqt(distances)': wandb.plot.histogram(t_d, "sqt(distances)", title="sqt(distances) of error")})
 
         t_d = wandb.Table(data=angles, columns=["angle"])
         wandb.log({'angles': wandb.plot.histogram(t_d, "angle", title="angle error")})
 
-        t_d = wandb.Table(data=angles_adjusted, columns=["angle"])
-        wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
+        # t_d = wandb.Table(data=distances_adjusted, columns=["distance"])
+        # wandb.log({'distances adjusted': wandb.plot.histogram(t_d, "distance", title="distance of error adjusted")})
+        #
+        # t_d = wandb.Table(data=angles_adjusted, columns=["angle"])
+        # wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
 
 
 def t_data_record():
@@ -379,8 +402,23 @@ def t_data_record():
     print("schema: {}".format(DataRecord.schema()))
 
 
+def log_scale_stats(wandb_project):
+    #scales = [scale_int / 10 for scale_int in range(1, 10)]
+    scales = [0.1]
+    conf = get_config()
+    dataset_conf = conf['dataset']
+    for scale in scales:
+        dataset_conf['down_scale'] = scale
+        set_config_dir_scale_scheme(dataset_conf, scale)
+        ds_path = get_full_ds_dir(dataset_conf)
+        log_stats(ds_path, wandb_project, conf)
+
+
 if __name__ == "__main__":
     #iterate_dataset()
-    #wand_project = "kpt_location_error_analysis_private"
-    log_stats("dataset/const_size_adj_33", wand_project=None)
+    #wandb_project = None
+    wandb_project = "kpt_location_error_analysis_private"
+    log_scale_stats(wandb_project)
+    #conf = get_config()
+    #log_stats("dataset/superpoint_30_files_int_33", wandb_project, conf)
     #t_data_record()

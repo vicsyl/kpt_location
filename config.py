@@ -39,9 +39,19 @@ def get_detector(config):
     return get_detector_by_name(name)
 
 
+def set_config_dir_scale_scheme(dataset_config, scale):
+    dn = dataset_config['detector']
+    err = dataset_config['err_th']
+    max_files = dataset_config['max_files']
+    dataset_config['out_dir'] = "dataset/{}_err_{}_files_{}_scale_{}_size_".format(dn, err, max_files, scale).replace(".", "_")
+
+
 def get_detector_by_name(name):
     if name == 'sift':
         return cv.SIFT_create()
+    # TODO add "improved kornia SIFT"
+    # custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
+    # detector = NumpyKorniaSiftDetector(scale_pyramid=custom_scale_pyramid)
     elif name == 'sift_kornia':
         return NumpyKorniaSiftDetector()
     elif name == 'superpoint':
