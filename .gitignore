@@ -9,4 +9,5 @@ lightning_logs
 wandb
 notes
 .ipynb_checkpoints
+config/config.yaml
 *notes.md
