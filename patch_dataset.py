@@ -135,13 +135,18 @@ def batched_random_split(dataset: Dataset[T], lengths: Sequence[int], batch_size
 
 class PatchDataset(Dataset):
 
-    def __init__(self, root_dir, train_config) -> None:
+    def __init__(self, root_dir, conf) -> None:
         super().__init__()
+        train_config = conf['train']
         self.root_dir = root_dir
         self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
         self.augment = (train_config['augment'].lower() == "lazy")
+        if conf['dataset']['detector'].lower() == "superpoint":
+            self.special_heatmap_handling = train_config['special_heatmap_handling']
+        else:
+            self.special_heatmap_handling = None
 
         # NOTE probably broken
         if self.grouped_by_sizes:
@@ -168,13 +173,28 @@ class PatchDataset(Dataset):
         path = "{}/data/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
+        # TODO these fallback options to be tested
+        if self.special_heatmap_handling == "img":
+            patch_t = patch_t[:, :patch_t.shape[1] // 2]
+        elif self.special_heatmap_handling == "heatmap":
+            patch_t = patch_t[:, patch_t.shape[1] // 2:]
+
+        from utils import show_torch
         if self.augment and index % 6 != 0:
             augment_index = index % 6
-            patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx))
+            split = self.special_heatmap_handling == "both"
+            #show_torch(patch_t[0], "patch before augmenting on the fly")
+            patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx), split)
             patch_t = patches_aug[augment_index][None]
+            #show_torch(patch_t[0], "patch augmented on the fly")
             dy, dx = diffs_aug[augment_index]
+        else:
+            #show_torch(patch_t[0], "patch not augmented")
+            pass
         if patch_t.shape[0] == 1:
             patch_t = patch_t.expand(3, -1, -1)
+        else:
+            pass
         y = torch.tensor([dy, dx])
         return patch_t, y
 
@@ -182,7 +202,7 @@ class PatchDataset(Dataset):
         return len(self.metadata_list)
 
 
-def augment_patch(patch, diffs):
+def augment_patch(patch, diffs, split):
     patch_r_y = torch.flip(patch, dims=[0])
     diffs_r_y = -diffs[0], diffs[1]
     patch_r_x = torch.flip(patch, dims=[1])
@@ -192,7 +212,18 @@ def augment_patch(patch, diffs):
     diff_l = [diffs]
     augment_keys = ["original"]
     for i in range(3):
-        patch = torch.rot90(patch, 1, [0, 1])
+        if split:
+            from utils import show_torch
+            #show_torch(patch, "before splitting")
+            split_i = patch.shape[1] // 2
+            part1, part2 = patch[:, :split_i], patch[:, split_i:]
+            part1 = torch.rot90(part1, 1, [0, 1])
+            part2 = torch.rot90(part2, 1, [0, 1])
+            patch = torch.hstack((part1, part2))
+            #show_torch(patch, "after splitting, rotation and hstack")
+            pass
+        else:
+            patch = torch.rot90(patch, 1, [0, 1])
         patches.append(patch)
         diffs = -diffs[1], diffs[0]
         diff_l.append(diffs)
@@ -219,7 +250,7 @@ class PatchesDataModule(pl.LightningDataModule):
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
         root_dir = get_full_ds_dir(conf['dataset'])
-        self.dataset = PatchDataset(root_dir, train_conf)
+        self.dataset = PatchDataset(root_dir, conf)
 
     def prepend_parts(self, parts, part_size):
         if self.splits == 2:
@@ -330,8 +361,7 @@ def log_stats(wandb_project, scale, tags):
         print("{} mean: {}".format(name, mean))
         print("{} abs mean: {}".format(name, abs_mean))
 
-    train_config = config['train']
-    metadata_list = PatchDataset(ds_path, train_config).metadata_list
+    metadata_list = PatchDataset(ds_path, config).metadata_list
 
     distances, errors, angles = get_error_stats(metadata_list, [0.0, 0.0])
     print_stat(distances, "distance")

@@ -75,9 +75,11 @@ class PatchesModule(LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
 
-def train(path='config/config.yaml', wandb_project="kpt_location_training_private"):
+def train(path='config/config.yaml', wandb_project="kpt_location_training_private", set_config_dir_scheme=False):
 
     conf = get_config(path)
+    if set_config_dir_scheme:
+        set_config_dir_scale_scheme(conf['dataset'])
     train_conf = conf['train']
 
     model = PatchesModule(train_conf)
@@ -96,4 +98,4 @@ def train(path='config/config.yaml', wandb_project="kpt_location_training_privat
 
 
 if __name__ == "__main__":
-    train()
+    train(set_config_dir_scheme=True)

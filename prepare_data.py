@@ -547,6 +547,7 @@ def process_patches_for_file_simple(file_path,
             if len(p_l) > 1:
                 return torch.hstack(tuple(p_l))
             else:
+                # TODO test this (e.g. with SIFT)
                 return pl[0]
         patch = concat_patches([patch_r[i] for patch_r in patches_r_list])
 
