@@ -1,18 +1,14 @@
-import sys
 import copy
 import glob
 import os
 import time
-import cv2 as cv
-import argparse
 
 import PIL
 import matplotlib.pyplot as plt
-import torch
 from PIL import Image
 
-from wand_utils import *
 from patch_dataset import *
+from wand_utils import wand_log_me
 
 
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
@@ -151,7 +147,11 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     h, w = img_np.shape[:2]
 
+    heatmap = None
     kpts = detector.detect(img_np, mask=None)
+    if config['detector'].lower() == "superpoint":
+        kpts, heatmap = kpts[0], kpts[1]
+        heatmap = (heatmap * 255).astype(dtype=np.uint8)
 
     # NOTE show the keypoints
     # img_kpts = cv.cvtColor(img_np, cv.COLOR_GRAY2RGB)
@@ -197,7 +197,7 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     # in [0, 360]
     orientations = torch.tensor([kpt.angle for kpt in kpts])[mask]
-    return torch.from_numpy(kpt_f), torch.from_numpy(scales), orientations
+    return torch.from_numpy(kpt_f), torch.from_numpy(scales), orientations, heatmap
 
 
 def print_and_check_margins(kpt_i, margins_np, img_t):
@@ -236,13 +236,20 @@ def show_patches(patches, label, config, detect):
     plt.close()
 
 
-def slice_patches(img, kpts, margins):
-    patches = [img[kp_i[0] - margins[i]: kp_i[0] + margins[i] + 1,
-               kp_i[1] - margins[i]: kp_i[1] + margins[i] + 1][None] for i, kp_i in enumerate(kpts)]
-    return [p[0] for p in patches]
+def slice_patches(img_t, kpts, margins, heatmap_t):
+    def slice_np(np_data):
+        return [np_data[kp_i[0] - margins[i]: kp_i[0] + margins[i] + 1,
+         kp_i[1] - margins[i]: kp_i[1] + margins[i] + 1] for i, kp_i in enumerate(kpts)]
+
+    patches = slice_np(img_t)
+    if heatmap_t is not None:
+        patches_hm = slice_np(heatmap_t)
+        return [patches, patches_hm]
+    else:
+        return [patches]
 
 
-def get_patches(img_np, kpt_f, kpt_scales, const_patch_size, config):
+def get_patches_list(img_np, kpt_f, kpt_scales, const_patch_size, config, heatmap_np):
     """
     :param img_np:
     :param kpt_f:
@@ -251,8 +258,6 @@ def get_patches(img_np, kpt_f, kpt_scales, const_patch_size, config):
     :param show_few:
     :return: patches: List[Tensor]
     """
-
-    img_t = torch.tensor(img_np)
 
     kpt_i = torch.round(kpt_f).to(torch.int)
     if const_patch_size is not None:
@@ -263,7 +268,9 @@ def get_patches(img_np, kpt_f, kpt_scales, const_patch_size, config):
         margins_np = margins.to(torch.int).numpy()
     # print_and_check_margins(kpt_i, margins_np, img_t)
 
-    patches = slice_patches(img_t, kpt_i, margins_np)
+    img_t = torch.tensor(img_np)
+    heatmap_t = torch.tensor(heatmap_np)
+    patches_list = slice_patches(img_t, kpt_i, margins_np, heatmap_t)
 
     show = config['show_kpt_patches']
     if show:
@@ -275,9 +282,9 @@ def get_patches(img_np, kpt_f, kpt_scales, const_patch_size, config):
         ps_kpts = slice_patches(img_tc, kpt_i, margins_np)
 
         show_patches(ps_kpts, "Patches - original", config, detect=False)
-        show_patches(patches, "Patches - redetected", config, detect=True)
+        show_patches(patches_list, "Patches - redetected", config, detect=True)
 
-    return patches
+    return patches_list
 
 
 def compare_patches(patches0, patches1, diffs):
@@ -338,6 +345,11 @@ def pil_img_transforms(img, config):
         img = np.array(img)
         img = possibly_to_grey_scale(config, img)
         img = possibly_refl_image(config, img)
+        # FIXME a bit of a hack
+        if config['detector'].lower() == "superpoint":
+            new_h = (img.shape[0] // 8) * 8
+            new_w = (img.shape[1] // 8) * 8
+            img = img[:new_h, :new_w]
         return img
 
 
@@ -360,7 +372,8 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, confi
     write_imgs = config['write_imgs']
     augment_mode = config['augment'].lower()
     if "eager" == augment_mode:
-        patches_aug, diffs_aug, augmented_keys = augment_patch(patch, (dr.dy, dr.dx))
+        raise NotImplemented
+        #patches_aug, diffs_aug, augmented_keys = augment_patch(patches, (dr.dy, dr.dx))
     else:
         patches_aug, diffs_aug, augmented_keys = [patch], [(dr.dy, dr.dx)], ["original"]
     for index, patch_aug in enumerate(patches_aug):
@@ -378,92 +391,93 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, confi
             cv.imwrite(img_out_path, patch_aug.numpy())
 
 
-def process_patches_for_file_dynamic(file_path,
-                                     config,
-                                     out_map,
-                                     key=""):
-
-    out_dir = get_full_ds_dir(config)
-    min_scale_th = config['min_scale_th']
-    const_patch_size = config.get('const_patch_size')
-    compare = config['compare_patches']
-    scale_ratio_th = config['scale_ratio_th']
-
-    # convert and show the image
-    img_orig_pil = get_pil_img(file_path)
-    img_orig = pil_img_transforms(img_orig_pil)
-
-    kpts, kpt_scales, _ = detect_kpts(img_orig, min_scale_th, const_patch_size=None, config=config)
-    if len(kpts) == 0:
-        return
-
-    counter = 0
-    max_scales = None # NOTE not implemented
-    matched = set()
-    for kpt_scale_index, kpt_scale in enumerate(kpt_scales):
-
-        if max_scales and counter > max_scales:
-            break
-
-        kpts_orig = kpts
-        kpt_scales_orig = kpt_scales
-
-        # FIXME test *2?
-        scale = (const_patch_size / scale_ratio_th) / kpt_scale.item()
-
-        img_r, real_scale = scale_pil(img_orig_pil, scale, config=config)
-        img_r = pil_img_transforms(img_r, config)
-
-        kpts_r, kpt_scales_r, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
-        if len(kpts_r) == 0:
-            continue
-
-        kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, real_scale, config)
-
-        #check kpt_scales_r
-        mask = (kpt_scales_r < const_patch_size) & (kpt_scales_r > const_patch_size - 2)
-        kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
-        mask = np.zeros(kpts_orig.shape[0], dtype=bool)
-        for i, kpt in enumerate(kpts_orig):
-            if not matched.__contains__(kpt):
-                matched.add(kpt)
-                mask[i] = True
-        kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
-        patches = get_patches(img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
-        patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
-        if compare:
-            compare_patches(patches, patches_r, diffs)
-
-        if key != "":
-            key = key + "_"
-        file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")] + "_" + str(kpt_scale_index)
-        for i in range(len(patches)):
-            counter += 1
-            if max_scales and counter > max_scales:
-                break
-            patch = patches_r[i]
-            dr = DataRecord(
-                dy=diffs[i][0].item(),
-                dx=diffs[i][1].item(),
-                patch_size=patch.shape[0],
-                kpt_orig_scale=kpt_scales_orig[i].item(),
-                kpt_resize_scale=kpt_scales_r[i].item(),
-                scale_ratio=scale_ratios[i].item(),
-                real_scale=real_scale,
-                img_scale_y=img_r.shape[0]/img_orig.shape[0],
-                img_scale_x=img_r.shape[0]/img_orig.shape[0],
-                original_img_size_y=img_orig.shape[0],
-                original_img_size_x=img_orig.shape[1],
-                resized_img_size_y=img_r.shape[0],
-                resized_img_size_x=img_r.shape[1],
-                augmented=None
-            )
-            augment_and_write_patch(patch,
-                                    dr,
-                                    "{}_{}".format(file_name_prefix, i),
-                                    out_map,
-                                    out_dir,
-                                    config)
+# NOTE - not supported!!!
+# def process_patches_for_file_dynamic(file_path,
+#                                      config,
+#                                      out_map,
+#                                      key=""):
+#
+#     out_dir = get_full_ds_dir(config)
+#     min_scale_th = config['min_scale_th']
+#     const_patch_size = config.get('const_patch_size')
+#     compare = config['compare_patches']
+#     scale_ratio_th = config['scale_ratio_th']
+#
+#     # convert and show the image
+#     img_orig_pil = get_pil_img(file_path)
+#     img_orig = pil_img_transforms(img_orig_pil)
+#
+#     kpts, kpt_scales, _, _ = detect_kpts(img_orig, min_scale_th, const_patch_size=None, config=config)
+#     if len(kpts) == 0:
+#         return
+#
+#     counter = 0
+#     max_scales = None # NOTE not implemented
+#     matched = set()
+#     for kpt_scale_index, kpt_scale in enumerate(kpt_scales):
+#
+#         if max_scales and counter > max_scales:
+#             break
+#
+#         kpts_orig = kpts
+#         kpt_scales_orig = kpt_scales
+#
+#         # FIXME test *2?
+#         scale = (const_patch_size / scale_ratio_th) / kpt_scale.item()
+#
+#         img_r, real_scale = scale_pil(img_orig_pil, scale, config=config)
+#         img_r = pil_img_transforms(img_r, config)
+#
+#         kpts_r, kpt_scales_r, _, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
+#         if len(kpts_r) == 0:
+#             continue
+#
+#         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, real_scale, config)
+#
+#         #check kpt_scales_r
+#         mask = (kpt_scales_r < const_patch_size) & (kpt_scales_r > const_patch_size - 2)
+#         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
+#         mask = np.zeros(kpts_orig.shape[0], dtype=bool)
+#         for i, kpt in enumerate(kpts_orig):
+#             if not matched.__contains__(kpt):
+#                 matched.add(kpt)
+#                 mask[i] = True
+#         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
+#         patches = get_patches(img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
+#         patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
+#         if compare:
+#             compare_patches(patches, patches_r, diffs)
+#
+#         if key != "":
+#             key = key + "_"
+#         file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")] + "_" + str(kpt_scale_index)
+#         for i in range(len(patches)):
+#             counter += 1
+#             if max_scales and counter > max_scales:
+#                 break
+#             patch = patches_r[i]
+#             dr = DataRecord(
+#                 dy=diffs[i][0].item(),
+#                 dx=diffs[i][1].item(),
+#                 patch_size=patch.shape[0],
+#                 kpt_orig_scale=kpt_scales_orig[i].item(),
+#                 kpt_resize_scale=kpt_scales_r[i].item(),
+#                 scale_ratio=scale_ratios[i].item(),
+#                 real_scale=real_scale,
+#                 img_scale_y=img_r.shape[0]/img_orig.shape[0],
+#                 img_scale_x=img_r.shape[0]/img_orig.shape[0],
+#                 original_img_size_y=img_orig.shape[0],
+#                 original_img_size_x=img_orig.shape[1],
+#                 resized_img_size_y=img_r.shape[0],
+#                 resized_img_size_x=img_r.shape[1],
+#                 augmented=None
+#             )
+#             augment_and_write_patch(patch,
+#                                     dr,
+#                                     "{}_{}".format(file_name_prefix, i),
+#                                     out_map,
+#                                     out_dir,
+#                                     config)
 
 
 def process_patches_for_file(file_path,
@@ -473,7 +487,8 @@ def process_patches_for_file(file_path,
 
     dynamic_resizing = config['dynamic_resizing']
     if dynamic_resizing:
-        process_patches_for_file_dynamic(file_path, config, out_map, key)
+        pass
+        #process_patches_for_file_dynamic(file_path, config, out_map, key)
     else:
         process_patches_for_file_simple(file_path, config, out_map, key)
 
@@ -507,9 +522,8 @@ def process_patches_for_file_simple(file_path,
     # convert and show the image
     img, img_r, real_scale = get_img_tuple(file_path, scale, config)
 
-    kpts, kpt_scales, _ = detect_kpts(img, min_scale_th, const_patch_size, config)
-
-    kpts_r, kpt_scales_r, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
+    kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, config)
+    kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
@@ -517,20 +531,29 @@ def process_patches_for_file_simple(file_path,
     kpts, kpt_scales, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts, kpt_scales, kpts_r, kpt_scales_r, real_scale, config)
     update_min_dists(up_to_k_min, out_map)
 
-    patches = get_patches(img, kpts, kpt_scales, const_patch_size, config)
-    patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
+    patches_list = get_patches_list(img, kpts, kpt_scales, const_patch_size, config, heatmap)
+    patches_r_list = get_patches_list(img_r, kpts_r, kpt_scales_r, const_patch_size, config, heatmap_r)
 
     if compare:
-        compare_patches(patches, patches_r, diffs)
+        # TODO test
+        compare_patches(patches_list, patches_r_list, diffs)
 
     if key != "":
         key = key + "_"
     file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
-    for i in range(len(patches)):
-        patch = patches_r[i]
+    for i in range(len(patches_list[0])):
+
+        def concat_patches(p_l):
+            if len(p_l) > 1:
+                return torch.hstack(tuple(p_l))
+            else:
+                return pl[0]
+        patch = concat_patches([patch_r[i] for patch_r in patches_r_list])
+
         dr = DataRecord(
             dy=diffs[i][0].item(),
             dx=diffs[i][1].item(),
+            # TODO becomes a bit irrelevant...
             patch_size=patch.shape[0],
             kpt_orig_scale=kpt_scales[i].item(),
             kpt_resize_scale=kpt_scales_r[i].item(),
@@ -789,8 +812,8 @@ if __name__ == "__main__":
     def tenths(_from, to):
         return [scale_int / 10 for scale_int in range(_from, to)]
 
-    scales = tenths(1, 10)
-    #scales = [0.1]
+    #scales = tenths(1, 10)
+    scales = [0.3]
 
-    prepare_data_by_scale(scales)
+    prepare_data_by_scale(scales, wandb_project=None)
     #simple_prepare_data()
