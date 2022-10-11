@@ -1,5 +1,6 @@
 import dataclasses
 import math
+import argparse
 
 import wandb
 from torch import randperm
@@ -26,6 +27,7 @@ from PIL import Image
 from torch.utils.data import random_split, DataLoader, Subset
 from torch.utils.data.dataset import Dataset
 from config import *
+from wand_utils import log_table
 
 
 def get_wand_name(config, entry_list, extra_key=None):
@@ -314,7 +316,14 @@ def mean_abs_mean(stat):
     return mean, abs_mean
 
 
-def log_stats(ds_path, wandb_project, config):
+def log_stats(wandb_project, scale, tags):
+
+    config = get_config()
+    dataset_conf = config['dataset']
+    dataset_conf["tags"] = tags
+    dataset_conf['down_scale'] = scale
+    set_config_dir_scale_scheme(dataset_conf)
+    ds_path = get_full_ds_dir(dataset_conf)
 
     def print_stat(stat, name):
         mean, abs_mean = mean_abs_mean(stat)
@@ -355,7 +364,9 @@ def log_stats(ds_path, wandb_project, config):
 
     if wandb_project:
 
-        wandb.init(project=wandb_project, name=get_wand_name(config['dataset'], entry_list=None))
+        wandb.init(project=wandb_project,
+                   name=get_wand_name(config['dataset'], entry_list=None),
+                   tags=dataset_conf["tags"])
 
         t_d = wandb.Table(data=distances, columns=["distance"])
         wandb.log({'distances': wandb.plot.histogram(t_d, "distance", title="distance of error")})
@@ -371,6 +382,40 @@ def log_stats(ds_path, wandb_project, config):
         #
         # t_d = wandb.Table(data=angles_adjusted, columns=["angle"])
         # wandb.log({'angles adjusted': wandb.plot.histogram(t_d, "angle", title="angle error adjusted")})
+
+
+def log_min_distance(wandb_project, scale, tags):
+
+    dataset_conf = get_config()['dataset']
+    dataset_conf["tags"] = tags
+
+    dataset_conf['down_scale'] = scale
+    set_config_dir_scale_scheme(dataset_conf)
+    out_dir = get_full_ds_dir(dataset_conf)
+
+    loaded_data = np.load("{}/a_other.npz".format(out_dir))
+    assert loaded_data.__contains__('minimal_dists'), "well, ..."
+
+    wandb.init(project=wandb_project,
+               name=get_wand_name(dataset_conf, entry_list=None, extra_key="minimal_distance"),
+               tags=dataset_conf["tags"])
+
+    distances = loaded_data["minimal_dists"]
+    print("number of distance items: {}x{}".format(*distances.shape[:2]))
+
+    def log_k_distance(k):
+        prefix = "" if k == 0 else "{}th ".format(k + 1)
+        log_table(distances[k][:, None], column="{}distance".format(prefix), table_ref="{}distances".format(prefix), title="{}distance of error".format(prefix))
+        log_table(np.sqrt(distances[k][:, None]), column="sqt({}distances)".format(prefix), title="sqt({}distances) of error".format(prefix))
+
+    max_k = 3
+    for i in range(max_k):
+        log_k_distance(i)
+
+    second_to_first_ratio = distances[1][:, None] / distances[0][:, None]
+    max_ratio = 5.0
+    second_to_first_ratio = second_to_first_ratio[second_to_first_ratio <= max_ratio][:, None]
+    log_table(second_to_first_ratio, column="2nd to 1st ratio")
 
 
 def t_data_record():
@@ -402,23 +447,31 @@ def t_data_record():
     print("schema: {}".format(DataRecord.schema()))
 
 
-def log_scale_stats(wandb_project):
-    #scales = [scale_int / 10 for scale_int in range(1, 10)]
-    scales = [0.1]
-    conf = get_config()
-    dataset_conf = conf['dataset']
-    for scale in scales:
-        dataset_conf['down_scale'] = scale
-        set_config_dir_scale_scheme(dataset_conf, scale)
-        ds_path = get_full_ds_dir(dataset_conf)
-        log_stats(ds_path, wandb_project, conf)
-
-
 if __name__ == "__main__":
+
     #iterate_dataset()
-    #wandb_project = None
-    wandb_project = "kpt_location_error_analysis_private"
-    log_scale_stats(wandb_project)
+
+    # custom scale
+    scale = 0.1
+    log_stats_method = "log_stats"
+    log_min_distance_method = "log_min_distance"
+    method = log_stats_method
+    tags=["dev"]
+
+    parser = argparse.ArgumentParser(description='Analyze data for a given scale')
+    parser.add_argument('--method', dest='method', help='method', choices=[log_stats_method, log_min_distance_method], required=False)
+    parser.add_argument('--scale', dest='scale', help='scale', required=False)
+    args = parser.parse_args()
+    if args.scale:
+        scale = float(args.scale)
+    if args.method:
+        method = args.method
+
+    if method == log_stats_method:
+        log_stats(wandb_project="kpt_location_error_analysis_private", scale=scale, tags=tags)
+    elif method == log_min_distance_method:
+        log_min_distance(wandb_project="kpt_location_error_analysis_private", scale=scale, tags=tags)
+
     #conf = get_config()
     #log_stats("dataset/superpoint_30_files_int_33", wandb_project, conf)
     #t_data_record()

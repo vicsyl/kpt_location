@@ -39,11 +39,12 @@ def get_detector(config):
     return get_detector_by_name(name)
 
 
-def set_config_dir_scale_scheme(dataset_config, scale):
+def set_config_dir_scale_scheme(dataset_config):
+    scale = dataset_config['down_scale']
     dn = dataset_config['detector']
     err = dataset_config['err_th']
     max_files = dataset_config['max_files']
-    dataset_config['out_dir'] = "dataset/{}_err_{}_files_{}_scale_{}_size_".format(dn, err, max_files, scale).replace(".", "_")
+    dataset_config['out_dir'] = "dataset/{}_new_err_{}_files_{}_scale_{}_size_".format(dn, err, max_files, scale).replace(".", "_")
 
 
 def get_detector_by_name(name):

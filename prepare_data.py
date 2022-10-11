@@ -1,19 +1,18 @@
+import sys
 import copy
 import glob
 import os
 import time
+import cv2 as cv
+import argparse
 
 import PIL
 import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 
+from wand_utils import *
 from patch_dataset import *
-
-
-def wand_log_me(msg, conf):
-    if conf['enable_wandlog']:
-        wandb.log(msg)
 
 
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
@@ -153,6 +152,16 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
     h, w = img_np.shape[:2]
 
     kpts = detector.detect(img_np, mask=None)
+
+    # NOTE show the keypoints
+    # img_kpts = cv.cvtColor(img_np, cv.COLOR_GRAY2RGB)
+    # cv.drawKeypoints(img_kpts, kpts, img_kpts, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    # plt.figure()
+    # plt.title("kpts")
+    # plt.imshow(img_kpts)
+    # plt.show()
+    # plt.close()
+
     if len(kpts) == 0:
         return [], []
 
@@ -348,7 +357,7 @@ def apply_mask(mask, np_list):
 
 def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, config):
 
-    write_data = config['write_data']
+    write_imgs = config['write_imgs']
     augment_mode = config['augment'].lower()
     if "eager" == augment_mode:
         patches_aug, diffs_aug, augmented_keys = augment_patch(patch, (dr.dy, dr.dx))
@@ -365,7 +374,7 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, confi
         file_name = "{}_{}.png".format(file_name_prefix, index)
         out_map["metadata"][file_name] = dr
         img_out_path = "{}/data/{}".format(out_dir, file_name)
-        if write_data:
+        if write_imgs:
             cv.imwrite(img_out_path, patch_aug.numpy())
 
 
@@ -499,6 +508,7 @@ def process_patches_for_file_simple(file_path,
     img, img_r, real_scale = get_img_tuple(file_path, scale, config)
 
     kpts, kpt_scales, _ = detect_kpts(img, min_scale_th, const_patch_size, config)
+
     kpts_r, kpt_scales_r, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
@@ -564,8 +574,7 @@ def get_ds_stats(entries):
 def write_st(dataset_conf):
     write_metadata = dataset_conf['write_metadata']
     write_data = dataset_conf['write_data']
-    log_dists = dataset_conf['log_dists']
-    return write_metadata or write_data or log_dists
+    return write_metadata or write_data
 
 
 def prepare_and_clean_dir(dataset_config):
@@ -577,9 +586,9 @@ def prepare_and_clean_dir(dataset_config):
             os.makedirs(data_dir_path, exist_ok=True)
         if clean:
             try:
-                path = '{}/a_values.txt'.format(out_dir)
+                path = '{}/a_other.npz'.format(out_dir)
                 os.remove(path)
-                path = '{}/a_metadata.txt'.format(out_dir)
+                path = '{}/a_metadata.npz'.format(out_dir)
                 os.remove(path)
             except:
                 print("couldn't remove {}".format(path))
@@ -602,7 +611,7 @@ def log_table(data, column, table_ref=None, title=None):
     wandb.log({table_ref: wandb.plot.histogram(t_d, column, title=title)})
 
 
-def possibly_write_metadata(dataset_config, orig_out_map):
+def possibly_write_data(dataset_config, orig_out_map):
     write_metadata = dataset_config['write_metadata']
     if write_metadata:
         out_map = orig_out_map["metadata"]
@@ -610,6 +619,8 @@ def possibly_write_metadata(dataset_config, orig_out_map):
         with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
             write_metada(md_file, out_map, dataset_config)
 
+    write_data = dataset_config['write_data']
+    if write_data:
         with open("{}/a_values.txt".format(out_dir), "w") as md_file:
             write_metada(md_file, out_map, dataset_config)
 
@@ -618,27 +629,10 @@ def possibly_write_metadata(dataset_config, orig_out_map):
                 to_write = "{}, {}\n".format(fn, value.line_str())
                 md_file.write(to_write)
 
-    distances = orig_out_map["other"]["minimal_dists"]
-    print("number of distance items: {}x{}".format(*distances.shape[:2]))
-
-    log_dists = dataset_config['log_dists']
-    if log_dists:
-        wandb.init(project="kpt_location_error_analysis_private", name=get_wand_name(dataset_config, entry_list=None, extra_key="minimal_distance"))
-
-        distances = orig_out_map["other"]["minimal_dists"]
-        print("number of distance items: {}x{}".format(*distances.shape[:2]))
-
-        def log_k_distance(k):
-            prefix = "" if k == 0 else "{}th ".format(k + 1)
-            log_table(distances[k][:, None], column="{}distance".format(prefix), table_ref="{}distances".format(prefix), title="{}distance of error".format(prefix))
-            log_table(np.sqrt(distances[k][:, None]), column="sqt({}distances)".format(prefix), title="sqt({}distances) of error".format(prefix))
-
-        max_k = 3
-        for i in range(max_k):
-            log_k_distance(i)
-
-        first_second_ratio = distances[1][:, None] / distances[0][:, None]
-        log_table(first_second_ratio, column="1st to 2nd ratio")
+    write_other = dataset_config['write_other']
+    if write_other:
+        other = orig_out_map["other"]
+        np.savez("{}/a_other".format(out_dir), **other)
 
 
 def read_img(file_path, config):
@@ -684,9 +678,8 @@ def prepare_data(dataset_config, in_dirs, keys):
                                      config=dataset_config,
                                      out_map=out_map,
                                      key=key)
-            print(" ...  distances: {}".format(len(out_map["other"]["minimal_dists"])))
 
-    possibly_write_metadata(dataset_config, out_map)
+    possibly_write_data(dataset_config, out_map)
     return list(out_map["metadata"].items())
 
 
@@ -726,25 +719,27 @@ def write_metada(file, out_map, config):
     file.write("### CONFIG ###\n")
 
 
-def prepare_data_by_scale(wandb_project="mean_std_dev"):
+def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
 
-    config = get_config()['dataset']
-    in_dirs = config['in_dirs']
-    keys = config['keys']
+    dataset_conf = get_config()['dataset']
+    dataset_conf["tags"] = ["development"]
+    in_dirs = dataset_conf['in_dirs']
+    keys = dataset_conf['keys']
 
-    #scales = [scale_int / 10 for scale_int in range(1, 10)]
-    scales = [0.1]
+    print("### CONFIG ###")
+    for k, v in list(dataset_conf.items()):
+        print("#\t\t\t{}: {}".format(k, v))
+    print("### CONFIG ###")
+
     means = []
     std_devs = []
 
     for i, scale in enumerate(scales):
         start_time = time.time()
-        config['down_scale'] = scale
-        #dn = config['detector']
-        #config['out_dir'] = "dataset/{}_30_files_int_scale_{}_size_".format(dn, scale).replace(".", "_")
-        set_config_dir_scale_scheme(config, scale)
-        print(list(config.items()))
-        entry_list = prepare_data(config, in_dirs, keys)
+        dataset_conf['down_scale'] = scale
+        set_config_dir_scale_scheme(dataset_conf)
+        print("Scale={}".format(scale))
+        entry_list = prepare_data(dataset_conf, in_dirs, keys)
         _, errors, _ = get_error_stats(entry_list)
         mean, _ = mean_abs_mean(errors)
         means.append(mean.tolist())
@@ -756,10 +751,11 @@ def prepare_data_by_scale(wandb_project="mean_std_dev"):
     std_devs = np.array(std_devs)
     means = np.array(means)
 
+    # NOTE this can also be done by iterating (over scale) through already prepared data
     if wandb_project:
 
         # tags...
-        wandb.init(project=wandb_project, name=get_wand_name(config, entry_list))
+        wandb.init(project=wandb_project, name=get_wand_name(dataset_conf, entry_list), tags=dataset_conf["tags"])
 
         data = [[x, y] for (x, y) in zip(scales, means[:, 1])]
         table = wandb.Table(data=data, columns=["scale", "mean error x"])
@@ -789,5 +785,12 @@ def simple_prepare_data():
 
 
 if __name__ == "__main__":
-    prepare_data_by_scale(wandb_project=None)
+
+    def tenths(_from, to):
+        return [scale_int / 10 for scale_int in range(_from, to)]
+
+    scales = tenths(1, 10)
+    #scales = [0.1]
+
+    prepare_data_by_scale(scales)
     #simple_prepare_data()
