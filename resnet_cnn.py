@@ -22,6 +22,19 @@ class ResnetBasedModule(LightningModule):
         self.loss_function = nn.MSELoss()
         self.learning_rate = train_conf['learning_rate']
         self.enable_wandlog = train_conf.get('enable_wandlog', False)
+        self.cumulative_entries = train_conf['cumulative_entries']
+        assert self.cumulative_entries is not None
+        self.cumulative_losses_lists = {}
+
+    def add_loss_log(self, key, loss):
+        if not self.cumulative_losses_lists.__contains__(key):
+            self.cumulative_losses_lists[key] = []
+        l = self.cumulative_losses_lists[key]
+        l.append(loss)
+        if len(l) >= self.cumulative_entries:
+            t = torch.tensor(l)
+            self.wandlog({key: t.sum() / t.shape[0]})
+            self.cumulative_losses_lists[key] = []
 
     def wandlog(self, obj):
         if self.enable_wandlog:
@@ -50,7 +63,7 @@ class ResnetBasedModule(LightningModule):
         xs, ys = batch
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
-        self.wandlog({"training_loss": loss})
+        self.add_loss_log("training_loss", loss)
         self.log_stats(ys, ys_hat, "training")
         return dict(
             loss=loss,
@@ -64,7 +77,7 @@ class ResnetBasedModule(LightningModule):
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
         self.log_stats(ys, ys_hat, "validation")
-        self.wandlog({"validation_loss": loss})
+        self.add_loss_log("validation_loss", loss)
         return dict(
             validation_loss=loss,
             log=dict(
@@ -85,6 +98,19 @@ class ZeroModule(LightningModule):
         self.loss_function = nn.MSELoss()
         self.enable_wandlog = train_conf.get('enable_wandlog', False)
         self.dm = dm
+        self.cumulative_entries = train_conf['cumulative_entries']
+        assert self.cumulative_entries is not None
+        self.cumulative_losses_lists = {}
+
+    def add_loss_log(self, key, loss):
+        if not self.cumulative_losses_lists.__contains__(key):
+            self.cumulative_losses_lists[key] = []
+        l = self.cumulative_losses_lists[key]
+        l.append(loss)
+        if len(l) >= self.cumulative_entries:
+            t = torch.tensor(l)
+            self.wandlog({key: t.sum() / t.shape[0]})
+            self.cumulative_losses_lists[key] = []
 
     def wandlog(self, obj):
         if self.enable_wandlog:
@@ -105,7 +131,7 @@ class ZeroModule(LightningModule):
         xs, ys = batch
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
-        self.wandlog({"training_loss": loss})
+        self.add_loss_log("training_loss", loss)
         self.log_stats(ys, ys_hat, "training")
         return dict(
             loss=loss,
@@ -119,7 +145,7 @@ class ZeroModule(LightningModule):
         ys_hat = self(xs)
         loss = self.loss_function(ys_hat, ys)
         self.log_stats(ys, ys_hat, "validation")
-        self.wandlog({"validation_loss": loss})
+        self.add_loss_log("validation_loss", loss)
         return dict(
             validation_loss=loss,
             log=dict(

@@ -216,17 +216,17 @@ class PatchDataset(Dataset):
             # beware - back and forth
             patch_t = patch_t[0]
             if split:
-                show_torch(patch_t, "patch not yet clipped (split is on)")
+                #show_torch(patch_t, "patch not yet clipped (split is on)")
                 assert patch_t.shape[1] % 2 == 0
 
                 img = clip_part(patch_t[:, :patch_t.shape[1] // 2])
                 hm = clip_part(patch_t[:, patch_t.shape[1] // 2:])
                 patch_t = torch.hstack((img, hm))
-                show_torch(patch_t, "patch now clipped (split is on)")
+                #show_torch(patch_t, "patch now clipped (split is on)")
             else:
-                show_torch(patch_t, "patch not yet clipped (split is off)")
+                #show_torch(patch_t, "patch not yet clipped (split is off)")
                 patch_t = clip_part(patch_t)
-                show_torch(patch_t, "patch now clipped (split is off)")
+                #show_torch(patch_t, "patch now clipped (split is off)")
             # beware - back and forth
             patch_t = patch_t[None]
 
