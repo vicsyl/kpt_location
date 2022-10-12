@@ -150,13 +150,15 @@ class PatchDataset(Dataset):
         self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
+        self.train_clip = train_config['train_clip']
         self.augment = train_config['augment'] and (train_config['augment'].lower() == "lazy")
         if conf['dataset']['detector'].lower() == "superpoint":
             self.special_heatmap_handling = train_config['special_heatmap_handling']
         else:
             self.special_heatmap_handling = None
 
-        # NOTE probably broken
+        # NOTE probably broken, so let's fail early
+        assert not self.grouped_by_sizes
         if self.grouped_by_sizes:
             group_bys = {}
             for mt in self.metadata_list:
@@ -183,14 +185,14 @@ class PatchDataset(Dataset):
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
         # TODO these fallback options to be tested
         if self.special_heatmap_handling == "img":
-            patch_t = patch_t[:, :patch_t.shape[1] // 2]
+            patch_t = patch_t[:, :, :patch_t.shape[2] // 2]
         elif self.special_heatmap_handling == "heatmap":
-            patch_t = patch_t[:, patch_t.shape[1] // 2:]
+            patch_t = patch_t[:, :, patch_t.shape[2] // 2:]
+        split = self.special_heatmap_handling == "both"
 
         from utils import show_torch
         if self.augment and index % 6 != 0:
             augment_index = index % 6
-            split = self.special_heatmap_handling == "both"
             #show_torch(patch_t[0], "patch before augmenting on the fly")
             patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx), split)
             patch_t = patches_aug[augment_index][None]
@@ -199,6 +201,35 @@ class PatchDataset(Dataset):
         else:
             #show_torch(patch_t[0], "patch not augmented")
             pass
+
+        if self.train_clip:
+            assert self.train_clip % 2 == 1
+
+            def clip_part(data):
+                assert data.shape[0] == data.shape[1]
+                assert data.shape[0] % 2 == 1
+                _from = data.shape[0] // 2 - self.train_clip // 2
+                to = _from + self.train_clip
+                data = data[_from:to, _from:to]
+                return data
+
+            # beware - back and forth
+            patch_t = patch_t[0]
+            if split:
+                show_torch(patch_t, "patch not yet clipped (split is on)")
+                assert patch_t.shape[1] % 2 == 0
+
+                img = clip_part(patch_t[:, :patch_t.shape[1] // 2])
+                hm = clip_part(patch_t[:, patch_t.shape[1] // 2:])
+                patch_t = torch.hstack((img, hm))
+                show_torch(patch_t, "patch now clipped (split is on)")
+            else:
+                show_torch(patch_t, "patch not yet clipped (split is off)")
+                patch_t = clip_part(patch_t)
+                show_torch(patch_t, "patch now clipped (split is off)")
+            # beware - back and forth
+            patch_t = patch_t[None]
+
         if patch_t.shape[0] == 1:
             patch_t = patch_t.expand(3, -1, -1)
         else:
