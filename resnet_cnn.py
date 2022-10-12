@@ -23,6 +23,7 @@ class ResnetBasedModule(LightningModule):
         self.learning_rate = train_conf['learning_rate']
         self.enable_wandlog = train_conf.get('enable_wandlog', False)
         self.cumulative_entries = train_conf['cumulative_entries']
+        self.scale_error = train_conf['scale_error']
         assert self.cumulative_entries is not None
         self.cumulative_losses_lists = {}
 
@@ -30,7 +31,7 @@ class ResnetBasedModule(LightningModule):
         if not self.cumulative_losses_lists.__contains__(key):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
-        l.append(loss)
+        l.append(loss / self.scale_error**2)
         if len(l) >= self.cumulative_entries:
             t = torch.tensor(l)
             self.wandlog({key: t.sum() / t.shape[0]})
