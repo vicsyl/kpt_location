@@ -148,6 +148,9 @@ class PatchDataset(Dataset):
         train_config = conf['train']
         self.root_dir = root_dir
         self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
+        ds_clip = conf['dataset']['clip']
+        if ds_clip:
+            self.metadata_list = self.metadata_list[:ds_clip]
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
         self.train_clip = train_config['train_clip']
