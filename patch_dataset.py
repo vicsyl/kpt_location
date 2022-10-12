@@ -115,6 +115,14 @@ resized_img_size_y, resized_img_size_x, augmented"
         return list(mt_d.items())
 
 
+def naive_split(dataset, parts):
+    sum = 0
+    ret = []
+    for part in parts:
+        ret.append(Subset(dataset, range(sum, sum + part)))
+    return ret
+
+
 def batched_random_split(dataset: Dataset[T], lengths: Sequence[int], batch_size, generator: Optional[Generator] = default_generator) -> List[Subset[T]]:
 
     if sum(lengths) * batch_size != len(dataset):    # type: ignore[arg-type]
@@ -142,7 +150,7 @@ class PatchDataset(Dataset):
         self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
-        self.augment = (train_config['augment'].lower() == "lazy")
+        self.augment = train_config['augment'] and (train_config['augment'].lower() == "lazy")
         if conf['dataset']['detector'].lower() == "superpoint":
             self.special_heatmap_handling = train_config['special_heatmap_handling']
         else:
@@ -199,7 +207,14 @@ class PatchDataset(Dataset):
         return patch_t, y
 
     def __len__(self) -> int:
-        return len(self.metadata_list)
+        if self.augment:
+            return len(self.metadata_list) * augment_patch_length
+        else:
+            return len(self.metadata_list)
+
+
+# NOTE an attempt for some kind of centralization
+augment_patch_length = 6
 
 
 def augment_patch(patch, diffs, split):
