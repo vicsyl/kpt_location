@@ -91,7 +91,7 @@ class ZeroModule(LightningModule):
             wandb.log(obj)
 
     def forward(self, x):
-        return torch.zeros((x.shape[0], 2))
+        return torch.zeros((x.shape[0], 2), device=self.device)
 
     def log_stats(self, ys, ys_hat, prefix):
         if self.enable_wandlog:
