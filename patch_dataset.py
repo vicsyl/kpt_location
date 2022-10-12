@@ -154,6 +154,7 @@ class PatchDataset(Dataset):
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
         self.train_clip = train_config['train_clip']
+        self.scale_error = train_config['scale_error']
         self.augment = train_config['augment'] and (train_config['augment'].lower() == "lazy")
         if conf['dataset']['detector'].lower() == "superpoint":
             self.special_heatmap_handling = train_config['special_heatmap_handling']
@@ -237,7 +238,7 @@ class PatchDataset(Dataset):
             patch_t = patch_t.expand(3, -1, -1)
         else:
             pass
-        y = torch.tensor([dy, dx])
+        y = torch.tensor([dy, dx]) * self.scale_error
         return patch_t, y
 
     def __len__(self) -> int:
