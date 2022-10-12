@@ -6,7 +6,7 @@ dataset:
     reflection: null
     write_metadata: True
     write_data: True
-    write_imgs: False
+    write_imgs: True
     write_other: True
     tags: ["foo"]
 
@@ -36,7 +36,7 @@ dataset:
     out_dir: "./dataset/superpoint_30_files_int_"
     const_patch_size: 33
 
-    max_files: 3
+    max_files: 2
     #ends_with: '.jpg'
     ends_with: '.tonemap.jpg'
     clean_out_dir: True
@@ -52,13 +52,16 @@ dataset:
 train:
     # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
     # FIXME - duplicated in data and train
-    augment: lazy # eager, lazy, null
     accelerator: 'cpu'
     gpus: [0]
     batch_size: 32
     grouped_by_sizes: False
     max_epochs: 1
-    learning_rate: 0.01
+    learning_rate: 0.001
     enable_wandlog: False
     freeze_feature_extractor: False
     dataset_splits: 2 # 2 = train, validate, (4 = + test, predict)
+    special_heatmap_handling: both # heatmap, img or both, BUT relevant only to SuperPoint
+
+    # irrelevant, only defaults
+    augment: lazy # eager, lazy, null
