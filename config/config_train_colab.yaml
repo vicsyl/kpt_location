@@ -1,0 +1,67 @@
+# maybe put under ds preparation?
+
+# dataset:
+dataset:
+
+    reflection: null
+    write_metadata: True
+    write_data: True
+    write_imgs: True
+    write_other: True
+    tags: ["colab_train"]
+
+    # scale diagram
+    # wandb_tags_keys: ["no_key_detector", "magic_items", "integer_scale", "reflection"]
+
+    # others
+    wandb_tags_keys: ["no_key_detector", "down_scale"]
+    augment: lazy # eager, lazy, null
+
+    detector: SUPERPOINT # SIFT, SUPERPOINT, SIFT_KORNIA case-insensitive
+    # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
+    #scale_ratio_th: 1.1
+    scale_ratio_th: null # for superpoint
+    #min_scale_th: 15.0
+    #min_scale_th: 30.0
+    min_scale_th: 0.0 # for superpoint
+
+    err_th: 5.0
+
+    down_scale: 0.3
+    in_dirs: ["./dataset/raw_data"]
+    keys: [""]
+
+    #out_dir: "./dataset/var_sizes"
+    #const_patch_size: null
+    out_dir: "./dataset/superpoint_30_files_int_"
+    const_patch_size: 33
+
+    max_files: 2
+    #ends_with: '.jpg'
+    ends_with: '.tonemap.jpg'
+    clean_out_dir: True
+    to_grey_scale: True
+
+    # TODO another scenario: move to training - i.e. just normalize to zero mean
+    half_pixel_adjusted: False
+    show_kpt_patches: False
+    compare_patches: False
+    integer_scale: True # try to scale so that the new size is exactly an integer
+    dynamic_resizing: False # not for superpoint
+
+train:
+    # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
+    # FIXME - duplicated in data and train
+    accelerator: 'gpu'
+    gpus: [0]
+    batch_size: 64
+    grouped_by_sizes: False
+    max_epochs: 10
+    learning_rate: 0.001
+    enable_wandlog: True
+    freeze_feature_extractor: False
+    dataset_splits: 2 # 2 = train, validate, (4 = + test, predict)
+    special_heatmap_handling: both # heatmap, img or both, BUT relevant only to SuperPoint
+
+    # irrelevant, only defaults
+    augment: lazy # eager, lazy, null
