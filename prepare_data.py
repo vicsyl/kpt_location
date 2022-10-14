@@ -5,6 +5,7 @@ import time
 
 import PIL
 import matplotlib.pyplot as plt
+import wandb
 from PIL import Image
 
 from patch_dataset import *
@@ -269,7 +270,7 @@ def get_patches_list(img_np, kpt_f, kpt_scales, const_patch_size, config, heatma
     # print_and_check_margins(kpt_i, margins_np, img_t)
 
     img_t = torch.tensor(img_np)
-    heatmap_t = torch.tensor(heatmap_np)
+    heatmap_t = torch.tensor(heatmap_np) if heatmap_np is not None else None
     patches_list = slice_patches(img_t, kpt_i, margins_np, heatmap_t)
 
     show = config['show_kpt_patches']
@@ -367,10 +368,10 @@ def apply_mask(mask, np_list):
     return tuple([npa[mask] for npa in np_list])
 
 
-def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, config):
+def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, ds_config):
 
-    write_imgs = config['write_imgs']
-    augment_mode = config['augment'].lower()
+    write_imgs = ds_config['write_imgs']
+    augment_mode = ds_config['augment'].lower()
     if "eager" == augment_mode:
         raise NotImplemented
         #patches_aug, diffs_aug, augmented_keys = augment_patch(patches, (dr.dy, dr.dx))
@@ -481,16 +482,16 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, confi
 
 
 def process_patches_for_file(file_path,
-                             config,
+                             ds_config,
                              out_map,
                              key=""):
 
-    dynamic_resizing = config['dynamic_resizing']
+    dynamic_resizing = ds_config['dynamic_resizing']
     if dynamic_resizing:
         pass
         #process_patches_for_file_dynamic(file_path, config, out_map, key)
     else:
-        process_patches_for_file_simple(file_path, config, out_map, key)
+        process_patches_for_file_simple(file_path, ds_config, out_map, key)
 
 
 def ensure_keys(m: map, keys: list):
@@ -509,30 +510,30 @@ def update_min_dists(min_distances_reprojected, out_map):
 
 
 def process_patches_for_file_simple(file_path,
-                                    config,
+                                    ds_config,
                                     out_map,
                                     key=""):
 
-    scale = config['down_scale']
-    out_dir = get_full_ds_dir(config)
-    min_scale_th = config['min_scale_th']
-    const_patch_size = config.get('const_patch_size')
-    compare = config['compare_patches']
+    scale = ds_config['down_scale']
+    out_dir = get_full_ds_dir(ds_config)
+    min_scale_th = ds_config['min_scale_th']
+    const_patch_size = ds_config.get('const_patch_size')
+    compare = ds_config['compare_patches']
 
     # convert and show the image
-    img, img_r, real_scale = get_img_tuple(file_path, scale, config)
+    img, img_r, real_scale = get_img_tuple(file_path, scale, ds_config)
 
-    kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, config)
-    kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
+    kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, ds_config)
+    kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th * real_scale, const_patch_size, ds_config)
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
 
-    kpts, kpt_scales, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts, kpt_scales, kpts_r, kpt_scales_r, real_scale, config)
+    kpts, kpt_scales, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts, kpt_scales, kpts_r, kpt_scales_r, real_scale, ds_config)
     update_min_dists(up_to_k_min, out_map)
 
-    patches_list = get_patches_list(img, kpts, kpt_scales, const_patch_size, config, heatmap)
-    patches_r_list = get_patches_list(img_r, kpts_r, kpt_scales_r, const_patch_size, config, heatmap_r)
+    patches_list = get_patches_list(img, kpts, kpt_scales, const_patch_size, ds_config, heatmap)
+    patches_r_list = get_patches_list(img_r, kpts_r, kpt_scales_r, const_patch_size, ds_config, heatmap_r)
 
     if compare:
         # TODO test
@@ -573,7 +574,7 @@ def process_patches_for_file_simple(file_path,
                                 "{}_{}".format(file_name_prefix, i),
                                 out_map,
                                 out_dir,
-                                config)
+                                ds_config)
 
 
 def get_ds_stats(entries):
@@ -635,18 +636,18 @@ def log_table(data, column, table_ref=None, title=None):
     wandb.log({table_ref: wandb.plot.histogram(t_d, column, title=title)})
 
 
-def possibly_write_data(dataset_config, orig_out_map):
+def write_data(dataset_config, orig_out_map):
     write_metadata = dataset_config['write_metadata']
     if write_metadata:
         out_map = orig_out_map["metadata"]
         out_dir = get_full_ds_dir(dataset_config)
         with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
-            write_metada(md_file, out_map, dataset_config)
+            log_metada(out_map, dataset_config, log_wand=False, file=md_file)
 
     write_data = dataset_config['write_data']
     if write_data:
         with open("{}/a_values.txt".format(out_dir), "w") as md_file:
-            write_metada(md_file, out_map, dataset_config)
+            log_metada(out_map, dataset_config, log_wand=False, file=md_file)
 
             md_file.write("# schema: {}\n".format(DataRecord.schema()))
             for (fn, value) in out_map.items():
@@ -699,48 +700,57 @@ def prepare_data(dataset_config, in_dirs, keys):
             path = "{}/{}".format(in_dir, file_name)
             print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map["metadata"])))
             process_patches_for_file(file_path=path,
-                                     config=dataset_config,
+                                     ds_config=dataset_config,
                                      out_map=out_map,
                                      key=key)
 
-    possibly_write_data(dataset_config, out_map)
+    write_data(dataset_config, out_map)
     return list(out_map["metadata"].items())
 
 
-def write_metada(file, out_map, config):
+def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=None):
 
-    detector_name = config['detector'].upper()
+    if not conf_to_log:
+        conf_to_log = dataset_conf
 
-    def print_min_max_stat(file, stat, name):
-        file.write("# {} {} (min, max): ({}, {})\n".format(detector_name, name, stat[0], stat[1]))
+    def log_all(str):
+        print(str)
+        if file:
+            file.write(str)
+        # if log_wand:
+        #     wandb.log(str)
 
-    def print_m_am_stat(file, stat, name, leave_abs_mean=False, leave_std_dev=False):
+    def print_min_max_stat(stat, name):
+        log_all("# {} (min, max): ({}, {})\n".format(name, stat[0], stat[1]))
+
+    def print_m_am_stat(stat, name, skip_abs_mean=False):
         mean, abs_mean = mean_abs_mean(stat)
         std_dev = np.sqrt(stat.var(axis=0))
 
-        file.write("# {} mean {} error: {}\n".format(detector_name, name, mean))
-        if not leave_abs_mean:
-            file.write("# {} absolute mean {} error: {}\n".format(detector_name, name, abs_mean))
-        if not leave_std_dev:
-            file.write("# {} std dev of {} error: {}\n".format(detector_name, name, std_dev))
+        log_all("# mean {} error: {}\n".format(name, mean))
+        if not skip_abs_mean:
+            log_all("# absolute mean {} error: {}\n".format(name, abs_mean))
+        log_all("# std dev of {} error: {}\n".format(name, std_dev))
 
-    file.write("# entries: {}\n".format(len(out_map)))
+    log_all("# entries: {}\n".format(len(out_map)))
+    detector_name = dataset_conf['detector'].upper()
+    log_all(f"# detector: {detector_name}")
 
     distances, errors, angles = get_error_stats(out_map.items())
-    print_m_am_stat(file, distances, "distance", leave_abs_mean=True)
-    print_m_am_stat(file, distances ** 2, "distance squared", leave_abs_mean=True)
-    print_m_am_stat(file, errors, "")
-    print_m_am_stat(file, angles, "angle")
+    print_m_am_stat(distances, "distance", skip_abs_mean=True)
+    print_m_am_stat(distances ** 2, "distance squared", skip_abs_mean=True)
+    print_m_am_stat(errors, "")
+    print_m_am_stat(angles, "angle")
 
     patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(out_map.items())
-    print_min_max_stat(file, patch_size_min_max, "patch size")
-    print_min_max_stat(file, scale_min_max, "original scale")
-    print_min_max_stat(file, scale_ratio_min_max, "scale ratio")
+    print_min_max_stat(patch_size_min_max, "patch size")
+    print_min_max_stat(scale_min_max, "original scale")
+    print_min_max_stat(scale_ratio_min_max, "scale ratio")
 
-    file.write("### CONFIG ###\n")
-    for k, v in list(config.items()):
-        file.write("#\t\t\t{}: {}\n".format(k, v))
-    file.write("### CONFIG ###\n")
+    log_all("### CONFIG ###\n")
+    for k, v in list(dataset_conf.items()):
+        log_all("#\t\t\t{}: {}\n".format(k, v))
+    log_all("### CONFIG ###\n")
 
 
 def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):

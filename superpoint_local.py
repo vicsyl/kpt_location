@@ -7,13 +7,7 @@ import matplotlib.pyplot as plt
 sys.path.append("./superpoint_forked")
 from superpoint import SuperPointDescriptor
 
-
-def show_plt(img, title):
-    plt.figure()
-    plt.title(title)
-    plt.imshow(img)
-    plt.show()
-    plt.close()
+from utils import show_np
 
 
 def show_patch(patch, title, coords):
@@ -24,7 +18,7 @@ def show_patch(patch, title, coords):
     to_show = np.repeat(to_show[:, :, None], 3, axis=2)
     coords = coords * 10
     to_show[coords[:, 0] + scale // 2, coords[:, 1] + scale // 2] = [1.0, 0.0, 0.0]
-    show_plt(to_show, title)
+    show_np(to_show, title)
 
 
 class SuperPointDetector:

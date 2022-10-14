@@ -16,15 +16,16 @@ class ResnetBasedModule(LightningModule):
         resnet50 = models.resnet50(pretrained=True)
         in_features = resnet50.fc.in_features
         layers = list(resnet50.children())[:-1]
+        self.tr_conf = train_conf
         self.feature_extractor = nn.Sequential(*layers)
         self.freeze_feature_extractor = train_conf['freeze_feature_extractor']
         self.classifier = nn.Linear(in_features, 2)
         self.loss_function = nn.MSELoss()
         self.learning_rate = train_conf['learning_rate']
         self.enable_wandlog = train_conf.get('enable_wandlog', False)
-        self.cumulative_entries = train_conf['cumulative_entries']
+        self.log_every_n_entries = train_conf['log_every_n_entries']
         self.scale_error = train_conf['scale_error']
-        assert self.cumulative_entries is not None
+        assert self.log_every_n_entries is not None
         self.cumulative_losses_lists = {}
 
     def add_loss_log(self, key, loss):
@@ -32,7 +33,7 @@ class ResnetBasedModule(LightningModule):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
         l.append(loss / self.scale_error**2)
-        if len(l) >= self.cumulative_entries:
+        if len(l) * self.tr_conf['batch_size'] >= self.log_every_n_entries:
             t = torch.tensor(l)
             self.wandlog({key: t.sum() / t.shape[0]})
             self.cumulative_losses_lists[key] = []
@@ -99,8 +100,8 @@ class ZeroModule(LightningModule):
         self.loss_function = nn.MSELoss()
         self.enable_wandlog = train_conf.get('enable_wandlog', False)
         self.dm = dm
-        self.cumulative_entries = train_conf['cumulative_entries']
-        assert self.cumulative_entries is not None
+        self.log_every_n_entries = train_conf['log_every_n_entries']
+        assert self.log_every_n_entries is not None
         self.cumulative_losses_lists = {}
 
     def add_loss_log(self, key, loss):
@@ -108,7 +109,7 @@ class ZeroModule(LightningModule):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
         l.append(loss)
-        if len(l) >= self.cumulative_entries:
+        if len(l) >= self.log_every_n_entries:
             t = torch.tensor(l)
             self.wandlog({key: t.sum() / t.shape[0]})
             self.cumulative_losses_lists[key] = []
