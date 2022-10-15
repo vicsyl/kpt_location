@@ -36,7 +36,7 @@ def train(path='config/config.yaml', wandb_project="kpt_location_training_privat
         wandb.watch(model)
 
     # TODO just redo this so that it's more logical (problem is 'log_metada' is in 'prepare_data.py'
-    baseline_loss = log_metada(dict(dm.dataset.metadata_list), conf['dataset'], enable_wandb, file=None, conf_to_log=conf) / 2
+    baseline_loss = log_metada(dict(dm.dataset.metadata_list), conf['dataset'], enable_wandb, file=None, conf_to_log=conf)
     model.set_baseline_loss(baseline_loss)
 
     trainer = Trainer(max_epochs=conf['train']['max_epochs'],
