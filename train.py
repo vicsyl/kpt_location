@@ -17,13 +17,7 @@ def train(path='config/config.yaml', wandb_project="kpt_location_training_privat
 
     dm = PatchesDataModule(conf)
 
-    module_name = train_conf['module'].lower()
-    if module_name == "resnet_based":
-        model = ResnetBasedModule(train_conf)
-    elif module_name == "zero_inference":
-        model = ZeroModule(train_conf, dm)
-    else:
-        raise ValueError
+    model = get_model(conf)
 
     enable_wandb = train_conf.get('enable_wandlog', False)
     if enable_wandb:
@@ -36,6 +30,7 @@ def train(path='config/config.yaml', wandb_project="kpt_location_training_privat
 
     log_metada(dict(dm.dataset.metadata_list), conf['dataset'], enable_wandb, file=None, conf_to_log=conf)
 
+    # TODO log_every_n_steps
     trainer = Trainer(max_epochs=conf['train']['max_epochs'],
                       accelerator=train_conf['accelerator'],
                       )

@@ -156,7 +156,7 @@ class PatchDataset(Dataset):
     @staticmethod
     def filter_metadata_list(md_list, filtering_conf):
 
-        sort_error = filtering_conf["sort_error"].lower()
+        sort_error = None if not filtering_conf["sort_error"] else filtering_conf["sort_error"].lower()
         assert sort_error in ["min", "max", None]
         max_error_distance = filtering_conf['max_error_distance']
 

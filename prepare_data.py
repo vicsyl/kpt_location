@@ -716,23 +716,23 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
     def log_all(str):
         print(str)
         if file:
-            file.write(str)
+            file.write(f"{str}\n")
         # if log_wand:
         #     wandb.log(str)
 
     def print_min_max_stat(stat, name):
-        log_all("# {} (min, max): ({}, {})\n".format(name, stat[0], stat[1]))
+        log_all("# {} (min, max): ({}, {})".format(name, stat[0], stat[1]))
 
     def print_m_am_stat(stat, name, skip_abs_mean=False):
         mean, abs_mean = mean_abs_mean(stat)
         std_dev = np.sqrt(stat.var(axis=0))
 
-        log_all("# mean {} error: {}\n".format(name, mean))
+        log_all("# mean {} error: {}".format(name, mean))
         if not skip_abs_mean:
-            log_all("# absolute mean {} error: {}\n".format(name, abs_mean))
-        log_all("# std dev of {} error: {}\n".format(name, std_dev))
+            log_all("# absolute mean {} error: {}".format(name, abs_mean))
+        log_all("# std dev of {} error: {}".format(name, std_dev))
 
-    log_all("# entries: {}\n".format(len(out_map)))
+    log_all("# entries: {}".format(len(out_map)))
     detector_name = dataset_conf['detector'].upper()
     log_all(f"# detector: {detector_name}")
 
@@ -747,10 +747,10 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
     print_min_max_stat(scale_min_max, "original scale")
     print_min_max_stat(scale_ratio_min_max, "scale ratio")
 
-    log_all("### CONFIG ###\n")
+    log_all("### CONFIG ###")
     for k, v in list(dataset_conf.items()):
-        log_all("#\t\t\t{}: {}\n".format(k, v))
-    log_all("### CONFIG ###\n")
+        log_all("#\t\t\t{}: {}".format(k, v))
+    log_all("### CONFIG ###")
 
 
 def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
