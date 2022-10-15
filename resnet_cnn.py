@@ -87,7 +87,7 @@ class BasicModule(LightningModule):
         if not self.cumulative_losses_lists.__contains__(key):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
-        normalized_loss = loss.detach() / (self.scale_error**2 * self.baseline_loss)
+        normalized_loss = loss.detach().cpu() / (self.scale_error**2 * self.baseline_loss)
         l.append(normalized_loss)
         if len(l) * self.tr_conf['batch_size'] >= self.log_every_n_entries:
             t = torch.tensor(l)
