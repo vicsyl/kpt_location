@@ -28,8 +28,6 @@ class BasicModule(LightningModule):
         super().__init__()
 
         self.tr_conf = train_conf
-        #self.feature_extractor = nn.Sequential(*layers)
-        #self.classifier = nn.Linear(in_features, 2)
         self.freeze_feature_extractor = train_conf['freeze_feature_extractor']
         self.loss_function = nn.MSELoss()
         self.learning_rate = train_conf['learning_rate']
