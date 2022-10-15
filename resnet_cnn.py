@@ -81,7 +81,7 @@ class BasicModule(LightningModule):
         )
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=1e-4, eps=1e-2)
 
     def add_loss_log(self, key, loss):
         if not self.cumulative_losses_lists.__contains__(key):
