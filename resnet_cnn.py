@@ -38,6 +38,10 @@ class BasicModule(LightningModule):
         self.scale_error = train_conf['scale_error']
         assert self.log_every_n_entries is not None
         self.cumulative_losses_lists = {}
+        self.baseline_loss = None
+
+    def set_baseline_loss(self, loss):
+        self.baseline_loss = loss
 
     def forward(self, x):
         # TODO flatten and put to the child class
@@ -85,7 +89,7 @@ class BasicModule(LightningModule):
         if not self.cumulative_losses_lists.__contains__(key):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
-        l.append(loss / self.scale_error**2)
+        l.append(loss / (self.scale_error**2 * self.baseline_loss))
         if len(l) * self.tr_conf['batch_size'] >= self.log_every_n_entries:
             t = torch.tensor(l)
             self.wandlog({key: t.sum() / t.shape[0]})

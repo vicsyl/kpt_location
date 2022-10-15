@@ -731,6 +731,7 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
         if not skip_abs_mean:
             log_all("# absolute mean {} error: {}".format(name, abs_mean))
         log_all("# std dev of {} error: {}".format(name, std_dev))
+        return mean
 
     log_all("# entries: {}".format(len(out_map)))
     detector_name = dataset_conf['detector'].upper()
@@ -738,7 +739,7 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
 
     distances, errors, angles = get_error_stats(out_map.items())
     print_m_am_stat(distances, "distance", skip_abs_mean=True)
-    print_m_am_stat(distances ** 2, "distance squared", skip_abs_mean=True)
+    expected_loss = print_m_am_stat(distances ** 2, "distance squared", skip_abs_mean=True) / 2
     print_m_am_stat(errors, "")
     print_m_am_stat(angles, "angle")
 
@@ -748,9 +749,10 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
     print_min_max_stat(scale_ratio_min_max, "scale ratio")
 
     log_all("### CONFIG ###")
-    for k, v in list(dataset_conf.items()):
+    for k, v in list(conf_to_log.items()):
         log_all("#\t\t\t{}: {}".format(k, v))
     log_all("### CONFIG ###")
+    return expected_loss
 
 
 def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):

@@ -191,11 +191,9 @@ class PatchDataset(Dataset):
         super().__init__()
         train_config = conf['train']
         self.root_dir = root_dir
-        md_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
+        self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
         if do_filtering:
-            self.metadata_list = PatchDataset.filter_metadata_list(md_list, conf['dataset']['filtering'])
-        else:
-            self.metadata_list = md_list
+            self.metadata_list = PatchDataset.filter_metadata_list(self.metadata_list, conf['dataset']['filtering'])
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
         self.train_crop = conf['dataset']['filtering']['train_crop']
