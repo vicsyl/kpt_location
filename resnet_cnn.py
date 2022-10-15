@@ -87,7 +87,8 @@ class BasicModule(LightningModule):
         if not self.cumulative_losses_lists.__contains__(key):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
-        l.append(loss / (self.scale_error**2 * self.baseline_loss))
+        normalized_loss = loss.detach() / (self.scale_error**2 * self.baseline_loss)
+        l.append(normalized_loss)
         if len(l) * self.tr_conf['batch_size'] >= self.log_every_n_entries:
             t = torch.tensor(l)
             self.wandlog({key: t.sum() / t.shape[0]})
@@ -121,6 +122,7 @@ class ResnetBasedModule(BasicModule):
         self.classifier = nn.Linear(in_features, 2)
 
 
+# TODO apparently this is broken
 class ZeroModule(BasicModule):
 
     def __init__(self, train_conf):
@@ -128,6 +130,9 @@ class ZeroModule(BasicModule):
         # optimizer has to have at least some parameters
         # TODO how about just compute the loss in prediction time
         self.foo_classifier = nn.Linear(2, 2)
+
+    def forward(self, x):
+        return torch.zeros((x.shape[0], 2), device=self.device)
 
 
 class MlpModule(BasicModule):
