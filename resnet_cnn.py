@@ -141,6 +141,8 @@ class MlpModule(BasicModule):
         super().__init__(conf['train'])
 
         train_crop = conf['dataset']['filtering']['train_crop']
+        if not train_crop:
+            train_crop = 33
         assert not conf['train']['freeze_feature_extractor']
         # assuming patch and heatmap
         # TODO if for different choices (heatmap, both,,,,)
