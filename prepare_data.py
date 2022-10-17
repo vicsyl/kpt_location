@@ -5,6 +5,8 @@ import time
 
 import PIL
 import matplotlib.pyplot as plt
+import numpy as np
+
 import wandb
 from PIL import Image
 
@@ -55,7 +57,8 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     if verify:
         ds = torch.diag(torch.cdist(kpts0, kpts_reprojected[mask_th]))
-        assert torch.allclose(ds, dists)
+        # FIXME
+        #assert torch.allclose(ds, dists)
 
     # now filter based on the scale ratio threshold
     kpts_r_scales_backprojected = kpts_r_scales / scale
@@ -164,7 +167,7 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
     # plt.close()
 
     if len(kpts) == 0:
-        return [], []
+        return [], [], [], None
 
     kpt_f = np.array([[kp.pt[1], kp.pt[0]] for kp in kpts])
     kpt_i = np.round(kpt_f).astype(int)
@@ -188,7 +191,7 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     show = config['show_kpt_patches']
     if show:
-        npac = img_np.copy()
+        npac = cv.cvtColor(img_np, cv.COLOR_GRAY2RGB)
         cv.drawKeypoints(img_np, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         plt.figure()
         plt.title("kpts")
@@ -237,7 +240,7 @@ def show_patches(patches, label, config, detect):
     plt.close()
 
 
-def slice_patches(img_t, kpts, margins, heatmap_t):
+def crop_patches(img_t, kpts, margins, heatmap_t):
     def slice_np(np_data):
         return [np_data[kp_i[0] - margins[i]: kp_i[0] + margins[i] + 1,
          kp_i[1] - margins[i]: kp_i[1] + margins[i] + 1] for i, kp_i in enumerate(kpts)]
@@ -271,19 +274,21 @@ def get_patches_list(img_np, kpt_f, kpt_scales, const_patch_size, config, heatma
 
     img_t = torch.tensor(img_np)
     heatmap_t = torch.tensor(heatmap_np) if heatmap_np is not None else None
-    patches_list = slice_patches(img_t, kpt_i, margins_np, heatmap_t)
+    patches_list = crop_patches(img_t, kpt_i, margins_np, heatmap_t)
 
     show = config['show_kpt_patches']
     if show:
         detector = get_detector(config)
         kpts = detector.detect(img_np, mask=None)
+        if len(kpts) == 2:
+            kpts = kpts[0]
         npac = img_np.copy()
         cv.drawKeypoints(img_np, kpts, npac, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         img_tc = torch.tensor(npac)
-        ps_kpts = slice_patches(img_tc, kpt_i, margins_np)
+        ps_kpts = crop_patches(img_tc, kpt_i, margins_np, None)
 
-        show_patches(ps_kpts, "Patches - original", config, detect=False)
-        show_patches(patches_list, "Patches - redetected", config, detect=True)
+        #show_patches(ps_kpts, "Patches - original", config, detect=False)
+        #show_patches(patches_list, "Patches - redetected", config, detect=True)
 
     return patches_list
 
@@ -481,19 +486,19 @@ def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, ds_co
 #                                     config)
 
 
-def process_patches_for_file(file_path,
-                             ds_config,
-                             out_map,
-                             key=""):
-
-    dynamic_resizing = ds_config['dynamic_resizing']
-    if dynamic_resizing:
-        pass
-        #process_patches_for_file_dynamic(file_path, config, out_map, key)
-    else:
-        process_patches_for_file_simple(file_path, ds_config, out_map, key)
-
-
+# def process_patches_for_file(file_path,
+#                              ds_config,
+#                              out_map,
+#                              key=""):
+#
+#     dynamic_resizing = ds_config['dynamic_resizing']
+#     if dynamic_resizing:
+#         pass
+#         #process_patches_for_file_dynamic(file_path, config, out_map, key)
+#     else:
+#         process_patches_for_file_simple(file_path, ds_config, out_map, key)
+#
+#
 def ensure_keys(m: map, keys: list):
     for key in keys:
         if not m.__contains__(key):
@@ -549,7 +554,7 @@ def process_patches_for_file_simple(file_path,
                 return torch.hstack(tuple(p_l))
             else:
                 # TODO test this (e.g. with SIFT)
-                return pl[0]
+                return p_l[0]
         patch = concat_patches([patch_r[i] for patch_r in patches_r_list])
 
         dr = DataRecord(
@@ -699,10 +704,11 @@ def prepare_data(dataset_config, in_dirs, keys):
 
             path = "{}/{}".format(in_dir, file_name)
             print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map["metadata"])))
-            process_patches_for_file(file_path=path,
-                                     ds_config=dataset_config,
-                                     out_map=out_map,
-                                     key=key)
+            #process_patches_for_file
+            process_patches_for_file_simple(file_path=path,
+                                            ds_config=dataset_config,
+                                            out_map=out_map,
+                                            key=key)
 
     write_data(dataset_config, out_map)
     return list(out_map["metadata"].items())
@@ -757,8 +763,17 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
 
 def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
 
-    dataset_conf = get_config()['dataset']
+    conf = get_config()
+    dataset_conf = conf['dataset']
     dataset_conf["tags"] = ["development"]
+    enable_wandb = dataset_conf.get('enable_wandlog', False)
+
+    if enable_wandb:
+        # tags...
+        wandb.init(project=wandb_project, name=get_wand_name(dataset_conf), tags=dataset_conf["tags"])
+        wandb.config = OmegaConf.to_container(conf)
+    start_time = time.time()
+
     in_dirs = dataset_conf['in_dirs']
     keys = dataset_conf['keys']
 
@@ -767,31 +782,28 @@ def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
         print("#\t\t\t{}: {}".format(k, v))
     print("### CONFIG ###")
 
-    means = []
-    std_devs = []
+    means = np.zeros((len(scales), 2))
+    sq_error = np.zeros(len(scales))
+    std_devs = np.zeros((len(scales), 2))
 
     for i, scale in enumerate(scales):
-        start_time = time.time()
+        start_time_scale = time.time()
         dataset_conf['down_scale'] = scale
         set_config_dir_scale_scheme(dataset_conf)
         print("Scale={}".format(scale))
         entry_list = prepare_data(dataset_conf, in_dirs, keys)
         _, errors, _ = get_error_stats(entry_list)
-        mean, _ = mean_abs_mean(errors)
-        means.append(mean.tolist())
-        std_dev = np.sqrt(errors.var(axis=0)).tolist()
-        std_devs.append(std_dev)
+        means[i] = errors.mean(axis=0)
+        sq_error[i] = (errors ** 2).sum(axis=1).mean()
+        std_devs[i] = np.sqrt(errors.var(axis=0)).tolist()
         end_time = time.time()
-        print("{}. out of {} scales took {:.4f} seconds.".format(i + 1, len(scales), end_time - start_time))
+        print("{}. out of {} scales took {:.4f} seconds.".format(i + 1, len(scales), end_time - start_time_scale))
 
-    std_devs = np.array(std_devs)
-    means = np.array(means)
+    end_time = time.time()
+    print("it took {:.4f} seconds.".format(end_time - start_time))
 
     # NOTE this can also be done by iterating (over scale) through already prepared data
-    if wandb_project:
-
-        # tags...
-        wandb.init(project=wandb_project, name=get_wand_name(dataset_conf, entry_list), tags=dataset_conf["tags"])
+    if enable_wandb:
 
         data = [[x, y] for (x, y) in zip(scales, means[:, 1])]
         table = wandb.Table(data=data, columns=["scale", "mean error x"])
@@ -800,6 +812,10 @@ def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
         data = [[x, y] for (x, y) in zip(scales, means[:, 0])]
         table = wandb.Table(data=data, columns=["scale", "mean error y"])
         wandb.log({"mean error y": wandb.plot.line(table, "scale", "mean error y", title="Mean error(y) as a function of scale")})
+
+        data = [[x, y] for (x, y) in zip(scales, sq_error)]
+        table = wandb.Table(data=data, columns=["scale", "mean square distance error"])
+        wandb.log({"mean squared distance error": wandb.plot.line(table, "scale", "mean square distance error", title="Mean square distance error as a function of scale")})
 
         data = [[x, y] for (x, y) in zip(scales, std_devs[:, 1])]
         table = wandb.Table(data=data, columns=["scale", "std dev x"])
@@ -825,8 +841,8 @@ if __name__ == "__main__":
     def tenths(_from, to):
         return [scale_int / 10 for scale_int in range(_from, to)]
 
-    #scales = tenths(1, 10)
-    scales = [0.3]
+    scales = tenths(1, 10)
+    #scales = [0.3]
 
-    prepare_data_by_scale(scales, wandb_project=None)
+    prepare_data_by_scale(scales)
     #simple_prepare_data()

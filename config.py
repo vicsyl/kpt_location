@@ -1,6 +1,8 @@
 from omegaconf import OmegaConf
 import cv2 as cv
 from kornia_sift import NumpyKorniaSiftDetector
+from sift_detectors import AdjustedSiftDetector
+from scale_pyramid import MyScalePyramid
 
 
 def get_config(path='config/config.yaml'):
@@ -53,8 +55,13 @@ def get_detector_by_name(name):
     # TODO add "improved kornia SIFT"
     # custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
     # detector = NumpyKorniaSiftDetector(scale_pyramid=custom_scale_pyramid)
+    elif name == 'adjusted_sift':
+        return AdjustedSiftDetector()
     elif name == 'sift_kornia':
         return NumpyKorniaSiftDetector()
+    elif name == 'adjusted_sift_kornia':
+        custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
+        return NumpyKorniaSiftDetector(scale_pyramid=custom_scale_pyramid)
     elif name == 'superpoint':
         from superpoint_local import SuperPointDetector
         return SuperPointDetector()

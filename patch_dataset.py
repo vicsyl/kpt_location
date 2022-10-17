@@ -203,7 +203,7 @@ class PatchDataset(Dataset):
             self.heatmap_or_img = conf['dataset']['filtering']['heatmap_or_img']
         else:
             self.heatmap_or_img = None
-        self.hadle_grouping()
+        self.handle_grouping()
 
     def __getitem__(self, index) -> Any:
 
@@ -275,7 +275,7 @@ class PatchDataset(Dataset):
         else:
             return len(self.metadata_list)
 
-    def hadle_grouping(self):
+    def handle_grouping(self):
         # NOTE probably broken, so let's fail early
         assert not self.grouped_by_sizes
         if self.grouped_by_sizes:
@@ -291,6 +291,7 @@ class PatchDataset(Dataset):
                 l_final = l - l % self.batch_size
                 print("all batches for size {}: {} -> {}".format(size, l, l_final))
                 self.metadata_list.extend(group_bys[size][:l_final])
+
 
 # NOTE an attempt for some kind of centralization
 augment_patch_length = 6

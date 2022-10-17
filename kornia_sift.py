@@ -27,7 +27,10 @@ class NumpyKorniaSiftDetector:
         # FIXME handle greyscale consistently
         # NOTE a simple check on number of dims would suffice here for greyscale option being on,
         # but the visualization won't work
-        img_np = cv.cvtColor(img_np, cv.COLOR_BGR2GRAY)
+        if len(img_np.shape) == 2:
+            img_np = img_np[:, :, None]
+        else:
+            img_np = cv.cvtColor(img_np, cv.COLOR_BGR2GRAY)
         with torch.no_grad():
             img_t3 = KU.image_to_tensor(img_np, False).float() / 255.
             laffs, responses = self.detector(img_t3, mask)
