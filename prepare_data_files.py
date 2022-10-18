@@ -1,4 +1,6 @@
 import subprocess
+import sys
+
 from urls import urls_to_download
 from dataset_utils import clean_scene
 
@@ -32,4 +34,10 @@ def run_command(cmd):
 
 
 if __name__ == "__main__":
-  download_zips(0, 2)
+  assert len(sys.argv) == 3, "give me 'from to'"
+  _from = int(sys.argv[1])
+  to = int(sys.argv[2])
+  assert _from >= 0, "give me 'from to'"
+  assert to >= 0, "give me 'from to'"
+  assert _from < to, "give me 'from to'"
+  download_zips(_from, to)
