@@ -62,7 +62,7 @@ dataset:
         heatmap_or_img: heatmap # heatmap, img, both, or null BUT relevant only to SuperPoint
         train_crop: 33
         train_patch_upscale_factor: 3
-        train_patch_upscale_method: BICUBIC
+        train_patch_upscale_method: LANCZOS # LANCZOS, BICUBIC
 
 
 train:

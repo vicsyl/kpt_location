@@ -341,6 +341,8 @@ class PatchDataset(Dataset):
         method = self.conf['dataset']['filtering']['train_patch_upscale_method'].lower()
         if method == "bicubic":
             return Image.BICUBIC
+        elif method == "lanczos":
+            return Image.LANCZOS
         else:
             raise f"Unknown method '{method}'"
 
