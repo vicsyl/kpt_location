@@ -30,7 +30,6 @@ def run_command(cmd):
     print(f"std_out: {str(process.stdout)}")
     print(f"std_err: {str(process.stderr)}")
 
+
 if __name__ == "__main__":
-  run_command("ls -al .")
-  run_command("ls -al ./foo")
-  print()
+  download_zips(0, 2)
