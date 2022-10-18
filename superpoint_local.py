@@ -2,9 +2,8 @@ import torch
 import sys
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
 
-sys.path.append("./superpoint_forked")
+sys.path.append("./superpoint")
 from superpoint import SuperPointDescriptor
 
 from utils import show_np
@@ -58,7 +57,7 @@ class SuperPointDetector:
 
     def __init__(self, path=None, device: torch.device = torch.device('cpu'), translations=None):
         if not path:
-            path = "./superpoint_forked/superpoint_v1.pth"
+            path = "./superpoint/superpoint_v1.pth"
         self.super_point = SuperPointDescriptor(path, device)
         self.heat_map_th = self.super_point.sp_frontend.conf_thresh
         self.translations = translations
