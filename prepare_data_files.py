@@ -6,14 +6,14 @@ from dataset_utils import clean_scene
 def download_zips(zips_to_download_start=0, zips_to_download_end=10):
 
   for url in urls_to_download[zips_to_download_start:zips_to_download_end]:
-    zip_file = "./unzips/{}".format(url[url.rfind("/") + 1:])
+    zip_file = url[url.rfind("/") + 1:]
     print(zip_file)
-    run_command(f"curl {url} --output {zip_file}")
+    run_command(f"curl {url} --output './zips/{zip_file}'")
     print("unzipping ...")
-    run_command(f"unzip -q {zip_file}")
+    run_command(f"unzip -q ./zips/{zip_file}")
     #print("removing: {}".format(zip_file))
-    run_command(f"rm {zip_file}")
-    scene_dir = zip_file[:zip_file.rfind(".")]
+    run_command(f"mv {zip_file[:-4]} ./unzips/")
+    scene_dir = f"./unzips/{zip_file[:-4]}"
     clean_scene(scene_dir)
 
 
