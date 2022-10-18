@@ -14,8 +14,10 @@ dataset:
     write_other: True
 
     # wandb
+    enable_wandlog: True
     tags: ["dev"]
-    wandb_run_name_keys: ["no_key_detector", "magic_items", "integer_scale", "reflection"]
+    #  "magic_items"
+    wandb_run_name_keys: ["no_key_detector", "err_th", "max_files", "reflection", "min_scale_th", "scale_ratio_th"]
 
     # ds
     augment: lazy # eager, lazy, null
@@ -32,7 +34,7 @@ dataset:
     clean_out_dir: True
 
     # detection
-    detector: SUPERPOINT # SIFT, SUPERPOINT, SIFT_KORNIA case-insensitive
+    detector: ADJUSTED_SUPERPOINT # SIFT, SUPERPOINT, ADJUSTED_SUPERPOINT, SIFT_KORNIA, ADJUSTED_SIFT case-insensitive
     scale_ratio_th: null # for superpoint
     min_scale_th: 0.0 # for superpoint
     # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
@@ -46,6 +48,7 @@ dataset:
     # show
     show_kpt_patches: False
     compare_patches: False
+    show_inputs: True
 
     # irrelevant, only defaults
     half_pixel_adjusted: False
@@ -57,12 +60,15 @@ dataset:
         max_error_distance: 0.071
         sort_error: max # max, null
         heatmap_or_img: heatmap # heatmap, img, both, or null BUT relevant only to SuperPoint
-        train_crop: 5
+        train_crop: 33
+        train_patch_upscale_factor: 3
+        train_patch_upscale_method: BICUBIC
+
 
 train:
 
     # learning
-    module: zero_inference # resnet_based
+    module: resnet_based #mlp, zero_inference, resnet_based
     accelerator: 'cpu' # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
     gpus: [0]
     batch_size: 16

@@ -6,6 +6,8 @@ import wandb
 from torch import randperm
 from torch import Generator
 from torch import default_generator
+import torchvision.transforms
+
 from utils import show_np
 import matplotlib.pyplot as plt
 
@@ -187,6 +189,8 @@ class PatchDataset(Dataset):
             md_list = md_list[:n_entries]
         return md_list
 
+    default_train_crop = 33
+
     def __init__(self, root_dir, conf, do_filtering=True) -> None:
         super().__init__()
         train_config = conf['train']
@@ -197,6 +201,8 @@ class PatchDataset(Dataset):
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
         self.train_crop = conf['dataset']['filtering']['train_crop']
+        if not self.train_crop:
+            self.train_crop = PatchDataset.default_train_crop
         self.scale_error = train_config['scale_error']
         self.augment = conf['dataset']['augment'] and (conf['dataset']['augment'].lower() == "lazy")
         if conf['dataset']['detector'].lower().__contains__("superpoint"):
@@ -204,6 +210,8 @@ class PatchDataset(Dataset):
         else:
             self.heatmap_or_img = None
         self.handle_grouping()
+        self.conf = conf
+        self.input_counter = 1
 
     def __getitem__(self, index) -> Any:
 
@@ -215,18 +223,19 @@ class PatchDataset(Dataset):
         path = "{}/data/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
+        self.show_patch(patch_t, "before filtering")
         # TODO these fallback options to be tested
         if self.heatmap_or_img == "img":
             patch_t = patch_t[:, :, :patch_t.shape[2] // 2]
         elif self.heatmap_or_img == "heatmap":
             patch_t = patch_t[:, :, patch_t.shape[2] // 2:]
-        split = self.heatmap_or_img == "both"
+        both_heatmap_or_img = self.heatmap_or_img == "both"
 
         from utils import show_torch
         if self.augment and index % 6 != 0:
             augment_index = index % 6
             #show_torch(patch_t[0], "patch before augmenting on the fly")
-            patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx), split)
+            patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx), split=both_heatmap_or_img)
             patch_t = patches_aug[augment_index][None]
             #show_torch(patch_t[0], "patch augmented on the fly")
             dy, dx = diffs_aug[augment_index]
@@ -234,40 +243,76 @@ class PatchDataset(Dataset):
             #show_torch(patch_t[0], "patch not augmented")
             pass
 
-        if self.train_crop:
-            assert self.train_crop % 2 == 1
+        self.show_patch(patch_t, "after augmentation")
 
-            def clip_part(data):
-                assert data.shape[0] == data.shape[1]
-                assert data.shape[0] % 2 == 1
-                _from = data.shape[0] // 2 - self.train_crop // 2
-                to = _from + self.train_crop
-                data = data[_from:to, _from:to]
-                return data
+        def clip_part(data, size):
+            assert data.shape[0] == data.shape[1]
+            assert data.shape[0] % 2 == 1
+            _from = data.shape[0] // 2 - size // 2
+            to = _from + size
+            data = data[_from:to, _from:to]
+            return data
 
+        def crop(patch_l, size, split):
             # beware - back and forth
-            patch_t = patch_t[0]
+            patch_l = patch_l[0]
             if split:
-                #show_torch(patch_t, "patch not yet clipped (split is on)")
-                assert patch_t.shape[1] % 2 == 0
+                #show_torch(patch_l, "patch not yet clipped (split is on)")
+                assert patch_l.shape[1] % 2 == 0
 
-                img = clip_part(patch_t[:, :patch_t.shape[1] // 2])
-                hm = clip_part(patch_t[:, patch_t.shape[1] // 2:])
-                patch_t = torch.hstack((img, hm))
-                #show_torch(patch_t, "patch now clipped (split is on)")
+                img = clip_part(patch_l[:, :patch_l.shape[1] // 2], size)
+                hm = clip_part(patch_l[:, patch_l.shape[1] // 2:], size)
+                patch_l = torch.hstack((img, hm))
+                #show_torch(patch_l, "patch now clipped (split is on)")
             else:
-                #show_torch(patch_t, "patch not yet clipped (split is off)")
-                patch_t = clip_part(patch_t)
-                #show_torch(patch_t, "patch now clipped (split is off)")
+                #show_torch(patch_l, "patch not yet clipped (split is off)")
+                patch_l = clip_part(patch_l, size)
+                #show_torch(patch_l, "patch now clipped (split is off)")
             # beware - back and forth
-            patch_t = patch_t[None]
+            patch_l = patch_l[None]
+            return patch_l
+
+        if self.train_crop != PatchDataset.default_train_crop:
+            assert self.train_crop % 2 == 1
+            patch_t = crop(patch_t, self.train_crop, split=both_heatmap_or_img)
+
+        upscale_fact = self.conf['dataset']['filtering']['train_patch_upscale_factor']
+        if upscale_fact != 1.0:
+            assert upscale_fact > 1.0
+            resample_method = self.get_upscale_method()
+            original_size = patch_t.shape[1]
+            crop_size = patch_t.shape[1] // 2
+            if crop_size % 2 == 0:
+                crop_size += 1
+            img = patch_t[:, :, :patch_t.shape[2] // 2]
+            img = crop(img, crop_size, split=False)
+            img_p = torchvision.transforms.ToPILImage()(img)
+            img_p = img_p.resize((original_size, original_size), resample=resample_method)
+            img_p = torchvision.transforms.PILToTensor()(img_p).float() / 255.
+            patch_t[:, :, :patch_t.shape[2] // 2] = img_p
 
         if patch_t.shape[0] == 1:
             patch_t = patch_t.expand(3, -1, -1)
         else:
             pass
         y = torch.tensor([dy, dx]) * self.scale_error
+        self.show_patch(patch_t, "after filtering", y, increase=True)
         return patch_t, y
+
+    def show_patch(self, patch_t, suffix="", y_diff=None, increase=False):
+        max_items = 10
+        shows = 2
+        max_counter = max_items * shows
+        if self.conf["dataset"]["show_inputs"] and self.input_counter < max_counter:
+            patch_np = patch_t[0].numpy()
+            plt.figure(figsize=(9, 9))
+            plt.imshow(patch_np)
+            sec_suffix = f"; err: {y_diff}, scale_error: {self.scale_error}" if y_diff is not None else ""
+            plt.title(f"input patch no. {self.input_counter} {suffix} {sec_suffix}")
+            plt.show()
+            plt.close()
+            if increase:
+                self.input_counter += 1
 
     def __len__(self) -> int:
         if self.augment:
@@ -292,6 +337,12 @@ class PatchDataset(Dataset):
                 print("all batches for size {}: {} -> {}".format(size, l, l_final))
                 self.metadata_list.extend(group_bys[size][:l_final])
 
+    def get_upscale_method(self):
+        method = self.conf['dataset']['filtering']['train_patch_upscale_method'].lower()
+        if method == "bicubic":
+            return Image.BICUBIC
+        else:
+            raise f"Unknown method '{method}'"
 
 # NOTE an attempt for some kind of centralization
 augment_patch_length = 6
