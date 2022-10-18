@@ -146,7 +146,7 @@ class MlpModule(BasicModule):
             train_crop = 33
         assert not conf['train']['freeze_feature_extractor']
         # assuming patch and heatmap
-        # TODO if for different choices (heatmap, both,,,,)
+        # TODO implement for different choices (heatmap, both,,,,)
         channels = 3
         hm_factor = 2
         in_dim = channels * hm_factor * train_crop ** 2
@@ -155,7 +155,7 @@ class MlpModule(BasicModule):
         self.feature_extractor = nn.Sequential(
             nn.Linear(in_dim, inter_dim),
             nn.BatchNorm1d(inter_dim, affine=False),
-            nn.ReLU(),
+            nn.ReLU(), # +residual
             nn.Linear(inter_dim, inter_dim),
             nn.BatchNorm1d(inter_dim, affine=False),
             nn.ReLU(),

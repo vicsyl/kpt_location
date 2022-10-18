@@ -10,6 +10,39 @@ from superpoint import SuperPointDescriptor
 from utils import show_np
 
 
+def mnn_generic(pts1, pts2, err_th):
+
+    assert len(pts1.shape) == len(pts2.shape)
+
+    pts1_r, pts2_r = pts1, pts2
+    if len(pts1.shape) == 1:
+        pts1_r, pts2_r = pts1[:, None].repeat(1, 2), pts2[:, None].repeat(1, 2)
+        pts1_r[:, 1] = 0.0
+        pts2_r[:, 1] = 0.0
+
+    d_mat = torch.cdist(pts1_r, pts2_r)
+
+    min0_values, min0_indices = torch.min(d_mat, dim=0)
+    min1_values, min1_indices = torch.min(d_mat, dim=1)
+
+    mask = min1_indices[min0_indices] == torch.arange(0, min0_indices.shape[0])
+    mask2_boolean = mask & (min0_values < err_th)
+
+    verify = True
+    if verify:
+        for i in range(min0_indices.shape[0]):
+            if mask2_boolean[i]:
+                assert min1_indices[min0_indices[i]] == i
+                assert min0_values[i] < err_th
+
+    mask1 = min0_indices[mask2_boolean]
+    pts1_new = pts1[mask1]
+    pts2_new = pts2[mask2_boolean]
+
+    mask2 = mask2_boolean.nonzero()[:, 0]
+    return pts1_new, pts2_new, mask1, mask2
+
+
 def show_patch(patch, title, coords):
 
     patch = patch / patch.max()
@@ -23,21 +56,60 @@ def show_patch(patch, title, coords):
 
 class SuperPointDetector:
 
-    def __init__(self, path=None, device: torch.device = torch.device('cpu')):
+    def __init__(self, path=None, device: torch.device = torch.device('cpu'), translations=None):
         if not path:
             path = "./superpoint_forked/superpoint_v1.pth"
         self.super_point = SuperPointDescriptor(path, device)
         self.heat_map_th = self.super_point.sp_frontend.conf_thresh
+        self.translations = translations
 
     def detect(self, img_np, mask=None):
         if len(img_np.shape) == 3:
             img_np = cv.cvtColor(img_np, cv.COLOR_RGB2GRAY)
-        pts, _, heatmap = self.super_point.detectAndComputeGrey(img_np, mask)
+        pts, heatmap = self.detect_inner(img_np, mask)
         pts_cv = [cv.KeyPoint(pt[0], pt[1], 1) for pt in pts]
         analyze = False
         if analyze:
             self.analyze_hm_patches(heatmap, pts_cv)
         return pts_cv, heatmap
+
+    def detect_inner(self, img_or, mask):
+        pts_or, _, heatmap_or = self.super_point.detectAndComputeGrey(img_or, mask)
+        if self.translations is None:
+            return pts_or, heatmap_or
+        else:
+            #print(f"pts: original: {pts_or[:20]}")
+            pts_or = torch.from_numpy(pts_or)
+            sums = torch.clone(pts_or)
+            counts = torch.ones(pts_or.shape[0])
+            for translation in self.translations:
+                img_td = np.zeros_like(img_or)
+                mt = -translation
+                if translation[0] == 0:
+                    mt[0] = img_or.shape[1]
+                if translation[1] == 0:
+                    mt[1] = img_or.shape[0]
+                img_td[translation[1]:, translation[0]:] = img_or[:mt[1], :mt[0]]
+
+                pts, _, _ = self.super_point.detectAndComputeGrey(img_td, mask)
+                pts = pts - translation
+                pts = torch.from_numpy(pts)
+
+                # mnn
+                # TODO err_th from config!
+                pts_or_mnn, pts_td_mnn, mask_or, _ = mnn_generic(pts_or, pts, err_th=2)
+                #print("number of filtered kpts: {}, {}".format(pts_or_mnn.shape[0], pts_td_mnn.shape[0]))
+
+                #distances = torch.linalg.norm(pts_or_mnn - pts_td_mnn, axis=1)
+                #print("distances between matching keypoints - min: {}, max: {}".format(distances.min(), distances.max()))
+
+                sums[mask_or] += pts_td_mnn
+                counts[mask_or] += 1
+            pts_ret = sums / counts[:, None]
+            pts_ret = pts_ret.numpy()
+            # print(f"pts: adjusted: {pts_ret[:20]}")
+            # print(f"pts: diffs: {(pts_or - pts_ret)[:20]}")
+            return pts_ret, heatmap_or
 
     def th_heatmap_mask(self, heatmap, print_out=True):
         ret = (heatmap >= self.heat_map_th).astype(dtype=np.uint8)

@@ -153,7 +153,7 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     heatmap = None
     kpts = detector.detect(img_np, mask=None)
-    if config['detector'].lower() == "superpoint":
+    if config['detector'].lower().__contains__("superpoint"):
         kpts, heatmap = kpts[0], kpts[1]
         heatmap = (heatmap * 255).astype(dtype=np.uint8)
 
@@ -352,7 +352,7 @@ def pil_img_transforms(img, config):
         img = possibly_to_grey_scale(config, img)
         img = possibly_refl_image(config, img)
         # FIXME a bit of a hack
-        if config['detector'].lower() == "superpoint":
+        if config['detector'].lower().__contains__("superpoint"):
             new_h = (img.shape[0] // 8) * 8
             new_w = (img.shape[1] // 8) * 8
             img = img[:new_h, :new_w]

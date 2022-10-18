@@ -3,6 +3,7 @@ import cv2 as cv
 from kornia_sift import NumpyKorniaSiftDetector
 from sift_detectors import AdjustedSiftDetector
 from scale_pyramid import MyScalePyramid
+import numpy as np
 
 
 def get_config(path='config/config.yaml'):
@@ -65,5 +66,9 @@ def get_detector_by_name(name):
     elif name == 'superpoint':
         from superpoint_local import SuperPointDetector
         return SuperPointDetector()
+    elif name == 'adjusted_superpoint':
+        from superpoint_local import SuperPointDetector
+        translations = np.array([[4, 4], [4, 0], [0, 4], [2, 2], [2, 0], [0, 2], [1, 1], [1, 0], [0, 1]])
+        return SuperPointDetector(translations=translations)
     else:
         raise "unrecognized detector: {}".format(name)
