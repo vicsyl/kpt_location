@@ -96,11 +96,8 @@ class BasicModule(LightningModule):
             self.cumulative_losses_lists[key] = []
 
     def wandlog(self, obj):
-        import os
-        print(f"os.environ contains rank: {os.environ.__contains__('LOCAL_RANK')}")
-        print(f"rank: {os.environ.get('LOCAL_RANK', 0)}")
+        # https://pytorch-lightning.readthedocs.io/en/latest/extensions/logging.html#manual-logging
         if self.enable_wandlog:
-            #wandb.log(obj)
             self.log_dict(obj, rank_zero_only=True)
 
     def log_stats(self, ys, ys_hat, prefix):

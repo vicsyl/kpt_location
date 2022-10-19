@@ -351,7 +351,8 @@ class SuperPointDescriptor:
             self.sp_frontend.net.eval()
             pts, desc, heatmap = self.sp_frontend.run(img)
             pts = pts.T[:, :2]
-            return pts, desc.T, heatmap
+            desc = desc.T if desc is not None else desc
+            return pts, desc, heatmap
 
 
 def test():

@@ -11,7 +11,7 @@ from prepare_data import log_metada
 from resnet_cnn import *
 
 
-def train(config_path='config/config.yaml', wandb_project="kpt_location_training_private", set_config_dir_scheme=False):
+def train(config_path='config/config.yaml', set_config_dir_scheme=False):
 
     conf = get_config(config_path)
     if set_config_dir_scheme:
@@ -25,6 +25,7 @@ def train(config_path='config/config.yaml', wandb_project="kpt_location_training
     loggers = []
     enable_wandb = train_conf.get('enable_wandlog', False)
     if enable_wandb:
+        wandb_project = train_conf["wandb_project"]
         wandb_name = get_wand_name(conf, wandb_run_name_keys=train_conf['wandb_run_name_keys'])
         wandb_tags = train_conf['tags']
         wandb.init(project=wandb_project,
@@ -56,4 +57,4 @@ if __name__ == "__main__":
         config_path = sys.argv[1]
 
     print(f"config_path={config_path}")
-    train(config_path=config_path, set_config_dir_scheme=False, wandb_project="kpt_location_training_dev")
+    train(config_path=config_path, set_config_dir_scheme=False)

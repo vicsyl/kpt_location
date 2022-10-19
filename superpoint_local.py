@@ -83,14 +83,22 @@ class SuperPointDetector:
             counts = torch.ones(pts_or.shape[0])
             for translation in self.translations:
                 img_td = np.zeros_like(img_or)
-                mt = -translation
-                if translation[0] == 0:
-                    mt[0] = img_or.shape[1]
-                if translation[1] == 0:
-                    mt[1] = img_or.shape[0]
-                img_td[translation[1]:, translation[0]:] = img_or[:mt[1], :mt[0]]
+
+                # NOTE see (***)
+                start_td_0 = translation[1] if translation[1] >= 0 else 0
+                end_td_0 = translation[1] if translation[1] < 0 else img_or.shape[0]
+                start_or_0 = -translation[1] if translation[1] <= 0 else 0
+                end_or_0 = -translation[1] if translation[1] > 0 else img_or.shape[0]
+
+                start_td_1 = translation[0] if translation[0] >= 0 else 0
+                end_td_1 = translation[0] if translation[0] < 0 else img_or.shape[1]
+                start_or_1 = -translation[0] if translation[0] <= 0 else 0
+                end_or_1 = -translation[0] if translation[0] > 0 else img_or.shape[1]
+
+                img_td[start_td_0:end_td_0, start_td_1:end_td_1] = img_or[start_or_0:end_or_0, start_or_1:end_or_1]
 
                 pts, _, _ = self.super_point.detectAndComputeGrey(img_td, mask)
+                # NOTE this is why translation if handled in [x, y] coords (***)
                 pts = pts - translation
                 pts = torch.from_numpy(pts)
 

@@ -82,7 +82,8 @@ train:
     dataset_splits: 2 # 2 = train, validate, (4 = + test, predict)
 
     # wandb
-    enable_wandlog: True # TODO use for ds as well
+    enable_wandlog: True
+    wandb_project: "kpt_location_training_private"
     tags: [ "train-ref" ]
     wandb_run_name_keys: [ "magic_out_dir",
                            "train.freeze_feature_extractor",
