@@ -1,3 +1,5 @@
+import sys
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 
@@ -9,9 +11,9 @@ from prepare_data import log_metada
 from resnet_cnn import *
 
 
-def train(path='config/config.yaml', wandb_project="kpt_location_training_private", set_config_dir_scheme=False):
+def train(config_path='config/config.yaml', wandb_project="kpt_location_training_private", set_config_dir_scheme=False):
 
-    conf = get_config(path)
+    conf = get_config(config_path)
     if set_config_dir_scheme:
         set_config_dir_scale_scheme(conf['dataset'])
     train_conf = conf['train']
@@ -48,4 +50,10 @@ def train(path='config/config.yaml', wandb_project="kpt_location_training_privat
 
 
 if __name__ == "__main__":
-    train(set_config_dir_scheme=False, wandb_project="kpt_location_training_dev")
+
+    config_path = 'config/config.yaml'
+    if len(sys.argv) > 1:
+        config_path = sys.argv[1]
+
+    print(f"config_path={config_path}")
+    train(config_path=config_path, set_config_dir_scheme=False, wandb_project="kpt_location_training_dev")
