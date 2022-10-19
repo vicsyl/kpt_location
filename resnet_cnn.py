@@ -100,7 +100,8 @@ class BasicModule(LightningModule):
         print(f"os.environ contains rank: {os.environ.__contains__('LOCAL_RANK')}")
         print(f"rank: {os.environ.get('LOCAL_RANK', 0)}")
         if self.enable_wandlog:
-            wandb.log(obj)
+            #wandb.log(obj)
+            self.log_dict(obj, rank_zero_only=True)
 
     def log_stats(self, ys, ys_hat, prefix):
         disabled = True
