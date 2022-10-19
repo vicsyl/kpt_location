@@ -96,6 +96,9 @@ class BasicModule(LightningModule):
             self.cumulative_losses_lists[key] = []
 
     def wandlog(self, obj):
+        import os
+        print(f"os.environ contains rank: {os.environ.__contains__('LOCAL_RANK')}")
+        print(f"rank: {os.environ.get('LOCAL_RANK', 0)}")
         if self.enable_wandlog:
             wandb.log(obj)
 
