@@ -1,17 +1,19 @@
 import copy
 import glob
 import os
+import sys
 import time
 
 import PIL
-import matplotlib.pyplot as plt
-import numpy as np
-
-import wandb
 from PIL import Image
 
 from patch_dataset import *
 from wand_utils import wand_log_me
+
+sys.path.append('/content/kpt_location')
+from prepare_data_files import run_command
+from dataset_utils import get_dirs_and_keys
+from config import *
 
 
 def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
@@ -836,13 +838,60 @@ def simple_prepare_data():
     print("it took {:.4f} seconds.".format(end_time - start_time))
 
 
+def prepare_data_all(base_dir, config_path, filter_list):
+
+    config = get_config(path=config_path)['dataset']
+    dirs_to_process = 1000
+    in_dirs, keys = get_dirs_and_keys(dirs_to_process, base_dir=base_dir)
+
+    # SIMPLE filtering
+    in_dirs_2 = []
+    keys_2 = []
+    for i, dir in enumerate(in_dirs):
+        for cont in filter_list:
+            # if dir.__contains__("001_001") or dir.__contains__("001_002") or dir.__contains__("001_003"):
+            if dir.__contains__(cont):
+                in_dirs_2.append(dir)
+                keys_2.append(keys[i])
+                break
+
+    in_dirs = in_dirs_2
+    keys = keys_2
+    print("final keys: {}".format(keys))
+    print("final indirs: {}".format(in_dirs))
+    prepare_data(config, in_dirs, keys)
+
+
+def prepare_data_from_files():
+
+    # prepare_data_all(base_dir="/content")
+    # list_contains = ["001_001", "001_002"]
+
+    list_contains = ["ai_001_001", "ai_001_002", "ai_001_003"]
+    prepare_data_all(base_dir="./unzips",
+                     config_path="./config/config_train_cluster.yaml",
+                     filter_list=list_contains)
+
+    print("dataset ls")
+
+    #!ls - alh / content / dataset / *
+    print("dataset data ls | head")
+    #!ls - alhtr / content / dataset / * / data | head - n  20
+    print("a_values.txt | head")
+    #!head / content / dataset / * / a_values.txt - n 50
+    print("data consumption")
+    # !du - d 0 - h / content / dataset / * / data
+
+
 if __name__ == "__main__":
 
-    def tenths(_from, to):
-        return [scale_int / 10 for scale_int in range(_from, to)]
+    prepare_data_from_files()
 
-    scales = tenths(1, 10)
-    #scales = [0.3]
-
-    prepare_data_by_scale(scales)
-    #simple_prepare_data()
+    # def tenths(_from, to):
+    #     return [scale_int / 10 for scale_int in range(_from, to)]
+    #
+    # scales = tenths(1, 2)
+    # #scales = [0.3]
+    #
+    # prepare_data_by_scale(scales)
+    # #simple_prepare_data()

@@ -1,8 +1,11 @@
 # install via conda->pip
-pytorch-lightning
-pip install opencv-python
-pip install h5py
-pip install kornia
+# conda install pip
+# pip install pytorch-lightning
+# pip install opencv-python
+# pip install h5py
+# pip install kornia
+# wget?? - probably not
+# pip install pytorch-lightning opencv-python h5py kornia
 
 torch~=1.12.1
 torchvision~=0.13.1
