@@ -39,7 +39,7 @@ def train(config_path='config/config.yaml', set_config_dir_scheme=False):
         wandb.watch(model)
 
     # TODO just redo this so that it's more logical (problem is 'log_metada' is in 'prepare_data.py'
-    baseline_loss = log_metada(dict(dm.dataset.metadata_list), conf['dataset'], enable_wandb, file=None, conf_to_log=conf)
+    baseline_loss = log_metada(dict(dm.dataset.metadata_list), conf['dataset'], conf_to_log=conf)
     model.set_baseline_loss(baseline_loss)
 
     trainer = Trainer(max_epochs=conf['train']['max_epochs'],

@@ -649,12 +649,12 @@ def write_data(dataset_config, orig_out_map):
         out_map = orig_out_map["metadata"]
         out_dir = get_full_ds_dir(dataset_config)
         with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
-            log_metada(out_map, dataset_config, log_wand=False, file=md_file)
+            log_metada(out_map, dataset_config, file=md_file)
 
     write_data = dataset_config['write_data']
     if write_data:
         with open("{}/a_values.txt".format(out_dir), "w") as md_file:
-            log_metada(out_map, dataset_config, log_wand=False, file=md_file)
+            log_metada(out_map, dataset_config, file=md_file)
 
             md_file.write("# schema: {}\n".format(DataRecord.schema()))
             for (fn, value) in out_map.items():
@@ -716,10 +716,13 @@ def prepare_data(dataset_config, in_dirs, keys):
     return list(out_map["metadata"].items())
 
 
-def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=None):
+def log_metada(out_map, dataset_conf, file=None, conf_to_log=None):
 
     if not conf_to_log:
         conf_to_log = dataset_conf
+        loss = None
+    else:
+        loss = conf_to_log["train"]["loss"].upper()
 
     def log_all(str):
         print(str)
@@ -746,8 +749,16 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
     log_all(f"# detector: {detector_name}")
 
     distances, errors, angles = get_error_stats(out_map.items())
-    print_m_am_stat(distances, "distance", skip_abs_mean=True)
-    expected_loss = print_m_am_stat(distances ** 2, "distance squared", skip_abs_mean=True) / 2
+    distances_mean = print_m_am_stat(distances, "distance", skip_abs_mean=True)
+    squared_distances_mean = print_m_am_stat(distances ** 2, "squared distance", skip_abs_mean=True)
+    # TODO check the 1/2
+    if loss is None:
+        expected_loss = 0
+    elif loss == "L1":
+        expected_loss = distances_mean / 2
+    elif loss == "L2":
+        expected_loss = squared_distances_mean / 2
+
     print_m_am_stat(errors, "")
     print_m_am_stat(angles, "angle")
 
@@ -757,8 +768,7 @@ def log_metada(out_map, dataset_conf, log_wand=False, file=None, conf_to_log=Non
     print_min_max_stat(scale_ratio_min_max, "scale ratio")
 
     log_all("### CONFIG ###")
-    for k, v in list(conf_to_log.items()):
-        log_all("#\t\t\t{}: {}".format(k, v))
+    log_all("#" + OmegaConf.to_yaml(conf_to_log).replace("\n", "\n#"))
     log_all("### CONFIG ###")
     return expected_loss
 
@@ -780,8 +790,7 @@ def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
     keys = dataset_conf['keys']
 
     print("### CONFIG ###")
-    for k, v in list(dataset_conf.items()):
-        print("#\t\t\t{}: {}".format(k, v))
+    print("#" + OmegaConf.to_yaml(dataset_conf).replace("\n", "\n#"))
     print("### CONFIG ###")
 
     means = np.zeros((len(scales), 2))
@@ -890,7 +899,7 @@ if __name__ == "__main__":
     # def tenths(_from, to):
     #     return [scale_int / 10 for scale_int in range(_from, to)]
     #
-    # scales = tenths(1, 2)
+    # scales = tenths(1, 10)
     # #scales = [0.3]
     #
     # prepare_data_by_scale(scales)

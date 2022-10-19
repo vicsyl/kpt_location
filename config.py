@@ -68,7 +68,10 @@ def get_detector_by_name(name):
         return SuperPointDetector()
     elif name == 'adjusted_superpoint':
         from superpoint_local import SuperPointDetector
-        translations = np.array([[4, 4], [4, 0], [0, 4], [2, 2], [2, 0], [0, 2], [1, 1], [1, 0], [0, 1]])
+        # 9 SE translations
+        # translations = np.array([[4, 4], [4, 0], [0, 4], [2, 2], [2, 0], [0, 2], [1, 1], [1, 0], [0, 1]])
+        # 8 centered [4/0] translations
+        translations = np.array([[4, 4], [4, 0], [0, 4], [-4, -4], [-4, 0], [0, -4], [-4, 4], [4, -4]])
         return SuperPointDetector(translations=translations)
     else:
         raise "unrecognized detector: {}".format(name)

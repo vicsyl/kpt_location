@@ -22,6 +22,16 @@ def get_model(conf):
     return model
 
 
+def get_loss_function(train_conf):
+    loss_f_name = train_conf["loss"].upper()
+    if loss_f_name == "L1":
+        return nn.L1Loss()
+    elif loss_f_name == "L2":
+        return nn.MSELoss()
+    else:
+        raise ValueError(f"Uknown loss function'{loss_f_name}'")
+
+
 class BasicModule(LightningModule):
 
     def __init__(self, train_conf):
@@ -29,7 +39,7 @@ class BasicModule(LightningModule):
 
         self.tr_conf = train_conf
         self.freeze_feature_extractor = train_conf['freeze_feature_extractor']
-        self.loss_function = nn.MSELoss()
+        self.loss_function = get_loss_function(train_conf)
         self.learning_rate = train_conf['learning_rate']
         self.enable_wandlog = train_conf.get('enable_wandlog', False)
         self.log_every_n_entries = train_conf['log_every_n_entries']

@@ -284,12 +284,18 @@ class PatchDataset(Dataset):
             crop_size = patch_t.shape[1] // 2
             if crop_size % 2 == 0:
                 crop_size += 1
-            img = patch_t[:, :, :patch_t.shape[2] // 2]
-            img = crop(img, crop_size, split=False)
-            img_p = torchvision.transforms.ToPILImage()(img)
-            img_p = img_p.resize((original_size, original_size), resample=resample_method)
-            img_p = torchvision.transforms.PILToTensor()(img_p).float() / 255.
-            patch_t[:, :, :patch_t.shape[2] // 2] = img_p
+
+            def upscale(data):
+                data = crop(data, crop_size, split=False)
+                img_p = torchvision.transforms.ToPILImage()(data)
+                img_p = img_p.resize((original_size, original_size), resample=resample_method)
+                img_p = torchvision.transforms.PILToTensor()(img_p).float() / 255.
+                return img_p
+
+            # TODO can make it configurable, but there will be more once there are different input heads
+            split_index = patch_t.shape[2] // 2
+            patch_t[:, :, :split_index] = upscale(patch_t[:, :, :split_index])
+            patch_t[:, :, split_index:] = upscale(patch_t[:, :, split_index:])
 
         if patch_t.shape[0] == 1:
             patch_t = patch_t.expand(3, -1, -1)
@@ -300,8 +306,8 @@ class PatchDataset(Dataset):
         return patch_t, y
 
     def show_patch(self, patch_t, suffix="", y_diff=None, increase=False):
-        max_items = 10
-        shows = 2
+        max_items = 20
+        shows = 3
         max_counter = max_items * shows
         if self.conf["dataset"]["show_inputs"] and self.input_counter < max_counter:
             patch_np = patch_t[0].numpy()
@@ -346,15 +352,26 @@ class PatchDataset(Dataset):
         else:
             raise f"Unknown method '{method}'"
 
+
 # NOTE an attempt for some kind of centralization
 augment_patch_length = 6
 
 
 def augment_patch(patch, diffs, split):
-    patch_r_y = torch.flip(patch, dims=[0])
+
     diffs_r_y = -diffs[0], diffs[1]
-    patch_r_x = torch.flip(patch, dims=[1])
     diffs_r_x = diffs[0], -diffs[1]
+    if split:
+        split_i = patch.shape[1] // 2
+        patch_r_y = torch.zeros_like(patch)
+        patch_r_y[:, :split_i] = torch.flip(patch[:, :split_i], dims=[0])
+        patch_r_y[:, split_i:] = torch.flip(patch[:, split_i:], dims=[0])
+        patch_r_x = torch.zeros_like(patch)
+        patch_r_x[:, :split_i] = torch.flip(patch[:, :split_i], dims=[1])
+        patch_r_x[:, split_i:] = torch.flip(patch[:, split_i:], dims=[1])
+    else:
+        patch_r_y = torch.flip(patch, dims=[0])
+        patch_r_x = torch.flip(patch, dims=[1])
 
     patches = [patch]
     diff_l = [diffs]
