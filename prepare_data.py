@@ -876,7 +876,7 @@ def prepare_data_from_files():
     # prepare_data_all(base_dir="/content")
     # list_contains = ["001_001", "001_002"]
 
-    list_contains = ["ai_001_001", "ai_001_002", "ai_001_003"]
+    list_contains = ["ai_001_001", "ai_001_002", "ai_001_003", "ai_001_004", "ai_001_005", "ai_001_006", "ai_001_007", "ai_001_008", "ai_001_009", "ai_001_010"]
     prepare_data_all(base_dir="./unzips",
                      config_path="./config/config_train_cluster.yaml",
                      filter_list=list_contains)
