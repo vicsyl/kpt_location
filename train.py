@@ -19,7 +19,6 @@ def train(config_path, set_config_dir_scheme=False, hash=None):
     train_conf = conf['train']
 
     dm = PatchesDataModule(conf)
-
     model = get_model(conf)
 
     loggers = []

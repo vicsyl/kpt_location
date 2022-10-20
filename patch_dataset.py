@@ -211,6 +211,8 @@ class PatchDataset(Dataset):
         self.handle_grouping()
         self.conf = conf
         self.input_counter = 1
+        self.log_wand_imgs = self.conf['dataset']["enable_wandlog"] and self.conf['dataset']["wandb_log_imgs"]
+        self.patches_to_log = [None]
 
     def __getitem__(self, index) -> Any:
 
@@ -300,23 +302,37 @@ class PatchDataset(Dataset):
         else:
             pass
         y = torch.tensor([dy, dx]) * self.scale_error
-        self.show_patch(patch_t, "after filtering", y, increase=True)
+        self.show_patch(patch_t, "after filtering", y, last=True)
         return patch_t, y
 
-    def show_patch(self, patch_t, suffix="", y_diff=None, increase=False):
-        max_items = 20
-        shows = 3
-        max_counter = max_items * shows
-        if self.conf["dataset"]["show_inputs"] and self.input_counter < max_counter:
+    def show_patch(self, patch_t, suffix="", y_diff=None, last=False):
+        max_items = 10
+        # shows = 3
+        # max_counter = max_items * shows
+        max_counter = max_items
+        if self.input_counter < max_counter:
             patch_np = patch_t[0].numpy()
-            plt.figure(figsize=(9, 9))
-            plt.imshow(patch_np)
-            sec_suffix = f"; err: {y_diff}, scale_error: {self.scale_error}" if y_diff is not None else ""
-            plt.title(f"input patch no. {self.input_counter} {suffix} {sec_suffix}")
-            plt.show()
-            plt.close()
-            if increase:
-                self.input_counter += 1
+            if self.conf["dataset"]["show_inputs"]:
+                plt.figure(figsize=(9, 9))
+                plt.imshow(patch_np)
+                sec_suffix = f"; err: {y_diff}, scale_error: {self.scale_error}" if y_diff is not None else ""
+                plt.title(f"input patch no. {self.input_counter} {suffix} {sec_suffix}")
+                plt.show()
+                plt.close()
+            if self.log_wand_imgs:
+                img = self.patches_to_log[-1]
+                if img is not None:
+                    img = np.vstack((patch_np, img))
+                else:
+                    img = patch_np
+                self.patches_to_log[-1] = img
+                if last:
+                    self.patches_to_log.append(None)
+        elif self.log_wand_imgs and self.input_counter == max_counter and last:
+            images_w = [wandb.Image(img, caption="Top: DS input, Middle: Augmented, Bottom: Final input") for img in self.patches_to_log[:-1]]
+            wandb.log({"examples": images_w})
+        if last:
+            self.input_counter += 1
 
     def __len__(self) -> int:
         if self.augment:

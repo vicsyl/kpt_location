@@ -18,6 +18,7 @@ dataset:
     tags: ["dev"]
     #  "magic_items"
     wandb_run_name_keys: ["no_key_detector", "err_th", "max_files", "reflection", "min_scale_th", "scale_ratio_th"]
+    wandb_log_imgs: True
 
     # ds
     augment: lazy # eager, lazy, null
