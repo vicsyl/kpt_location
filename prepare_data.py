@@ -856,19 +856,20 @@ def prepare_data_all(base_dir, config_path, filter_list):
     dirs_to_process = 1000
     in_dirs, keys = get_dirs_and_keys(dirs_to_process, base_dir=base_dir)
 
-    # SIMPLE filtering
-    in_dirs_2 = []
-    keys_2 = []
-    for i, dir in enumerate(in_dirs):
-        for cont in filter_list:
-            # if dir.__contains__("001_001") or dir.__contains__("001_002") or dir.__contains__("001_003"):
-            if dir.__contains__(cont):
-                in_dirs_2.append(dir)
-                keys_2.append(keys[i])
-                break
+    if filter_list is not None and len(filter_list) > 0:
+        # SIMPLE filtering
+        in_dirs_2 = []
+        keys_2 = []
+        for i, dir in enumerate(in_dirs):
+            for cont in filter_list:
+                # if dir.__contains__("001_001") or dir.__contains__("001_002") or dir.__contains__("001_003"):
+                if dir.__contains__(cont):
+                    in_dirs_2.append(dir)
+                    keys_2.append(keys[i])
+                    break
+        in_dirs = in_dirs_2
+        keys = keys_2
 
-    in_dirs = in_dirs_2
-    keys = keys_2
     print("final keys: {}".format(keys))
     print("final indirs: {}".format(in_dirs))
     prepare_data(config, in_dirs, keys)
@@ -886,7 +887,7 @@ def prepare_data_from_files():
 
     print("dataset ls")
 
-    #!ls - alh / content / dataset / *
+    #run_command("ls - alh  / content / dataset / *")
     print("dataset data ls | head")
     #!ls - alhtr / content / dataset / * / data | head - n  20
     print("a_values.txt | head")
