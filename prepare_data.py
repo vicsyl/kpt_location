@@ -357,7 +357,8 @@ def pil_img_transforms(img, config):
         img = possibly_to_grey_scale(config, img)
         img = possibly_refl_image(config, img)
         # FIXME a bit of a hack
-        if is_hm_relevant(config):
+        # FIXME temporary fix (use is hm_relevant)
+        if config['detector'].lower().__contains__("superpoint"):
             new_h = (img.shape[0] // 8) * 8
             new_w = (img.shape[1] // 8) * 8
             img = img[:new_h, :new_w]
