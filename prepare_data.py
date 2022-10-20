@@ -155,7 +155,8 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
 
     heatmap = None
     kpts = detector.detect(img_np, mask=None)
-    if is_hm_relevant(config):
+    # FIXME temporary fix (use is hm_relevant)
+    if config['detector'].lower().__contains__("superpoint"):
         kpts, heatmap = kpts[0], kpts[1]
         if heatmap is None:
             heatmap = np.zeros_like(img_np).astype(dtype=np.uint8)
