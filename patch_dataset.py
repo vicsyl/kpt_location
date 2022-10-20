@@ -1,18 +1,7 @@
+import argparse
 import dataclasses
 import math
-import argparse
-
-import wandb
-from torch import randperm
-from torch import Generator
-from torch import default_generator
-import torchvision.transforms
-
-from utils import show_np
-import matplotlib.pyplot as plt
-
 from dataclasses import dataclass
-
 from typing import (
     Any,
     List,
@@ -20,10 +9,18 @@ from typing import (
     Sequence,
     TypeVar,
 )
+
+import matplotlib.pyplot as plt
+import torchvision.transforms
+from torch import Generator
+from torch import default_generator
+from torch import randperm
+
+import wandb
+
 T_co = TypeVar('T_co', covariant=True)
 T = TypeVar('T')
 
-import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision
@@ -34,17 +31,19 @@ from config import *
 from wand_utils import log_table
 
 
-def get_wand_name(config, entry_list=None, extra_key=None, wandb_run_name_keys=None):
+def get_wand_name(config, entry_list=None, extra_key=None, wandb_run_name_keys=None, hash=None):
 
     if not wandb_run_name_keys:
         wandb_run_name_keys = config['wandb_run_name_keys']
-    name = extra_key + "_" if extra_key else ""
+    name = "" if not hash else hash + ":"
+    if extra_key:
+        name += extra_key
     for wandb_tags_key in wandb_run_name_keys:
         if wandb_tags_key == "magic_items":
-            name = name + ":items=" + str(len(entry_list))
+            name = name + ":i=" + str(len(entry_list))
         elif wandb_tags_key == "magic_out_dir":
             dir = get_full_ds_dir(config['dataset'])
-            name += f"ds={dir.split('/')[-1]}"
+            name += f"d={dir.split('/')[-1]}"
         elif wandb_tags_key.startswith("no_key"):
             wandb_tags_key = wandb_tags_key[7:]
             value = config.get(wandb_tags_key, None)
@@ -57,7 +56,7 @@ def get_wand_name(config, entry_list=None, extra_key=None, wandb_run_name_keys=N
                 if map_value:
                     map_value = map_value.get(key, None)
             if map_value is not None and map_value is not False:
-                name = name + ":{}={}".format(keys[-1], str(map_value))
+                name = name + ":{}={}".format(keys[-1][0], str(map_value))
 
     return name
 
@@ -231,7 +230,6 @@ class PatchDataset(Dataset):
             patch_t = patch_t[:, :, patch_t.shape[2] // 2:]
         both_heatmap_or_img = self.heatmap_or_img == "both"
 
-        from utils import show_torch
         if self.augment and index % 6 != 0:
             augment_index = index % 6
             #show_torch(patch_t[0], "patch before augmenting on the fly")
@@ -378,7 +376,6 @@ def augment_patch(patch, diffs, split):
     augment_keys = ["original"]
     for i in range(3):
         if split:
-            from utils import show_torch
             #show_torch(patch, "before splitting")
             split_i = patch.shape[1] // 2
             part1, part2 = patch[:, :split_i], patch[:, split_i:]

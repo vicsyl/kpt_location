@@ -11,7 +11,7 @@ from prepare_data import log_metada
 from resnet_cnn import *
 
 
-def train(config_path='config/config.yaml', set_config_dir_scheme=False):
+def train(config_path, set_config_dir_scheme=False, hash=None):
 
     conf = get_config(config_path)
     if set_config_dir_scheme:
@@ -26,7 +26,7 @@ def train(config_path='config/config.yaml', set_config_dir_scheme=False):
     enable_wandb = train_conf.get('enable_wandlog', False)
     if enable_wandb:
         wandb_project = train_conf["wandb_project"]
-        wandb_name = get_wand_name(conf, wandb_run_name_keys=train_conf['wandb_run_name_keys'])
+        wandb_name = get_wand_name(conf, wandb_run_name_keys=train_conf['wandb_run_name_keys'], hash=hash)
         wandb_tags = train_conf['tags']
         wandb.init(project=wandb_project,
                    name=wandb_name,
@@ -52,9 +52,13 @@ def train(config_path='config/config.yaml', set_config_dir_scheme=False):
 
 if __name__ == "__main__":
 
-    config_path = 'config/config.yaml'
-    if len(sys.argv) > 1:
-        config_path = sys.argv[1]
+    import argparse
+    parser = argparse.ArgumentParser(description='Train a deep model')
+    parser.add_argument('--config', help='config path', required=False)
+    parser.add_argument('--hash', help='git hash', required=False)
+    args = parser.parse_args()
 
+    config_path = 'config/config.yaml' if not args.config else args.config
     print(f"config_path={config_path}")
-    train(config_path=config_path, set_config_dir_scheme=False)
+
+    train(config_path=config_path, set_config_dir_scheme=False, hash=args.hash)
