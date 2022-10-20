@@ -77,6 +77,8 @@ class SuperPointDetector:
         if self.translations is None:
             return pts_or, heatmap_or
         else:
+            if len(pts_or) == 0:
+                return [], heatmap_or
             #print(f"pts: original: {pts_or[:20]}")
             pts_or = torch.from_numpy(pts_or)
             sums = torch.clone(pts_or)

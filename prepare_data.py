@@ -157,7 +157,10 @@ def detect_kpts(img_np, scale_th, const_patch_size, config):
     kpts = detector.detect(img_np, mask=None)
     if config['detector'].lower().__contains__("superpoint"):
         kpts, heatmap = kpts[0], kpts[1]
-        heatmap = (heatmap * 255).astype(dtype=np.uint8)
+        if heatmap is None:
+            heatmap = np.zeros_like(img_np).astype(dtype=np.uint8)
+        else:
+            heatmap = (heatmap * 255).astype(dtype=np.uint8)
 
     # NOTE show the keypoints
     # img_kpts = cv.cvtColor(img_np, cv.COLOR_GRAY2RGB)
