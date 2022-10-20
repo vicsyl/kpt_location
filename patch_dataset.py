@@ -205,7 +205,7 @@ class PatchDataset(Dataset):
             self.train_crop = PatchDataset.default_train_crop
         self.scale_error = train_config['scale_error']
         self.augment = conf['dataset']['augment'] and (conf['dataset']['augment'].lower() == "lazy")
-        if conf['dataset']['detector'].lower().__contains__("superpoint"):
+        if is_hm_relevant(conf):
             self.heatmap_or_img = conf['dataset']['filtering']['heatmap_or_img']
         else:
             self.heatmap_or_img = None
@@ -652,7 +652,7 @@ def visualize():
     # params:
     count = 5
     crop_size = 5
-    split = config["dataset"]["detector"].lower().__contains__("superpoint")
+    split = is_hm_relevant(config)
     basic_scale = 5
 
     # sensible constants

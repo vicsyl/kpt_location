@@ -1,25 +1,41 @@
+import omegaconf
 import torch
 import torch.nn as nn
-import wandb
-
 import torchvision.models as models
 from pytorch_lightning import LightningModule
+
+import wandb
 
 
 # TODO rename the file
 def get_model(conf):
+    module_key = conf['train']['module']
+    return get_model_by_key(module_key, conf)
+
+
+def get_model_by_key(module_key, conf):
 
     train_conf = conf['train']
-    module_name = train_conf['module'].lower()
-    if module_name == "resnet_based":
-        model = ResnetBasedModule(train_conf)
-    elif module_name == "zero_inference":
-        model = ZeroModule(train_conf)
-    elif module_name == "mlp":
-        model = MlpModule(conf)
+    if type(module_key) == str:
+        module_key = module_key.lower()
+        if module_key == "resnet_based":
+            return ResnetBasedModule(train_conf)
+        elif module_key == "zero_inference":
+            return ZeroModule(train_conf)
+        elif module_key == "mlp":
+            return MlpModule(conf)
+        else:
+            raise ValueError(f"unknown '{module_key}' module name")
+    elif type(module_key) == omegaconf.dictconfig.DictConfig:
+        assert len(module_key.keys()) == 1
+        name = list(module_key.keys())[0].lower()
+        if name == "two_heads":
+            models = [get_model_by_key(n, conf) for n in module_key[name]]
+            return TwoHeadsModule(models, conf['train'])
+        else:
+            raise ValueError(f"Unknown key for module: {name}")
     else:
-        raise ValueError(f"unknown '{module_name}' module name")
-    return model
+        raise ValueError(f"Unknown type: {type(module_key)}")
 
 
 def get_loss_function(train_conf):
@@ -29,7 +45,7 @@ def get_loss_function(train_conf):
     elif loss_f_name == "L2":
         return nn.MSELoss()
     else:
-        raise ValueError(f"Uknown loss function'{loss_f_name}'")
+        raise ValueError(f"Unknown loss function'{loss_f_name}'")
 
 
 class BasicModule(LightningModule):
@@ -51,7 +67,7 @@ class BasicModule(LightningModule):
     def set_baseline_loss(self, loss):
         self.baseline_loss = loss
 
-    def forward(self, x):
+    def compute_representations(self, x):
         # TODO flatten and put to the child class
         if self.freeze_feature_extractor:
             # QUESTION - really?
@@ -61,6 +77,10 @@ class BasicModule(LightningModule):
         else:
             features = self.feature_extractor(x)
         representations = features.flatten(1)
+        return representations
+
+    def forward(self, x):
+        representations = self.compute_representations(x)
         x = self.classifier(representations)
         return x
 
@@ -120,6 +140,33 @@ class BasicModule(LightningModule):
             wandb.log({"{}_distance_loss".format(prefix): distance_loss})
             angle_loss = (torch.atan2(ys[:, 0], ys[:, 1]) - torch.atan2(ys_hat[:, 0], ys_hat[:, 1])).abs() / batch_size
             wandb.log({"{}_angle_loss".format(prefix): angle_loss})
+
+
+class TwoHeadsModule(BasicModule):
+
+    def __init__(self, heads: BasicModule, train_conf):
+        super().__init__(train_conf)
+        assert len(heads) == 2
+        self.heads = heads
+        inputs = sum([h.classifier.in_features for h in self.heads])
+        self.classifier = nn.Linear(inputs, 2)
+        # TODO this is needed to register the parameters
+        self.feature_extractor0 = heads[0].feature_extractor
+        self.feature_extractor1 = heads[1].feature_extractor
+
+    def forward(self, x):
+
+        # TODO OK this still doesn't fix the problem with different input sizes
+        width = x.shape[3]
+        height = x.shape[2]
+        assert width == 2 * height
+        x_image = x[:, :, :, height:]
+        repr_image = self.heads[0].compute_representations(x_image)
+        x_heat_map = x[:, :, :, :height]
+        repr_heat_map = self.heads[1].compute_representations(x_heat_map)
+        all_repres = torch.hstack((repr_image, repr_heat_map))
+        x = self.classifier(all_repres)
+        return x
 
 
 class ResnetBasedModule(BasicModule):

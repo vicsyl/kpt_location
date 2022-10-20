@@ -10,4 +10,5 @@ wandb
 notes
 .ipynb_checkpoints
 config/config.yaml
-*notes.md
+kpt_location_training_*
+checkpoints

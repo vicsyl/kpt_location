@@ -4,7 +4,7 @@ import numpy as np
 import cv2 as cv
 from dataclasses import dataclass
 from typing import Callable
-from config import get_detector_by_name
+from config import get_detector_by_key
 
 
 @dataclass(init=True, repr=True, eq=False, order=False, unsafe_hash=False, frozen=False)
@@ -204,7 +204,7 @@ def main():
             img = get_synthetic_image(conf)
 
             detector_name = detector_names[0]
-            detector = get_detector_by_name(detector_name)
+            detector = get_detector_by_key(detector_name)
             kpts = detector.detect(img, None)
 
             print("conf: {}".format(conf))
