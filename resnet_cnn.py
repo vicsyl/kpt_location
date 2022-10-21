@@ -60,7 +60,7 @@ class BasicModule(LightningModule):
         if train_conf is None:
             print("WARNING: train_conf is None, probably loading a checkpoint?")
         else:
-            self.init()
+            self.init(train_conf)
 
     def init(self, train_conf):
         assert train_conf is not None
