@@ -18,10 +18,8 @@ def train(config_path, set_config_dir_scheme=False, hash=None):
         set_config_dir_scale_scheme(conf['dataset'])
     train_conf = conf['train']
 
-    dm = PatchesDataModule(conf)
-    model = get_model(conf)
-
     loggers = []
+    wandb_logger = None
     enable_wandb = train_conf.get('enable_wandlog', False)
     if enable_wandb:
         wandb_project = train_conf["wandb_project"]
@@ -35,6 +33,11 @@ def train(config_path, set_config_dir_scheme=False, hash=None):
         loggers = [wandb_logger]
         # NOTE this doesn't show anywhere
         wandb.config = OmegaConf.to_container(train_conf)
+
+    dm = PatchesDataModule(conf, wandb_logger)
+    model = get_model(conf)
+
+    if enable_wandb:
         wandb.watch(model)
 
     # TODO just redo this so that it's more logical (problem is 'log_metada' is in 'prepare_data.py'

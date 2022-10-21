@@ -190,7 +190,7 @@ class PatchDataset(Dataset):
 
     default_train_crop = 33
 
-    def __init__(self, root_dir, conf, do_filtering=True) -> None:
+    def __init__(self, root_dir, conf, do_filtering=True, wandb_logger=None) -> None:
         super().__init__()
         train_config = conf['train']
         self.root_dir = root_dir
@@ -211,7 +211,8 @@ class PatchDataset(Dataset):
         self.handle_grouping()
         self.conf = conf
         self.input_counter = 1
-        self.log_wand_imgs = self.conf['dataset']["enable_wandlog"] and self.conf['dataset']["wandb_log_imgs"]
+        #self.log_wand_imgs = self.conf['dataset']["enable_wandlog"] and self.conf['dataset']["wandb_log_imgs"]
+        self.wandb_logger = wandb_logger
         self.patches_to_log = [None]
 
     def __getitem__(self, index) -> Any:
@@ -319,18 +320,24 @@ class PatchDataset(Dataset):
                 plt.title(f"input patch no. {self.input_counter} {suffix} {sec_suffix}")
                 plt.show()
                 plt.close()
-            if self.log_wand_imgs:
+            if self.wandb_logger:
                 img = self.patches_to_log[-1]
+                to_add = patch_np
+                # failed attempt at a more reasonable color palette
+                # to_add = np.repeat(patch_np[:, :, None], 3, axis=2)
+                # to_add = (to_add * 255.0).astype(np.uint8)
+                # to_add[:, :, :2] = cv.cvtColor(to_add, cv.COLORMAP_SUMMER)
+                # to_add[:, :, 2] = 0
                 if img is not None:
-                    img = np.vstack((patch_np, img))
+                    img = np.vstack((img, to_add))
                 else:
-                    img = patch_np
+                    img = to_add
                 self.patches_to_log[-1] = img
                 if last:
                     self.patches_to_log.append(None)
-        elif self.log_wand_imgs and self.input_counter == max_counter and last:
-            images_w = [wandb.Image(img, caption="Top: DS input, Middle: Augmented, Bottom: Final input") for img in self.patches_to_log[:-1]]
-            wandb.log({"examples": images_w})
+        elif self.wandb_logger and self.input_counter == max_counter and last:
+            #images_w = [wandb.Image(img, caption="Top: DS input, Middle: Augmented, Bottom: Final input") for img in self.patches_to_log[:-1]]
+            self.wandb_logger.log_image("examples", self.patches_to_log[:-1], caption=["Top: DS input, Middle: Augmented, Bottom: Final input"] * (len(self.patches_to_log) - 1))
         if last:
             self.input_counter += 1
 
@@ -415,7 +422,7 @@ def augment_patch(patch, diffs, split):
 # TODO add transforms (e.g. normalization)
 class PatchesDataModule(pl.LightningDataModule):
 
-    def __init__(self, conf):
+    def __init__(self, conf, wandb_logger=None):
         super().__init__()
 
         # NOTE to be changed
@@ -428,7 +435,7 @@ class PatchesDataModule(pl.LightningDataModule):
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
         root_dir = get_full_ds_dir(conf['dataset'])
-        self.dataset = PatchDataset(root_dir, conf)
+        self.dataset = PatchDataset(root_dir, conf, wandb_logger=wandb_logger)
 
     def prepend_parts(self, parts, part_size):
         if self.splits == 2:
