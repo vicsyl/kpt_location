@@ -8,18 +8,23 @@ import wandb
 
 
 # TODO rename the file
-def get_model(conf):
+def get_module(conf, checkpoint_path=None):
     module_key = conf['train']['module']
-    return get_model_by_key(module_key, conf)
+    return get_module_by_key(module_key, conf, checkpoint_path)
 
 
-def get_model_by_key(module_key, conf):
+def get_module_by_key(module_key, conf, checkpoint_path=None):
 
     train_conf = conf['train']
     if type(module_key) == str:
         module_key = module_key.lower()
         if module_key == "resnet_based":
-            return ResnetBasedModule(train_conf)
+            if checkpoint_path is None:
+                return ResnetBasedModule(train_conf)
+            else:
+                module = ResnetBasedModule.load_from_checkpoint(checkpoint_path)
+                module.init(train_conf)
+                return module
         elif module_key == "zero_inference":
             return ZeroModule(train_conf)
         elif module_key == "mlp":
@@ -30,7 +35,7 @@ def get_model_by_key(module_key, conf):
         assert len(module_key.keys()) == 1
         name = list(module_key.keys())[0].lower()
         if name == "two_heads":
-            models = [get_model_by_key(n, conf) for n in module_key[name]]
+            models = [get_module_by_key(n, conf) for n in module_key[name]]
             return TwoHeadsModule(models, conf['train'])
         else:
             raise ValueError(f"Unknown key for module: {name}")
@@ -52,7 +57,13 @@ class BasicModule(LightningModule):
 
     def __init__(self, train_conf):
         super().__init__()
+        if train_conf is None:
+            print("WARNING: train_conf is None, probably loading a checkpoint?")
+        else:
+            self.init()
 
+    def init(self, train_conf):
+        assert train_conf is not None
         self.tr_conf = train_conf
         self.freeze_feature_extractor = train_conf['freeze_feature_extractor']
         self.loss_function = get_loss_function(train_conf)
@@ -171,11 +182,18 @@ class TwoHeadsModule(BasicModule):
 
 class ResnetBasedModule(BasicModule):
 
-    def __init__(self, train_conf):
+    def __init__(self, train_conf=None):
         super().__init__(train_conf)
+
+        # in base?
+        self.save_hyperparameters()
+        # checkpoint = torch.load(checkpoint, map_location=lambda storage, loc: storage)
+        # print(checkpoint["hyper_parameters"])
+
         resnet50 = models.resnet50(pretrained=True)
         in_features = resnet50.fc.in_features
         layers = list(resnet50.children())[:-1]
+        # probably unnecessary
         self.tr_conf = train_conf
         self.feature_extractor = nn.Sequential(*layers)
         self.classifier = nn.Linear(in_features, 2)

@@ -11,7 +11,7 @@ from prepare_data import log_metada
 from resnet_cnn import *
 
 
-def train(config_path, set_config_dir_scheme=False, hash=None):
+def train(config_path, set_config_dir_scheme=False, hash=None, checkpoint_path=None):
 
     conf = get_config(config_path)
     if set_config_dir_scheme:
@@ -35,7 +35,7 @@ def train(config_path, set_config_dir_scheme=False, hash=None):
         wandb.config = OmegaConf.to_container(train_conf)
 
     dm = PatchesDataModule(conf, wandb_logger)
-    model = get_model(conf)
+    model = get_module(conf, checkpoint_path)
 
     if enable_wandb:
         wandb.watch(model)
@@ -58,9 +58,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a deep model')
     parser.add_argument('--config', help='config path', required=False)
     parser.add_argument('--hash', help='git hash', required=False)
+    parser.add_argument('--checkpoint_path', help='checkpoint path', required=False)
     args = parser.parse_args()
 
     config_path = 'config/config.yaml' if not args.config else args.config
     print(f"config_path={config_path}")
 
-    train(config_path=config_path, set_config_dir_scheme=False, hash=args.hash)
+    train(config_path=config_path,
+          set_config_dir_scheme=False,
+          hash=args.hash,
+          checkpoint_path=args.checkpoint_path)
