@@ -10,7 +10,7 @@ def download_zips(zips_to_download_start=0, zips_to_download_end=10):
   for url in urls_to_download[zips_to_download_start:zips_to_download_end]:
     zip_file = url[url.rfind("/") + 1:]
     print(zip_file)
-    run_command(f"curl {url} --output ./zips/{zip_file}")
+    run_command(f"curl {url} -s --output ./zips/{zip_file}")
     print("unzipping ...")
     run_command(f"unzip -qq ./zips/{zip_file}")
     #print("removing: {}".format(zip_file))
