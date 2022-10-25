@@ -58,10 +58,12 @@ def mnn_generic(pts1, pts2, err_th):
     return pts1_new, pts2_new, mask1, mask2
 
 
-def rotate_experiment(file_path, detector, rotations_90_deg):
+def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
     print(f"experiment for n rotations: {rotations_90_deg}")
 
     img_np_o = np.array(Image.open(file_path))
+    new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
+    img_np_o = img_np_o[:new_h, :new_w]
 
     kpts_0_cv, _ = detector.detect(img_np_o, mask=None)
     kpts_0 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
@@ -86,7 +88,7 @@ def rotate_experiment(file_path, detector, rotations_90_deg):
     print("number of kpts: {}, {}".format(kpts_0.shape[0], kpts_1.shape[0]))
 
     # mnn
-    kpts_0_new_1d, kpts_1_new_1d, mask_00, mask_10 = mnn_generic(kpts_0, kpts_1, err_th=4)
+    kpts_0_new_1d, kpts_1_new_1d, mask_00, mask_10 = mnn_generic(kpts_0, kpts_1, err_th=err_th)
     print("number of filtered kpts: {}, {}".format(kpts_0_new_1d.shape[0], kpts_1_new_1d.shape[0]))
 
     distances = torch.linalg.norm(kpts_1_new_1d - kpts_0_new_1d, axis=1)
@@ -110,20 +112,21 @@ def rotate_experiment(file_path, detector, rotations_90_deg):
     draw_all_kpts(img_np_o, kpts_0_cv_matched, kpts_1_cv_matched, "matched keypoints")
     draw_all_kpts(img_np_o, kpts_0_cv_unmatched, kpts_1_cv_unmatched, "unmatched keypoints")
 
+    # TODO rename
     mean = (kpts_1_new_1d - kpts_0_new_1d).mean(dim=0)
     var = (kpts_1_new_1d - kpts_0_new_1d).var(dim=0)
     print("mean: {}, variance: {}".format(mean, var))
 
 
-def rotate_experiment_loop(detector, img_to_show):
+def rotate_experiment_loop(detector, img_to_show, err_th):
     img_dir = "demo_imgs"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
         for rots in range(1, 4):
-            rotate_experiment(file_path, detector, rots)
+            rotate_experiment(file_path, detector, rots, err_th)
 
 
 if __name__ == "__main__":
     from superpoint_local import SuperPointDetector
     detector = SuperPointDetector()
-    rotate_experiment_loop(detector, img_to_show=1)
+    rotate_experiment_loop(detector, img_to_show=1, err_th=4)

@@ -80,11 +80,18 @@ def get_detector_by_key(dict_key):
             return SuperPointDetector()
         elif dict_key == 'adjusted_superpoint':
             from superpoint_local import SuperPointDetector
-            # 9 SE translations
+            # 3 SE translations
+            translations = np.array([[4, 4], [4, 0], [0, 4]])
+            # 9 translations
             # translations = np.array([[4, 4], [4, 0], [0, 4], [2, 2], [2, 0], [0, 2], [1, 1], [1, 0], [0, 1]])
             # 8 centered [4/0] translations
-            translations = np.array([[4, 4], [4, 0], [0, 4], [-4, -4], [-4, 0], [0, -4], [-4, 4], [4, -4]])
-            return SuperPointDetector(translations=translations)
+            # translations = np.array([[4, 4], [4, 0], [0, 4], [-4, -4], [-4, 0], [0, -4], [-4, 4], [4, -4]])
+            translations = []
+            # rotations = range(1, 4)
+            rotations = []
+            # const_adjustment = None
+            const_adjustment = [0.45, 0.30]
+            return SuperPointDetector(const_adjustment=const_adjustment, translations=translations, rotations=rotations)
         else:
             raise "unrecognized detector: {}".format(dict_key)
     else:

@@ -55,12 +55,14 @@ def show_patch(patch, title, coords):
 
 class SuperPointDetector:
 
-    def __init__(self, path=None, device: torch.device = torch.device('cpu'), translations=None):
+    def __init__(self, path=None, device: torch.device = torch.device('cpu'), const_adjustment=None, translations=[], rotations=[]):
         if not path:
             path = "./superpoint/superpoint_v1.pth"
         self.super_point = SuperPointDescriptor(path, device)
         self.heat_map_th = self.super_point.sp_frontend.conf_thresh
         self.translations = translations
+        self.rotations = rotations
+        self.const_adjustment = const_adjustment
 
     def detect(self, img_np, mask=None):
         if len(img_np.shape) == 3:
@@ -72,9 +74,52 @@ class SuperPointDetector:
             self.analyze_hm_patches(heatmap, pts_cv)
         return pts_cv, heatmap
 
+    def get_rotated_img(self, img_np_o, rotations_90_deg):
+        return np.rot90(img_np_o, rotations_90_deg, [0, 1])
+
+    def get_backprojected_rotation_kpts_np(self, kpts_np, rotations_90_deg, img_np_r):
+
+        coord0_max = img_np_r.shape[0] - 1
+        coord1_max = img_np_r.shape[1] - 1
+        for i in range(4 - rotations_90_deg):
+            kpts_10_new = coord1_max - kpts_np[:, 1]
+            kpts_11_new = kpts_np[:, 0].copy()
+            kpts_np[:, 0] = kpts_10_new.copy()
+            kpts_np[:, 1] = kpts_11_new.copy()
+            coord1_max, coord0_max = coord0_max, coord1_max
+        return kpts_np
+
+    def get_translated_img(self, img_or, translation):
+
+        img_td = np.zeros_like(img_or)
+
+        # NOTE see (***)
+        start_td_0 = translation[1] if translation[1] >= 0 else 0
+        end_td_0 = translation[1] if translation[1] < 0 else img_or.shape[0]
+        start_or_0 = -translation[1] if translation[1] <= 0 else 0
+        end_or_0 = -translation[1] if translation[1] > 0 else img_or.shape[0]
+
+        start_td_1 = translation[0] if translation[0] >= 0 else 0
+        end_td_1 = translation[0] if translation[0] < 0 else img_or.shape[1]
+        start_or_1 = -translation[0] if translation[0] <= 0 else 0
+        end_or_1 = -translation[0] if translation[0] > 0 else img_or.shape[1]
+
+        img_td[start_td_0:end_td_0, start_td_1:end_td_1] = img_or[start_or_0:end_or_0, start_or_1:end_or_1]
+        return img_td
+
+    def get_backprojected_translation_kpts_np(self, kpts_t, translation):
+        kpts_t = kpts_t - translation
+        kpts_t = torch.from_numpy(kpts_t)
+        return kpts_t
+
     def detect_inner(self, img_or, mask):
+
+        if len(self.rotations) > 0 and img_or.shape[0] % 8 != 0 or img_or.shape[0] % 8 != 0:
+            print("Warning, cropping img to get sizes divisible by 8")
+            img_or = img_or[img_or.shape[0] // 8 * 8, img_or.shape[1] // 8 * 8]
+
         pts_or, _, heatmap_or = self.super_point.detectAndComputeGrey(img_or, mask)
-        if self.translations is None:
+        if len(self.translations) + len(self.rotations) == 0 and not self.const_adjustment:
             return pts_or, heatmap_or
         else:
             if len(pts_or) == 0:
@@ -83,39 +128,50 @@ class SuperPointDetector:
             pts_or = torch.from_numpy(pts_or)
             sums = torch.clone(pts_or)
             counts = torch.ones(pts_or.shape[0])
+
             for translation in self.translations:
-                img_td = np.zeros_like(img_or)
 
-                # NOTE see (***)
-                start_td_0 = translation[1] if translation[1] >= 0 else 0
-                end_td_0 = translation[1] if translation[1] < 0 else img_or.shape[0]
-                start_or_0 = -translation[1] if translation[1] <= 0 else 0
-                end_or_0 = -translation[1] if translation[1] > 0 else img_or.shape[0]
-
-                start_td_1 = translation[0] if translation[0] >= 0 else 0
-                end_td_1 = translation[0] if translation[0] < 0 else img_or.shape[1]
-                start_or_1 = -translation[0] if translation[0] <= 0 else 0
-                end_or_1 = -translation[0] if translation[0] > 0 else img_or.shape[1]
-
-                img_td[start_td_0:end_td_0, start_td_1:end_td_1] = img_or[start_or_0:end_or_0, start_or_1:end_or_1]
-
+                img_td = self.get_translated_img(img_or, translation)
                 pts, _, _ = self.super_point.detectAndComputeGrey(img_td, mask)
-                # NOTE this is why translation if handled in [x, y] coords (***)
-                pts = pts - translation
-                pts = torch.from_numpy(pts)
+                pts = self.get_backprojected_translation_kpts_np(pts, translation)
 
                 # mnn
                 # TODO err_th from config!
                 pts_or_mnn, pts_td_mnn, mask_or, _ = mnn_generic(pts_or, pts, err_th=2)
                 #print("number of filtered kpts: {}, {}".format(pts_or_mnn.shape[0], pts_td_mnn.shape[0]))
-
                 #distances = torch.linalg.norm(pts_or_mnn - pts_td_mnn, axis=1)
                 #print("distances between matching keypoints - min: {}, max: {}".format(distances.min(), distances.max()))
 
                 sums[mask_or] += pts_td_mnn
                 counts[mask_or] += 1
+
+            for rotation in self.rotations:
+                img_rot = self.get_rotated_img(img_or, rotation)
+                pts, _, _ = self.super_point.detectAndComputeGrey(img_rot, mask)
+                # xy -> yx
+                # copy(): "negative strides not supported in torch"
+                pts = np.flip(pts, axis=1).copy()
+                pts = self.get_backprojected_rotation_kpts_np(pts, rotation, img_rot)
+                # yx -> xy
+                pts = np.flip(pts, axis=1).copy()
+                pts = torch.from_numpy(pts)
+
+                # pts2 = self.get_backprojected_rotation_kpts_np(pts, 4, img_rot)
+                # assert np.all(pts == pts2)
+
+                # mnn
+                # TODO err_th from config!
+                pts_or_mnn, pts_td_mnn, mask_or, _ = mnn_generic(pts_or, pts, err_th=2)
+                sums[mask_or] += pts_td_mnn
+                counts[mask_or] += 1
+
+            # output how much support the meaning has
+            print(f"{counts.sum()} kpts measurements for {counts.shape[0]}, avg: {counts.sum() / counts.shape[0]}")
+
             pts_ret = sums / counts[:, None]
             pts_ret = pts_ret.numpy()
+            if self.const_adjustment:
+                pts_ret = pts_ret + self.const_adjustment
             # print(f"pts: adjusted: {pts_ret[:20]}")
             # print(f"pts: diffs: {(pts_or - pts_ret)[:20]}")
             return pts_ret, heatmap_or

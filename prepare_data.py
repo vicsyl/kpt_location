@@ -901,13 +901,15 @@ def prepare_data_from_files():
 
 if __name__ == "__main__":
 
-    prepare_data_from_files()
+    #simple_prepare_data()
 
-    # def tenths(_from, to):
-    #     return [scale_int / 10 for scale_int in range(_from, to)]
-    #
-    # scales = tenths(1, 10)
-    # #scales = [0.3]
-    #
-    # prepare_data_by_scale(scales)
-    # #simple_prepare_data()
+    #prepare_data_from_files()
+
+    def tenths(_from, to):
+        return [scale_int / 10 for scale_int in range(_from, to)]
+
+    scales = tenths(1, 10)
+    #scales = [0.3]
+
+    prepare_data_by_scale(scales)
+    #simple_prepare_data()

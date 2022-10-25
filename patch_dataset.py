@@ -47,6 +47,7 @@ def get_wand_name(config, entry_list=None, extra_key=None, wandb_run_name_keys=N
         elif wandb_tags_key.startswith("no_key"):
             wandb_tags_key = wandb_tags_key[7:]
             value = config.get(wandb_tags_key, None)
+            # TODO check for the type -> str of dict
             if value:
                 name = name + ":" + str(value)
         else:

@@ -15,18 +15,17 @@ def get_module(conf, checkpoint_path=None):
 
 def get_module_by_key(module_key, conf, checkpoint_path=None):
 
-    train_conf = conf['train']
     if type(module_key) == str:
         module_key = module_key.lower()
         if module_key == "resnet_based":
             if checkpoint_path is None:
-                return ResnetBasedModule(train_conf)
+                return ResnetBasedModule(conf)
             else:
                 module = ResnetBasedModule.load_from_checkpoint(checkpoint_path)
-                module.init(train_conf)
+                module.init(conf)
                 return module
         elif module_key == "zero_inference":
-            return ZeroModule(train_conf)
+            return ZeroModule(conf)
         elif module_key == "mlp":
             return MlpModule(conf)
         else:
@@ -36,7 +35,7 @@ def get_module_by_key(module_key, conf, checkpoint_path=None):
         name = list(module_key.keys())[0].lower()
         if name == "two_heads":
             models = [get_module_by_key(n, conf) for n in module_key[name]]
-            return TwoHeadsModule(models, conf['train'])
+            return TwoHeadsModule(models, conf)
         else:
             raise ValueError(f"Unknown key for module: {name}")
     else:
@@ -55,15 +54,17 @@ def get_loss_function(train_conf):
 
 class BasicModule(LightningModule):
 
-    def __init__(self, train_conf):
+    def __init__(self, conf):
         super().__init__()
-        if train_conf is None:
+        if conf is None:
             print("WARNING: train_conf is None, probably loading a checkpoint?")
         else:
-            self.init(train_conf)
+            self.init(conf)
 
-    def init(self, train_conf):
-        assert train_conf is not None
+    def init(self, conf):
+        assert conf is not None
+        self.conf = conf
+        train_conf = conf['train']
         self.tr_conf = train_conf
         self.freeze_feature_extractor = train_conf['freeze_feature_extractor']
         self.loss_function = get_loss_function(train_conf)
@@ -90,9 +91,12 @@ class BasicModule(LightningModule):
         representations = features.flatten(1)
         return representations
 
-    def forward(self, x):
+    def forward(self, x, clip=False):
         representations = self.compute_representations(x)
         x = self.classifier(representations)
+        # TODO
+        # if clip:
+        #     self.tr_conf["filtering"]
         return x
 
     def training_step(self, batch, batch_idx):
@@ -114,6 +118,16 @@ class BasicModule(LightningModule):
         loss = self.loss_function(ys_hat, ys)
         self.log_stats(ys, ys_hat, "validation")
         self.add_loss_log("validation_loss", loss)
+        # TODO
+        # validation_clip = self.tr_conf['validation_clip']
+        # if validation_clip:
+        #     norms = torch.linalg.norm(ys_hat, dim=1)
+        #     factors = torch.clip(norms, 0, validation_clip * self.scale_error) / norms
+        #     ys_hat_cl = ys_hat * factors
+        #     loss_clipped = self.loss_function(ys_hat_cl, ys)
+        #     #norm_factor = self.baseline_loss if self.baseline_loss else 1.0
+        #     #normalized_loss = loss.detach().cpu() / (self.scale_error ** 2 * norm_factor)
+        #     self.add_loss_log("clipped_validation_loss", loss_clipped)
         return dict(
             validation_loss=loss,
             log=dict(
@@ -155,8 +169,8 @@ class BasicModule(LightningModule):
 
 class TwoHeadsModule(BasicModule):
 
-    def __init__(self, heads: BasicModule, train_conf):
-        super().__init__(train_conf)
+    def __init__(self, heads: BasicModule, conf):
+        super().__init__(conf)
         assert len(heads) == 2
         self.heads = heads
         inputs = sum([h.classifier.in_features for h in self.heads])
@@ -182,19 +196,18 @@ class TwoHeadsModule(BasicModule):
 
 class ResnetBasedModule(BasicModule):
 
-    def __init__(self, train_conf=None):
-        super().__init__(train_conf)
+    def __init__(self, conf=None):
+        super().__init__(conf)
 
         # in base?
         self.save_hyperparameters()
         # checkpoint = torch.load(checkpoint, map_location=lambda storage, loc: storage)
         # print(checkpoint["hyper_parameters"])
-
         resnet50 = models.resnet50(pretrained=True)
         in_features = resnet50.fc.in_features
         layers = list(resnet50.children())[:-1]
         # probably unnecessary
-        self.tr_conf = train_conf
+        # self.tr_conf = conf["train"]
         self.feature_extractor = nn.Sequential(*layers)
         self.classifier = nn.Linear(in_features, 2)
 
@@ -202,8 +215,8 @@ class ResnetBasedModule(BasicModule):
 # TODO apparently this is broken
 class ZeroModule(BasicModule):
 
-    def __init__(self, train_conf):
-        super().__init__(train_conf)
+    def __init__(self, conf):
+        super().__init__(conf)
         # optimizer has to have at least some parameters
         # TODO how about just compute the loss in prediction time
         self.foo_classifier = nn.Linear(2, 2)
@@ -215,7 +228,7 @@ class ZeroModule(BasicModule):
 class MlpModule(BasicModule):
 
     def __init__(self, conf):
-        super().__init__(conf['train'])
+        super().__init__(conf)
 
         train_crop = conf['dataset']['filtering']['train_crop']
         if not train_crop:
