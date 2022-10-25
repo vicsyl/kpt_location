@@ -12,7 +12,7 @@ def download_zips(zips_to_download_start=0, zips_to_download_end=10):
     print(zip_file)
     run_command(f"curl {url} --output ./zips/{zip_file}")
     print("unzipping ...")
-    run_command(f"unzip -q ./zips/{zip_file}")
+    run_command(f"unzip -qq ./zips/{zip_file}")
     #print("removing: {}".format(zip_file))
     run_command(f"mv {zip_file[:-4]} ./unzips/")
     scene_dir = f"./unzips/{zip_file[:-4]}"
