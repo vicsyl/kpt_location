@@ -37,7 +37,7 @@ def list_scenes_to_process(base_dir_unzips, ds_config):
     base_out_dir = get_full_ds_dir(ds_config)
     pattern = re.compile("^ai_.*")
     paths = []
-    for cur_dir_name in list(os.listdir(base_dir_unzips)):
+    for cur_dir_name in sorted(list(os.listdir(base_dir_unzips))):
         if pattern.match(cur_dir_name) is not None:
             check_existing = f"{base_out_dir}/{cur_dir_name}"
             if os.path.isdir(check_existing):

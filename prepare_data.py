@@ -841,7 +841,7 @@ def prepare_data_structured(base_dir, config_path, filter_list=None, max_dirs_to
     #     in_dirs = in_dirs_2
     #     keys = keys_2
 
-    for intermediate_dir in zip_dirs_map:
+    for intermediate_dir in sorted(zip_dirs_map.keys()):
         in_dirs, keys = zip_dirs_map[intermediate_dir]
         print(f"intermediate dir {intermediate_dir}")
         print(f"final keys: {keys}")
