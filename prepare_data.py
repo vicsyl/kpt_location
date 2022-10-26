@@ -450,7 +450,7 @@ def process_patches_for_file_simple(file_path,
 
     img = img_or
     img_r = img_r_or
-    for rot_index in range(3):
+    for rot_index in range(1, 4):
         augment_index += 1
         img = np.rot90(img, rot_index, [0, 1]).copy()
         img_r = np.rot90(img_r, rot_index, [0, 1]).copy()
