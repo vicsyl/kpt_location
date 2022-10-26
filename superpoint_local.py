@@ -166,7 +166,7 @@ class SuperPointDetector:
                 counts[mask_or] += 1
 
             # output how much support the meaning has
-            print(f"{counts.sum()} kpts measurements for {counts.shape[0]}, avg: {counts.sum() / counts.shape[0]}")
+            # print(f"{counts.sum()} kpts measurements for {counts.shape[0]}, avg: {counts.sum() / counts.shape[0]}")
 
             pts_ret = sums / counts[:, None]
             pts_ret = pts_ret.numpy()

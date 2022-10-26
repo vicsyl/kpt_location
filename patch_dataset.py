@@ -204,7 +204,7 @@ class PatchDataset(Dataset):
         if not self.train_crop:
             self.train_crop = PatchDataset.default_train_crop
         self.scale_error = train_config['scale_error']
-        self.augment = conf['dataset']['augment'] and (conf['dataset']['augment'].lower() == "lazy")
+        self.augment_on_the_fly = conf['dataset']['augment'] and (conf['dataset']['augment'].lower() == "lazy")
         if is_hm_relevant(conf):
             self.heatmap_or_img = conf['dataset']['filtering']['heatmap_or_img']
         else:
@@ -219,7 +219,7 @@ class PatchDataset(Dataset):
     def __getitem__(self, index) -> Any:
 
         md_index = index
-        if self.augment:
+        if self.augment_on_the_fly:
             md_index = md_index // 6
         metadata = self.metadata_list[md_index]
         dx, dy = metadata[1].dx, metadata[1].dy
@@ -234,7 +234,7 @@ class PatchDataset(Dataset):
             patch_t = patch_t[:, :, patch_t.shape[2] // 2:]
         both_heatmap_or_img = self.heatmap_or_img == "both"
 
-        if self.augment and index % 6 != 0:
+        if self.augment_on_the_fly and index % 6 != 0:
             augment_index = index % 6
             #show_torch(patch_t[0], "patch before augmenting on the fly")
             patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx), split=both_heatmap_or_img)
@@ -343,7 +343,9 @@ class PatchDataset(Dataset):
             self.input_counter += 1
 
     def __len__(self) -> int:
-        if self.augment:
+        if self.augment_on_the_fly:
+            # TODO centralize ?
+            augment_patch_length = 6
             return len(self.metadata_list) * augment_patch_length
         else:
             return len(self.metadata_list)
@@ -373,10 +375,6 @@ class PatchDataset(Dataset):
             return Image.LANCZOS
         else:
             raise f"Unknown method '{method}'"
-
-
-# NOTE an attempt for some kind of centralization
-augment_patch_length = 6
 
 
 def augment_patch(patch, diffs, split):

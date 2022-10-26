@@ -1,11 +1,12 @@
-import omegaconf
 from omegaconf import OmegaConf
+import torch
 
 import cv2 as cv
 from kornia_sift import NumpyKorniaSiftDetector
 from sift_detectors import AdjustedSiftDetector
 from scale_pyramid import MyScalePyramid
 import numpy as np
+from superpoint_local import SuperPointDetector
 
 
 def get_config(path='config/config.yaml'):
@@ -61,6 +62,8 @@ def set_config_dir_scale_scheme(dataset_config):
 
 
 def get_detector_by_key(dict_key):
+
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     if type(dict_key) == str:
         dict_key = dict_key.lower()
         if dict_key == 'sift':
@@ -76,10 +79,8 @@ def get_detector_by_key(dict_key):
             custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
             return NumpyKorniaSiftDetector(scale_pyramid=custom_scale_pyramid)
         elif dict_key == 'superpoint':
-            from superpoint_local import SuperPointDetector
-            return SuperPointDetector()
+            return SuperPointDetector(device=device)
         elif dict_key == 'adjusted_superpoint':
-            from superpoint_local import SuperPointDetector
             # 3 SE translations
             translations = np.array([[4, 4], [4, 0], [0, 4]])
             # 9 translations
@@ -91,7 +92,7 @@ def get_detector_by_key(dict_key):
             rotations = []
             # const_adjustment = None
             const_adjustment = [0.45, 0.30]
-            return SuperPointDetector(const_adjustment=const_adjustment, translations=translations, rotations=rotations)
+            return SuperPointDetector(device=device, const_adjustment=const_adjustment, translations=translations, rotations=rotations)
         else:
             raise "unrecognized detector: {}".format(dict_key)
     else:

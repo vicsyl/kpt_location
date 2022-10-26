@@ -380,117 +380,15 @@ def apply_mask(mask, np_list):
     return tuple([npa[mask] for npa in np_list])
 
 
-def augment_and_write_patch(patch, dr, file_name_prefix, out_map, out_dir, ds_config):
+def write_patch(patch, dr, file_name_prefix, out_map, out_dir, ds_config, augment_index):
 
     write_imgs = ds_config['write_imgs']
-    augment_mode = ds_config['augment'].lower()
-    if "eager" == augment_mode:
-        raise NotImplemented
-        #patches_aug, diffs_aug, augmented_keys = augment_patch(patches, (dr.dy, dr.dx))
-    else:
-        patches_aug, diffs_aug, augmented_keys = [patch], [(dr.dy, dr.dx)], ["original"]
-    for index, patch_aug in enumerate(patches_aug):
-        dy, dx = diffs_aug[index]
-        if index > 0:
-            dr = copy.copy(dr)
-        else:
-            assert dr.dy == dy and dr.dx == dx
-        dr.dy, dr.dx = dy, dx
-        dr.augmented = augmented_keys[index]
-        file_name = "{}_{}.png".format(file_name_prefix, index)
-        out_map["metadata"][file_name] = dr
-        img_out_path = "{}/data/{}".format(out_dir, file_name)
-        if write_imgs:
-            cv.imwrite(img_out_path, patch_aug.numpy())
-
-
-# NOTE - not supported!!!
-# def process_patches_for_file_dynamic(file_path,
-#                                      config,
-#                                      out_map,
-#                                      key=""):
-#
-#     out_dir = get_full_ds_dir(config)
-#     min_scale_th = config['min_scale_th']
-#     const_patch_size = config.get('const_patch_size')
-#     compare = config['compare_patches']
-#     scale_ratio_th = config['scale_ratio_th']
-#
-#     # convert and show the image
-#     img_orig_pil = get_pil_img(file_path)
-#     img_orig = pil_img_transforms(img_orig_pil)
-#
-#     kpts, kpt_scales, _, _ = detect_kpts(img_orig, min_scale_th, const_patch_size=None, config=config)
-#     if len(kpts) == 0:
-#         return
-#
-#     counter = 0
-#     max_scales = None # NOTE not implemented
-#     matched = set()
-#     for kpt_scale_index, kpt_scale in enumerate(kpt_scales):
-#
-#         if max_scales and counter > max_scales:
-#             break
-#
-#         kpts_orig = kpts
-#         kpt_scales_orig = kpt_scales
-#
-#         # FIXME test *2?
-#         scale = (const_patch_size / scale_ratio_th) / kpt_scale.item()
-#
-#         img_r, real_scale = scale_pil(img_orig_pil, scale, config=config)
-#         img_r = pil_img_transforms(img_r, config)
-#
-#         kpts_r, kpt_scales_r, _, _ = detect_kpts(img_r, min_scale_th*real_scale, const_patch_size, config)
-#         if len(kpts_r) == 0:
-#             continue
-#
-#         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios, up_to_k_min = mnn(kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, real_scale, config)
-#
-#         #check kpt_scales_r
-#         mask = (kpt_scales_r < const_patch_size) & (kpt_scales_r > const_patch_size - 2)
-#         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
-#         mask = np.zeros(kpts_orig.shape[0], dtype=bool)
-#         for i, kpt in enumerate(kpts_orig):
-#             if not matched.__contains__(kpt):
-#                 matched.add(kpt)
-#                 mask[i] = True
-#         kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios = apply_mask(mask, [kpts_orig, kpt_scales_orig, kpts_r, kpt_scales_r, diffs, scale_ratios])
-#         patches = get_patches(img_orig, kpts_orig, kpt_scales_orig, const_patch_size, config)
-#         patches_r = get_patches(img_r, kpts_r, kpt_scales_r, const_patch_size, config)
-#         if compare:
-#             compare_patches(patches, patches_r, diffs)
-#
-#         if key != "":
-#             key = key + "_"
-#         file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")] + "_" + str(kpt_scale_index)
-#         for i in range(len(patches)):
-#             counter += 1
-#             if max_scales and counter > max_scales:
-#                 break
-#             patch = patches_r[i]
-#             dr = DataRecord(
-#                 dy=diffs[i][0].item(),
-#                 dx=diffs[i][1].item(),
-#                 patch_size=patch.shape[0],
-#                 kpt_orig_scale=kpt_scales_orig[i].item(),
-#                 kpt_resize_scale=kpt_scales_r[i].item(),
-#                 scale_ratio=scale_ratios[i].item(),
-#                 real_scale=real_scale,
-#                 img_scale_y=img_r.shape[0]/img_orig.shape[0],
-#                 img_scale_x=img_r.shape[0]/img_orig.shape[0],
-#                 original_img_size_y=img_orig.shape[0],
-#                 original_img_size_x=img_orig.shape[1],
-#                 resized_img_size_y=img_r.shape[0],
-#                 resized_img_size_x=img_r.shape[1],
-#                 augmented=None
-#             )
-#             augment_and_write_patch(patch,
-#                                     dr,
-#                                     "{}_{}".format(file_name_prefix, i),
-#                                     out_map,
-#                                     out_dir,
-#                                     config)
+    dr.augmented = "original" if augment_index == 0 else "augmented"
+    file_name = "{}_{}.png".format(file_name_prefix, augment_index)
+    out_map["metadata"][file_name] = dr
+    img_out_path = "{}/data/{}".format(out_dir, file_name)
+    if write_imgs:
+        cv.imwrite(img_out_path, patch.numpy())
 
 
 # def process_patches_for_file(file_path,
@@ -524,17 +422,75 @@ def update_min_dists(min_distances_reprojected, out_map):
 def process_patches_for_file_simple(file_path,
                                     ds_config,
                                     out_map,
-                                    key=""):
+                                    key):
 
     scale = ds_config['down_scale']
+    # convert and show the image
+    img_or, img_r_or, real_scale = get_img_tuple(file_path, scale, ds_config)
+
+    augment_index = 0
+    process_patches_for_images(img_or,
+                               img_r_or,
+                               real_scale,
+                               ds_config,
+                               out_map,
+                               file_path,
+                               key,
+                               augment_index)
+
+    augment_type = ds_config['augment'].lower()
+    if augment_type != "eager" and augment_type != "eager_averaged":
+        return
+
+    if augment_type == "eager_averaged":
+        # give ...
+        # kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, ds_config)
+        # ... with the avg'd kpts
+        raise NotImplemented
+
+    img = img_or
+    img_r = img_r_or
+    for rot_index in range(3):
+        augment_index += 1
+        img = np.rot90(img, rot_index, [0, 1]).copy()
+        img_r = np.rot90(img_r, rot_index, [0, 1]).copy()
+        process_patches_for_images(img,
+                                   img_r,
+                                   real_scale,
+                                   ds_config,
+                                   out_map,
+                                   file_path,
+                                   key,
+                                   augment_index)
+    for axis in range(2):
+        augment_index += 1
+        img = np.flip(img_or, axis=axis).copy()
+        img_r = np.flip(img_r_or, axis=axis).copy()
+        process_patches_for_images(img,
+                                   img_r,
+                                   real_scale,
+                                   ds_config,
+                                   out_map,
+                                   file_path,
+                                   key,
+                                   augment_index)
+
+
+def process_patches_for_images(img,
+                               img_r,
+                               real_scale,
+                               ds_config,
+                               out_map,
+                               file_path,
+                               key,
+                               augment_index):
+
     out_dir = get_full_ds_dir(ds_config)
     min_scale_th = ds_config['min_scale_th']
     const_patch_size = ds_config.get('const_patch_size')
     compare = ds_config['compare_patches']
 
-    # convert and show the image
-    img, img_r, real_scale = get_img_tuple(file_path, scale, ds_config)
-
+    # either here or given
     kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, ds_config)
     kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th * real_scale, const_patch_size, ds_config)
 
@@ -581,12 +537,13 @@ def process_patches_for_file_simple(file_path,
             resized_img_size_x=img_r.shape[1],
             augmented=None
         )
-        augment_and_write_patch(patch,
-                                dr,
-                                "{}_{}".format(file_name_prefix, i),
-                                out_map,
-                                out_dir,
-                                ds_config)
+        write_patch(patch,
+                    dr,
+                    "{}_{}".format(file_name_prefix, i),
+                    out_map,
+                    out_dir,
+                    ds_config,
+                    augment_index)
 
 
 def get_ds_stats(entries):
@@ -693,24 +650,20 @@ def prepare_data(dataset_config, in_dirs, keys):
 
     for i, in_dir in enumerate(in_dirs):
 
-        counter = 0
-
         if not max_files:
             all = len([fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)])
 
         print("Processing dir {}: {}/{}".format(in_dir, i + 1, len(in_dirs)))
         key = keys[i]
 
-        for file_name in sorted(os.listdir(in_dir)):
+        file_names = [fn for fn in sorted(os.listdir(in_dir)) if fn.endswith(ends_with)]
+        if max_files:
+            file_names = file_names[:max_files]
 
-            if not file_name.endswith(ends_with):
-                continue
-            counter += 1
-            if max_files and counter > max_files:
-                break
+        for i, file_name in enumerate(file_names):
 
             path = "{}/{}".format(in_dir, file_name)
-            print("Processing file {}: {}/{}, learning examples: {}".format(path, counter, all, len(out_map["metadata"])))
+            print("Processing file {}: {}/{}, learning examples: {}".format(path, i, all, len(out_map["metadata"])))
             #process_patches_for_file
             process_patches_for_file_simple(file_path=path,
                                             ds_config=dataset_config,
@@ -901,15 +854,15 @@ def prepare_data_from_files():
 
 if __name__ == "__main__":
 
-    #simple_prepare_data()
+    simple_prepare_data()
 
     #prepare_data_from_files()
 
-    def tenths(_from, to):
-        return [scale_int / 10 for scale_int in range(_from, to)]
-
-    scales = tenths(1, 10)
-    #scales = [0.3]
-
-    prepare_data_by_scale(scales)
-    #simple_prepare_data()
+    # def tenths(_from, to):
+    #     return [scale_int / 10 for scale_int in range(_from, to)]
+    #
+    # scales = tenths(1, 10)
+    # #scales = [0.3]
+    #
+    # prepare_data_by_scale(scales)
+    # #simple_prepare_data()

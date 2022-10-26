@@ -7,12 +7,6 @@ dataset:
     reflection: null
     to_grey_scale: True
 
-    # output
-    write_metadata: True
-    write_data: True
-    write_imgs: True
-    write_other: True
-
     # wandb
     enable_wandlog: True
     tags: ["dev"]
@@ -21,7 +15,7 @@ dataset:
     wandb_log_imgs: True
 
     # ds
-    augment: lazy # eager, lazy, null
+    augment: eager # eager, lazy, null
     in_dirs: ["./dataset/raw_data"]
     keys: [""]
     #out_dir: "./dataset/var_sizes"
@@ -33,6 +27,10 @@ dataset:
     #ends_with: '.jpg'
     ends_with: '.tonemap.jpg'
     clean_out_dir: True
+    write_metadata: True
+    write_data: True
+    write_imgs: True
+    write_other: True
 
     # detection
     detector: ADJUSTED_SUPERPOINT # SIFT, SUPERPOINT, ADJUSTED_SUPERPOINT, SIFT_KORNIA, ADJUSTED_SIFT case-insensitive
