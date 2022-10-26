@@ -422,7 +422,8 @@ def update_min_dists(min_distances_reprojected, out_map):
 def process_patches_for_file_simple(file_path,
                                     ds_config,
                                     out_map,
-                                    key):
+                                    key,
+                                    intermediate_dir):
 
     scale = ds_config['down_scale']
     # convert and show the image
@@ -436,7 +437,8 @@ def process_patches_for_file_simple(file_path,
                                out_map,
                                file_path,
                                key,
-                               augment_index)
+                               augment_index,
+                               intermediate_dir)
 
     augment_type = ds_config['augment'].lower()
     if augment_type != "eager" and augment_type != "eager_averaged":
@@ -461,7 +463,9 @@ def process_patches_for_file_simple(file_path,
                                    out_map,
                                    file_path,
                                    key,
-                                   augment_index)
+                                   augment_index,
+                                   intermediate_dir)
+
     for axis in range(2):
         augment_index += 1
         img = np.flip(img_or, axis=axis).copy()
@@ -473,7 +477,8 @@ def process_patches_for_file_simple(file_path,
                                    out_map,
                                    file_path,
                                    key,
-                                   augment_index)
+                                   augment_index,
+                                   intermediate_dir)
 
 
 def process_patches_for_images(img,
@@ -483,9 +488,14 @@ def process_patches_for_images(img,
                                out_map,
                                file_path,
                                key,
-                               augment_index):
+                               augment_index,
+                               intermediate_dir=None,
+                               ):
 
     out_dir = get_full_ds_dir(ds_config)
+    if intermediate_dir:
+        out_dir = f"{out_dir}/{intermediate_dir}"
+
     min_scale_th = ds_config['min_scale_th']
     const_patch_size = ds_config.get('const_patch_size')
     compare = ds_config['compare_patches']
@@ -571,8 +581,10 @@ def write_st(dataset_conf):
     return write_metadata or write_data
 
 
-def prepare_and_clean_dir(dataset_config):
+def prepare_and_clean_dir(dataset_config, intermediate_dir=None):
     out_dir = get_full_ds_dir(dataset_config)
+    if intermediate_dir:
+        out_dir = f"{out_dir}/{intermediate_dir}"
     clean = dataset_config['clean_out_dir']
     if write_st(dataset_config):
         data_dir_path = "{}/data".format(out_dir)
@@ -605,11 +617,11 @@ def log_table(data, column, table_ref=None, title=None):
     wandb.log({table_ref: wandb.plot.histogram(t_d, column, title=title)})
 
 
-def write_data(dataset_config, orig_out_map):
+def write_data(dataset_config, orig_out_map, intermediate_dir):
+    out_map = orig_out_map["metadata"]
+    out_dir = f"{get_full_ds_dir(dataset_config)}/{intermediate_dir}"
     write_metadata = dataset_config['write_metadata']
     if write_metadata:
-        out_map = orig_out_map["metadata"]
-        out_dir = get_full_ds_dir(dataset_config)
         with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
             log_metada(out_map, dataset_config, file=md_file)
 
@@ -635,7 +647,7 @@ def read_img(file_path, config):
     return img_np, img_pil
 
 
-def prepare_data(dataset_config, in_dirs, keys):
+def prepare_data(dataset_config, in_dirs, keys, intermediate_dir=None):
 
     ends_with = dataset_config['ends_with']
     max_files = dataset_config['max_files']
@@ -643,7 +655,7 @@ def prepare_data(dataset_config, in_dirs, keys):
     if const_patch_size is not None:
             assert const_patch_size % 2 == 1, "doesn't work that way"
 
-    prepare_and_clean_dir(dataset_config)
+    prepare_and_clean_dir(dataset_config, intermediate_dir)
 
     out_map = {"metadata": {}}
     all = str(max_files) if max_files is not None else None
@@ -668,9 +680,10 @@ def prepare_data(dataset_config, in_dirs, keys):
             process_patches_for_file_simple(file_path=path,
                                             ds_config=dataset_config,
                                             out_map=out_map,
-                                            key=key)
+                                            key=key,
+                                            intermediate_dir=intermediate_dir)
 
-    write_data(dataset_config, out_map)
+    write_data(dataset_config, out_map, intermediate_dir=intermediate_dir)
     return list(out_map["metadata"].items())
 
 
@@ -805,64 +818,73 @@ def simple_prepare_data():
     print("it took {:.4f} seconds.".format(end_time - start_time))
 
 
-def prepare_data_all(base_dir, config_path, filter_list):
+def prepare_data_structured(base_dir, config_path, filter_list=None, max_dirs_to_process=1000):
 
     config = get_config(path=config_path)['dataset']
-    dirs_to_process = 1000
-    in_dirs, keys = get_dirs_and_keys(dirs_to_process, base_dir=base_dir)
+
+    # in_dirs, keys
+    zip_dirs_map = get_dirs_and_keys(max_dirs_to_process, base_dir_unzips=base_dir, ds_config=config)
 
     if filter_list is not None and len(filter_list) > 0:
-        # SIMPLE filtering
-        in_dirs_2 = []
-        keys_2 = []
-        for i, dir in enumerate(in_dirs):
-            for cont in filter_list:
-                # if dir.__contains__("001_001") or dir.__contains__("001_002") or dir.__contains__("001_003"):
-                if dir.__contains__(cont):
-                    in_dirs_2.append(dir)
-                    keys_2.append(keys[i])
-                    break
-        in_dirs = in_dirs_2
-        keys = keys_2
+        raise NotImplemented
+    # if filter_list is not None and len(filter_list) > 0:
+    #     # SIMPLE filtering
+    #     in_dirs_2 = []
+    #     keys_2 = []
+    #     for i, dir in enumerate(in_dirs):
+    #         for cont in filter_list:
+    #             # if dir.__contains__("001_001") or dir.__contains__("001_002") or dir.__contains__("001_003"):
+    #             if dir.__contains__(cont):
+    #                 in_dirs_2.append(dir)
+    #                 keys_2.append(keys[i])
+    #                 break
+    #     in_dirs = in_dirs_2
+    #     keys = keys_2
 
-    print("final keys: {}".format(keys))
-    print("final indirs: {}".format(in_dirs))
-    prepare_data(config, in_dirs, keys)
+    for intermediate_dir in zip_dirs_map:
+        in_dirs, keys = zip_dirs_map[intermediate_dir]
+        print(f"intermediate dir {intermediate_dir}")
+        print(f"final keys: {keys}")
+        print(f"final indirs: {in_dirs}")
+        prepare_data(config, in_dirs, keys, intermediate_dir)
 
 
-def prepare_data_from_files():
+def prepare_data_from_files(config_path):
 
     # prepare_data_all(base_dir="/content")
     # list_contains = ["001_001", "001_002"]
-
     #list_contains = ["ai_001_001", "ai_001_002", "ai_001_003", "ai_001_004", "ai_001_005", "ai_001_006", "ai_001_007", "ai_001_008", "ai_001_009", "ai_001_010"]
+    # continue - even check for existence... (input/output)
     list_contains = []
-    prepare_data_all(base_dir="./unzips",
-                     config_path="./config/config_train_cluster.yaml",
-                     filter_list=list_contains)
-
-    print("dataset ls")
-
-    #run_command("ls - alh  / content / dataset / *")
-    print("dataset data ls | head")
-    #!ls - alhtr / content / dataset / * / data | head - n  20
-    print("a_values.txt | head")
-    #!head / content / dataset / * / a_values.txt - n 50
-    print("data consumption")
-    # !du - d 0 - h / content / dataset / * / data
+    prepare_data_structured(base_dir="./unzips",
+                            config_path=config_path)
 
 
 if __name__ == "__main__":
 
-    simple_prepare_data()
+    name_prepare_data_from_files = "prepare_data_from_files"
+    name_prepare_data_by_scale = "prepare_data_by_scale"
 
-    #prepare_data_from_files()
+    parser = argparse.ArgumentParser(description='Analyze data for a given scale')
+    parser.add_argument('--method', dest='method', help='method', choices=[name_prepare_data_from_files, name_prepare_data_by_scale], required=True)
+    parser.add_argument('--config', dest='config', help='config path', required=True)
+    args = parser.parse_args()
 
-    # def tenths(_from, to):
-    #     return [scale_int / 10 for scale_int in range(_from, to)]
-    #
-    # scales = tenths(1, 10)
-    # #scales = [0.3]
-    #
-    # prepare_data_by_scale(scales)
-    # #simple_prepare_data()
+    config_path = args.config
+    print(f"config_path={config_path}")
+
+    if args.method == name_prepare_data_from_files:
+        prepare_data_from_files(config_path)
+
+    elif args.method == name_prepare_data_from_files:
+        def tenths(_from, to):
+            return [scale_int / 10 for scale_int in range(_from, to)]
+
+        scales = tenths(1, 10)
+        #scales = [0.3]
+        prepare_data_by_scale(scales)
+
+    else:
+        raise Exception("not reachable?")
+
+    #simple_prepare_data()
