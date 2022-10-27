@@ -12,21 +12,20 @@ from typing import (
 )
 
 import matplotlib.pyplot as plt
+import torch
 import torchvision.transforms
+import wandb
 from torch import Generator
 from torch import default_generator
 from torch import randperm
-
-import wandb
 
 T_co = TypeVar('T_co', covariant=True)
 T = TypeVar('T')
 
 import pytorch_lightning as pl
-import torch
 import torchvision
 from PIL import Image
-from torch.utils.data import random_split, DataLoader, Subset
+from torch.utils.data import DataLoader, Subset
 from torch.utils.data.dataset import Dataset
 from config import *
 from wand_utils import log_table
@@ -224,6 +223,7 @@ class PatchDataset(Dataset):
             self.train_crop = PatchDataset.default_train_crop
         self.scale_error = train_config['scale_error']
         self.augment_on_the_fly = conf['dataset']['augment'] and (conf['dataset']['augment'].lower() == "lazy")
+        assert not self.augment_on_the_fly, "not supported"
         if is_hm_relevant(conf):
             self.heatmap_or_img = conf['dataset']['filtering']['heatmap_or_img']
         else:
@@ -234,6 +234,7 @@ class PatchDataset(Dataset):
         #self.log_wand_imgs = self.conf['dataset']["enable_wandlog"] and self.conf['dataset']["wandb_log_imgs"]
         self.wandb_logger = wandb_logger
         self.patches_to_log = [None]
+        self.resample_method = self.get_upscale_method()
 
     def pick_items(self, conf, root_dir, dirs, items):
         all_items_l = []
@@ -253,6 +254,8 @@ class PatchDataset(Dataset):
 
     def __getitem__(self, index) -> Any:
 
+        merge_early = True
+
         md_index = index
         if self.augment_on_the_fly:
             md_index = md_index // 6
@@ -261,83 +264,89 @@ class PatchDataset(Dataset):
         path = "{}/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
-        self.show_patch(patch_t, "before filtering")
-        # TODO these fallback options to be tested
-        if self.heatmap_or_img == "img":
-            patch_t = patch_t[:, :, :patch_t.shape[2] // 2]
-        elif self.heatmap_or_img == "heatmap":
-            patch_t = patch_t[:, :, patch_t.shape[2] // 2:]
+        self.show_patch(patch_t, "on input")
+
+        def merge(data):
+                assert data.shape[1] * 2 == data.shape[2]
+                l_patch = torch.empty((3, data.shape[1], data.shape[1]))
+                l_patch[0] = data[0, :, :data.shape[1]]
+                l_patch[1] = data[0, :, data.shape[1]:]
+                l_patch[2] = 0
+                return l_patch
+
+        if merge_early:
+            # TODO check for heatmap-both
+            patch_t = merge(patch_t)
+            self.show_patch(patch_t, "merged early")
+
+        # # TODO these fallback options to be tested
+        # if self.heatmap_or_img == "img":
+        #     raise NotImplemented
+        #     patch_t = patch_t[:, :, :patch_t.shape[2] // 2]
+        # elif self.heatmap_or_img == "heatmap":
+        #     raise NotImplemented
+        #     patch_t = patch_t[:, :, patch_t.shape[2] // 2:]
         both_heatmap_or_img = self.heatmap_or_img == "both"
 
-        if self.augment_on_the_fly and index % 6 != 0:
-            augment_index = index % 6
-            #show_torch(patch_t[0], "patch before augmenting on the fly")
-            patches_aug, diffs_aug, _ = augment_patch(patch_t[0], (dy, dx), split=both_heatmap_or_img)
-            patch_t = patches_aug[augment_index][None]
-            #show_torch(patch_t[0], "patch augmented on the fly")
-            dy, dx = diffs_aug[augment_index]
-        else:
-            #show_torch(patch_t[0], "patch not augmented")
-            pass
-
-        self.show_patch(patch_t, "after augmentation")
-
         def clip_part(data, size):
-            assert data.shape[0] == data.shape[1]
-            assert data.shape[0] % 2 == 1
-            _from = data.shape[0] // 2 - size // 2
+            assert data.shape[1] == data.shape[2]
+            assert data.shape[1] % 2 == 1
+            _from = data.shape[1] // 2 - size // 2
             to = _from + size
-            data = data[_from:to, _from:to]
+            data = data[:, _from:to, _from:to]
             return data
 
         def crop(patch_l, size, split):
-            # beware - back and forth
-            patch_l = patch_l[0]
             if split:
-                #show_torch(patch_l, "patch not yet clipped (split is on)")
-                assert patch_l.shape[1] % 2 == 0
-
-                img = clip_part(patch_l[:, :patch_l.shape[1] // 2], size)
-                hm = clip_part(patch_l[:, patch_l.shape[1] // 2:], size)
+                assert patch_l.shape[2] % 2 == 0
+                img = clip_part(patch_l[:, :, :patch_l.shape[1] // 2], size)
+                hm = clip_part(patch_l[:, :, patch_l.shape[1] // 2:], size)
                 patch_l = torch.hstack((img, hm))
-                #show_torch(patch_l, "patch now clipped (split is on)")
             else:
-                #show_torch(patch_l, "patch not yet clipped (split is off)")
                 patch_l = clip_part(patch_l, size)
-                #show_torch(patch_l, "patch now clipped (split is off)")
-            # beware - back and forth
-            patch_l = patch_l[None]
             return patch_l
 
         if self.train_crop != PatchDataset.default_train_crop:
             assert self.train_crop % 2 == 1
-            patch_t = crop(patch_t, self.train_crop, split=both_heatmap_or_img)
+            if merge_early:
+                patch_t = crop(patch_t, self.train_crop, split=False)
+            else:
+                patch_t = crop(patch_t, self.train_crop, split=both_heatmap_or_img)
 
         upscale_fact = self.conf['dataset']['filtering']['train_patch_upscale_factor']
         if upscale_fact != 1.0:
             assert upscale_fact > 1.0
-            resample_method = self.get_upscale_method()
+
             original_size = patch_t.shape[1]
-            crop_size = patch_t.shape[1] // 2
+            # NOTE a bugfix!!!
+            crop_size = patch_t.shape[1] // upscale_fact
             if crop_size % 2 == 0:
                 crop_size += 1
 
             def upscale(data):
                 data = crop(data, crop_size, split=False)
                 img_p = torchvision.transforms.ToPILImage()(data)
-                img_p = img_p.resize((original_size, original_size), resample=resample_method)
+                img_p = img_p.resize((original_size, original_size), resample=self.resample_method)
                 img_p = torchvision.transforms.PILToTensor()(img_p).float() / 255.
                 return img_p
 
             # TODO can make it configurable, but there will be more once there are different input heads
-            split_index = patch_t.shape[2] // 2
-            patch_t[:, :, :split_index] = upscale(patch_t[:, :, :split_index])
-            patch_t[:, :, split_index:] = upscale(patch_t[:, :, split_index:])
+            if merge_early:
+                patch_t = upscale(patch_t)
+            else:
+                split_index = patch_t.shape[2] // 2
+                patch_t[:, :, :split_index] = upscale(patch_t[:, :, :split_index])
+                patch_t[:, :, split_index:] = upscale(patch_t[:, :, split_index:])
 
-        if patch_t.shape[0] == 1:
-            patch_t = patch_t.expand(3, -1, -1)
-        else:
-            pass
+        if not merge_early:
+            patch_t = merge(patch_t)
+
+        # if patch_t.shape[0] == 1:
+        #     patch_t = patch_t.expand(3, -1, -1)
+        # else:
+        #     pass
+        assert patch_t.shape[0] == 3
+
         y = torch.tensor([dy, dx]) * self.scale_error
         self.show_patch(patch_t, "after filtering", y, last=True)
         return patch_t, y

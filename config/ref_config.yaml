@@ -55,7 +55,6 @@ dataset:
     dynamic_resizing: False # not for superpoint
 
     filtering:
-        entries: 100
         train_entries: 800
         train_scenes: 8
         val_entries: 100
