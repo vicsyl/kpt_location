@@ -1,6 +1,7 @@
 import argparse
 import dataclasses
 import math
+import os
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -114,16 +115,16 @@ resized_img_size_y, resized_img_size_x, augmented"
             augmented=tokens[13])
 
     @staticmethod
-    def read_metadata_list_from_file(file_path):
+    def read_metadata_list_from_file(file_path, subdir):
         mt_d = {}
         with open(file_path, "r") as f:
             for line in f.readlines():
                 if line.__contains__("#"):
                     continue
                 tokens = line.strip().split(",")
-                file = tokens[0].strip()
+                file_path = f"{subdir}/data/{tokens[0].strip()}"
                 dr = DataRecord.read_from_tokens(tokens[1:])
-                mt_d[file] = dr
+                mt_d[file_path] = dr
         return list(mt_d.items())
 
 
@@ -183,21 +184,39 @@ class PatchDataset(Dataset):
                 if mask[i]:
                     new_l.append(md_list[indices[i]])
             md_list = new_l
-
-        n_entries = filtering_conf['entries']
-        if n_entries and n_entries < len(md_list):
-            md_list = md_list[:n_entries]
         return md_list
 
     default_train_crop = 33
 
-    def __init__(self, root_dir, conf, do_filtering=True, wandb_logger=None) -> None:
+    @staticmethod
+    def get_split_datasets(root_dir, conf, wand_logger):
+
+        subdirs = sorted([d for d in os.listdir(root_dir) if os.path.isdir(f"{root_dir}/{d}")])
+        f_conf = conf['dataset']['filtering']
+        train_entries = f_conf['train_entries']
+        train_scenes = f_conf['train_scenes']
+        val_entries = f_conf['val_entries']
+        val_scenes = f_conf['val_scenes']
+        test_entries = f_conf['test_entries']
+        test_scenes = f_conf['test_scenes']
+
+        fr = 0
+        train_dataset = PatchDataset(root_dir, conf, wand_logger, subdirs[fr: fr + train_scenes], train_entries)
+        fr += train_scenes
+        val_dataset = PatchDataset(root_dir, conf, wand_logger, subdirs[fr: fr + val_scenes], val_entries)
+        fr += val_scenes
+        test_dataset = PatchDataset(root_dir, conf, wand_logger, subdirs[fr: fr + test_scenes], test_entries)
+        return train_dataset, val_dataset, test_dataset
+
+    def __init__(self, root_dir, conf, wandb_logger=None, dirs=None, items=None) -> None:
         super().__init__()
         train_config = conf['train']
         self.root_dir = root_dir
-        self.metadata_list = DataRecord.read_metadata_list_from_file("{}/a_values.txt".format(root_dir))
-        if do_filtering:
-            self.metadata_list = PatchDataset.filter_metadata_list(self.metadata_list, conf['dataset']['filtering'])
+
+        if dirs is None:
+            dirs = sorted([d for d in os.listdir(root_dir) if os.path.isdir(f"{root_dir}/{d}")])
+            items = conf['dataset']['filtering']['entries']
+        self.metadata_list, self.metadata_map = self.pick_items(conf, root_dir, dirs, items)
         self.batch_size = train_config['batch_size']
         self.grouped_by_sizes = train_config['grouped_by_sizes']
         self.train_crop = conf['dataset']['filtering']['train_crop']
@@ -216,6 +235,22 @@ class PatchDataset(Dataset):
         self.wandb_logger = wandb_logger
         self.patches_to_log = [None]
 
+    def pick_items(self, conf, root_dir, dirs, items):
+        all_items_l = []
+        all_items_map = {}
+        for i, subdir in enumerate(dirs):
+            metadata_list = DataRecord.read_metadata_list_from_file(f"{root_dir}/{subdir}/a_values.txt".format(root_dir), subdir)
+            metadata_list = PatchDataset.filter_metadata_list(metadata_list, conf['dataset']['filtering'])
+            integer_part = items // len(dirs)
+            remainder = items % len(dirs)
+            items_to_get = integer_part if i + 1 > remainder else integer_part + 1
+            if len(metadata_list) < items_to_get:
+                raise Exception(f"data too small, trying to get {items_to_get} from data that is {len(metadata_list)} long.")
+            metadata_list = metadata_list[:items_to_get]
+            all_items_l.extend(metadata_list)
+            all_items_map[subdir] = metadata_list
+        return all_items_l, all_items_map
+
     def __getitem__(self, index) -> Any:
 
         md_index = index
@@ -223,7 +258,7 @@ class PatchDataset(Dataset):
             md_index = md_index // 6
         metadata = self.metadata_list[md_index]
         dx, dy = metadata[1].dx, metadata[1].dy
-        path = "{}/data/{}".format(self.root_dir, metadata[0])
+        path = "{}/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
         self.show_patch(patch_t, "before filtering")
@@ -424,17 +459,12 @@ class PatchesDataModule(pl.LightningDataModule):
     def __init__(self, conf, wandb_logger=None):
         super().__init__()
 
-        # NOTE to be changed
-        # == 2: leave test and predict out for now
-        # == 4: with test and predict ds
-
         train_conf = conf['train']
-        self.splits = train_conf['dataset_splits']
-        assert self.splits in [2, 4]
+        self.conf = conf
         self.batch_size = train_conf['batch_size']
         self.grouped_by_sizes = train_conf['grouped_by_sizes']
-        root_dir = get_full_ds_dir(conf['dataset'])
-        self.dataset = PatchDataset(root_dir, conf, wandb_logger=wandb_logger)
+        self.root_dir = get_full_ds_dir(conf['dataset'])
+        self.wandb_logger = wandb_logger
 
     def prepend_parts(self, parts, part_size):
         if self.splits == 2:
@@ -445,32 +475,31 @@ class PatchesDataModule(pl.LightningDataModule):
             raise "unexpected value for self.splits: {}".format(self.splits)
         return parts
 
-    def setup(self, stage: str):
-        size = len(self.dataset)
+    def get_all_metadata_list_map(self):
+        train, validation, test = self.get_dss()
+        return {
+            "train dataset": dict(train.metadata_list),
+            "validation dataset": dict(validation.metadata_list),
+            "test dataset": dict(test.metadata_list)
+        }
 
-        if self.grouped_by_sizes:
-            assert size % self.batch_size == 0
-            part_size = (size // self.batch_size) // self.splits
-            parts = [part_size, size // self.batch_size - (self.splits - 1) * part_size]
-            parts = self.prepend_parts(parts, part_size)
-            self.test, self.predict, self.train, self.validate = batched_random_split(self.dataset, parts, self.batch_size)
-        else:
-            part_size = size // self.splits
-            parts = [part_size, size - (self.splits - 1) * part_size]
-            parts = self.prepend_parts(parts, part_size)
-            self.test, self.predict, self.train, self.validate = random_split(self.dataset, parts)
+    def get_dss(self):
+        # needs to be called (and dss created) twice, such is life
+        return PatchDataset.get_split_datasets(self.root_dir, self.conf, self.wandb_logger)
+
+    def setup(self, stage: str):
+        self.train, self.validation, self.test = self.get_dss()
+        # FIXME probably the data need to be created lazily here, but this merhod is
+        pass
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.validate, batch_size=self.batch_size)
+        return DataLoader(self.validation, batch_size=self.batch_size)
 
     def test_dataloader(self):
         return DataLoader(self.test, batch_size=self.batch_size)
-
-    def predict_dataloader(self):
-        return DataLoader(self.predict, batch_size=self.batch_size)
 
 
 def iterate_dataset():

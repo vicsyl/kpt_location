@@ -18,7 +18,7 @@ def get_dirs_and_keys(dirs_to_process, base_dir_unzips, ds_config):
         path = "{}/images".format(path)
         if not os.path.isdir(path):
             continue
-        for prev_dir_name in list(os.listdir(path)):
+        for prev_dir_name in sorted(list(os.listdir(path))):
             print(prev_dir_name)
             if pattern.match(prev_dir_name) is not None:
                 full_path = "{}/{}".format(path, prev_dir_name)

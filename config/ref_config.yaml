@@ -56,6 +56,12 @@ dataset:
 
     filtering:
         entries: 100
+        train_entries: 800
+        train_scenes: 8
+        val_entries: 100
+        val_scenes: 1
+        test_entries: 100
+        test_scenes: 1
         max_error_distance: 0.071
         sort_error: max # max, null
         heatmap_or_img: heatmap # heatmap, img, both, or null BUT relevant only to SuperPoint
@@ -69,7 +75,7 @@ train:
     # learning
     module: resnet_based #mlp, zero_inference, resnet_based
     accelerator: 'cpu' # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
-    gpus: [0]
+    devices: [1, 0]
     batch_size: 16
     max_epochs: 10
     learning_rate: 0.001
@@ -77,9 +83,6 @@ train:
     scale_error: 1000
     log_every_n_entries: 1024
     loss: L2 # L1, L2
-
-    # ds
-    dataset_splits: 2 # 2 = train, validate, (4 = + test, predict)
 
     # wandb
     enable_wandlog: True

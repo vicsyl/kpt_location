@@ -35,6 +35,7 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
     # min0 => minima of resized
     min0 = torch.min(d_mat, dim=0)
     k = 3
+    # FIXME dmat.shape[0] can be less than k! -> I will still need k values (hstack later on)
     up_to_k_min = torch.topk(d_mat, k, largest=False, axis=0).values # [k, dim]
     min1 = torch.min(d_mat, dim=1)
 
@@ -623,12 +624,12 @@ def write_data(dataset_config, orig_out_map, intermediate_dir):
     write_metadata = dataset_config['write_metadata']
     if write_metadata:
         with open("{}/a_metadata.txt".format(out_dir), "w") as md_file:
-            log_metada(out_map, dataset_config, file=md_file)
+            log_config_and_datasets({"all": out_map}, dataset_config, file=md_file)
 
     write_data = dataset_config['write_data']
     if write_data:
         with open("{}/a_values.txt".format(out_dir), "w") as md_file:
-            log_metada(out_map, dataset_config, file=md_file)
+            log_config_and_datasets({"all": out_map}, dataset_config, file=md_file)
 
             md_file.write("# schema: {}\n".format(DataRecord.schema()))
             for (fn, value) in out_map.items():
@@ -668,7 +669,7 @@ def prepare_data(dataset_config, in_dirs, keys, intermediate_dir=None):
         print("Processing dir {}: {}/{}".format(in_dir, i + 1, len(in_dirs)))
         key = keys[i]
 
-        file_names = [fn for fn in sorted(os.listdir(in_dir)) if fn.endswith(ends_with)]
+        file_names = sorted([fn for fn in os.listdir(in_dir) if fn.endswith(ends_with)])
         if max_files:
             file_names = file_names[:max_files]
 
@@ -687,13 +688,7 @@ def prepare_data(dataset_config, in_dirs, keys, intermediate_dir=None):
     return list(out_map["metadata"].items())
 
 
-def log_metada(out_map, dataset_conf, file=None, conf_to_log=None):
-
-    if not conf_to_log:
-        conf_to_log = dataset_conf
-        loss = None
-    else:
-        loss = conf_to_log["train"]["loss"].upper()
+def log_config_and_datasets(metadata_list_map, dataset_conf, file=None, conf_to_log=None):
 
     def log_all(str):
         print(str)
@@ -703,45 +698,61 @@ def log_metada(out_map, dataset_conf, file=None, conf_to_log=None):
         #     wandb.log(str)
 
     def print_min_max_stat(stat, name):
-        log_all("# {} (min, max): ({}, {})".format(name, stat[0], stat[1]))
+        log_all("#      {} (min, max): ({}, {})".format(name, stat[0], stat[1]))
 
     def print_m_am_stat(stat, name, skip_abs_mean=False):
         mean, abs_mean = mean_abs_mean(stat)
         std_dev = np.sqrt(stat.var(axis=0))
 
-        log_all("# mean {} error: {}".format(name, mean))
+        log_all("#      mean {} error: {}".format(name, mean))
         if not skip_abs_mean:
-            log_all("# absolute mean {} error: {}".format(name, abs_mean))
-        log_all("# std dev of {} error: {}".format(name, std_dev))
+            log_all("#      absolute mean {} error: {}".format(name, abs_mean))
+        log_all("#      std dev of {} error: {}".format(name, std_dev))
         return mean
 
-    log_all("# entries: {}".format(len(out_map)))
-    detector_name = dataset_conf['detector'].upper()
-    log_all(f"# detector: {detector_name}")
-
-    distances, errors, angles = get_error_stats(out_map.items())
-    distances_mean = print_m_am_stat(distances, "distance", skip_abs_mean=True)
-    squared_distances_mean = print_m_am_stat(distances ** 2, "squared distance", skip_abs_mean=True)
-    # TODO check the 1/2
-    if loss is None:
-        expected_loss = 0
-    elif loss == "L1":
-        expected_loss = distances_mean / 2
-    elif loss == "L2":
-        expected_loss = squared_distances_mean / 2
-
-    print_m_am_stat(errors, "")
-    print_m_am_stat(angles, "angle")
-
-    patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(out_map.items())
-    print_min_max_stat(patch_size_min_max, "patch size")
-    print_min_max_stat(scale_min_max, "original scale")
-    print_min_max_stat(scale_ratio_min_max, "scale ratio")
+    if not conf_to_log:
+        conf_to_log = dataset_conf
+        loss = None
+    else:
+        loss = conf_to_log["train"]["loss"].upper()
 
     log_all("### CONFIG ###")
     log_all("#" + OmegaConf.to_yaml(conf_to_log).replace("\n", "\n#"))
     log_all("### CONFIG ###")
-    return expected_loss
+
+    expected_loss_map = {}
+    for dataset_name in metadata_list_map:
+        metadata_list = metadata_list_map[dataset_name]
+
+        log_all(f"# {dataset_name}")
+        log_all("#      entries: {}".format(len(metadata_list)))
+        detector_name = dataset_conf['detector'].upper()
+        log_all(f"#      detector: {detector_name}")
+
+        distances, errors, angles = get_error_stats(metadata_list.items())
+        distances_mean = print_m_am_stat(distances, "distance", skip_abs_mean=True)
+        squared_distances_mean = print_m_am_stat(distances ** 2, "squared distance", skip_abs_mean=True)
+        # TODO check the 1/2
+        if loss is None:
+            expected_loss = None
+        elif loss == "L1":
+            expected_loss = distances_mean / 2
+        elif loss == "L2":
+            expected_loss = squared_distances_mean / 2
+        else:
+            ValueError(f"Unknown value: {loss}")
+        log_all(f"#      expected ('baseline') loss: {expected_loss}")
+        expected_loss_map[dataset_name] = expected_loss
+
+        print_m_am_stat(errors, "")
+        print_m_am_stat(angles, "angle")
+
+        patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(metadata_list.items())
+        print_min_max_stat(patch_size_min_max, "patch size")
+        print_min_max_stat(scale_min_max, "original scale")
+        print_min_max_stat(scale_ratio_min_max, "scale ratio")
+
+    return expected_loss_map
 
 
 def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
@@ -818,28 +829,12 @@ def simple_prepare_data():
     print("it took {:.4f} seconds.".format(end_time - start_time))
 
 
-def prepare_data_structured(base_dir, config_path, filter_list=None, max_dirs_to_process=1000):
+def prepare_data_structured(base_dir, config_path, max_dirs_to_process=1000):
 
     config = get_config(path=config_path)['dataset']
 
     # in_dirs, keys
     zip_dirs_map = get_dirs_and_keys(max_dirs_to_process, base_dir_unzips=base_dir, ds_config=config)
-
-    if filter_list is not None and len(filter_list) > 0:
-        raise NotImplemented
-    # if filter_list is not None and len(filter_list) > 0:
-    #     # SIMPLE filtering
-    #     in_dirs_2 = []
-    #     keys_2 = []
-    #     for i, dir in enumerate(in_dirs):
-    #         for cont in filter_list:
-    #             # if dir.__contains__("001_001") or dir.__contains__("001_002") or dir.__contains__("001_003"):
-    #             if dir.__contains__(cont):
-    #                 in_dirs_2.append(dir)
-    #                 keys_2.append(keys[i])
-    #                 break
-    #     in_dirs = in_dirs_2
-    #     keys = keys_2
 
     for intermediate_dir in sorted(zip_dirs_map.keys()):
         in_dirs, keys = zip_dirs_map[intermediate_dir]
@@ -850,12 +845,6 @@ def prepare_data_structured(base_dir, config_path, filter_list=None, max_dirs_to
 
 
 def prepare_data_from_files(config_path):
-
-    # prepare_data_all(base_dir="/content")
-    # list_contains = ["001_001", "001_002"]
-    #list_contains = ["ai_001_001", "ai_001_002", "ai_001_003", "ai_001_004", "ai_001_005", "ai_001_006", "ai_001_007", "ai_001_008", "ai_001_009", "ai_001_010"]
-    # continue - even check for existence... (input/output)
-    list_contains = []
     prepare_data_structured(base_dir="./unzips",
                             config_path=config_path)
 

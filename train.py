@@ -1,13 +1,9 @@
-import sys
-
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 
 from config import *
 from patch_dataset import PatchesDataModule, get_wand_name
-
-from prepare_data import log_metada
-
+from prepare_data import log_config_and_datasets
 from resnet_cnn import *
 
 
@@ -37,15 +33,20 @@ def train(config_path, set_config_dir_scheme=False, hash=None, checkpoint_path=N
     dm = PatchesDataModule(conf, wandb_logger)
     model = get_module(conf, checkpoint_path)
 
+    # TODO just redo this so that it's more logical (problem is 'log_metada' is in 'prepare_data.py'
+    baseline_loss = log_config_and_datasets(dm.get_all_metadata_list_map(), conf['dataset'], conf_to_log=conf)
+    devices = train_conf['devices'] if type(train_conf['devices']) == int else list(train_conf['devices'])
+
     if enable_wandb:
         wandb.watch(model)
+        wandb.log({"baseline_loss": baseline_loss})
+        wandb.log({"devices": devices})
 
-    # TODO just redo this so that it's more logical (problem is 'log_metada' is in 'prepare_data.py'
-    baseline_loss = log_metada(dict(dm.dataset.metadata_list), conf['dataset'], conf_to_log=conf)
     model.set_baseline_loss(baseline_loss)
-
+    # TODO strategy
     trainer = Trainer(max_epochs=conf['train']['max_epochs'],
                       accelerator=train_conf['accelerator'],
+                      devices=train_conf['devices'],
                       log_every_n_steps=50,
                       logger=loggers # try tensorboard as well
                       )

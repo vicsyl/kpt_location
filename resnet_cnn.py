@@ -142,7 +142,7 @@ class BasicModule(LightningModule):
         if not self.cumulative_losses_lists.__contains__(key):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
-        norm_factor = self.baseline_loss if self.baseline_loss else 1.0
+        norm_factor = self.baseline_loss["train dataset"] if self.baseline_loss else 1.0
         normalized_loss = loss.detach().cpu() / (self.scale_error**2 * norm_factor)
         l.append(normalized_loss)
         if len(l) * self.tr_conf['batch_size'] >= self.log_every_n_entries:
@@ -198,18 +198,14 @@ class ResnetBasedModule(BasicModule):
 
     def __init__(self, conf=None):
         super().__init__(conf)
-
-        # in base?
-        self.save_hyperparameters()
-        # checkpoint = torch.load(checkpoint, map_location=lambda storage, loc: storage)
-        # print(checkpoint["hyper_parameters"])
         resnet50 = models.resnet50(pretrained=True)
         in_features = resnet50.fc.in_features
         layers = list(resnet50.children())[:-1]
-        # probably unnecessary
-        # self.tr_conf = conf["train"]
         self.feature_extractor = nn.Sequential(*layers)
         self.classifier = nn.Linear(in_features, 2)
+        # checkpoint = torch.load(checkpoint, map_location=lambda storage, loc: storage)
+        # print(checkpoint["hyper_parameters"])
+        self.save_hyperparameters()
 
 
 # TODO apparently this is broken
