@@ -58,7 +58,7 @@ def run(gpus):
   file = get_file()
   if file is None:
     print("no file found")
-    return
+    return None
   name = get_name()
   config_path = get_config_path(name, file)
   devices = " ".join([str(g) for g in gpus])
@@ -66,7 +66,7 @@ def run(gpus):
   final_cmd = ["./sch_train.sh", name, config_path, devices]
   #final_cmd = ["python", "-u", "./train.py", "--config", config_path, "--name", name, "--devices", devices]
   print(f"running {final_cmd}")
-  run_command_list(final_cmd)
+  return run_command_list(final_cmd)
 
 
 def analyze(process):
@@ -89,6 +89,7 @@ def analyze(process):
         print(f"{len(line)}, {line}")
       else:
         empty_lines_all += 1
+        empty_lines_iter += 1
         if empty_lines_all % 10000 == 0:
           print(f"{empty_lines_all} empty lines")
       m = cpu_number_re.search(line)
@@ -141,7 +142,10 @@ def do_loop(max_iter):
         print("no gpus, will retry")
       else:
         print("running ...")
-        run(gpus)
+        r = run(gpus)
+        if r is None:
+          print("probably no file found, quitting")
+          return
         secs = 300
         print(f"will sleep for {secs} seconds ...")
         sleep(secs)
