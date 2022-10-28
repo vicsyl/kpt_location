@@ -5,12 +5,20 @@ from urls import urls_to_download
 from dataset_utils import clean_scene
 
 
-def download_zips(zips_to_download_start=0, zips_to_download_end=10):
+def download_zips(zips_to_download_start=0, zips_to_download_end=10, wget=False):
+
+  if wget:
+    print("will be using wget")
+  else:
+    print("will be using curl")
 
   for url in urls_to_download[zips_to_download_start:zips_to_download_end]:
     zip_file = url[url.rfind("/") + 1:]
     print(zip_file)
-    run_command(f"curl {url} -s --output ./zips/{zip_file}")
+    if wget:
+      run_command(f"wget {url} -O ./zips/{zip_file}")
+    else:
+      run_command(f"curl {url} -s --output ./zips/{zip_file}")
     print("unzipping ...")
     run_command(f"unzip -qq ./zips/{zip_file}")
     #print("removing: {}".format(zip_file))
@@ -34,10 +42,13 @@ def run_command(cmd):
 
 
 if __name__ == "__main__":
-  assert len(sys.argv) == 3, "give me 'from to'"
+  assert len(sys.argv) >= 3, "give me 'from to'"
   _from = int(sys.argv[1])
   to = int(sys.argv[2])
   assert _from >= 0, "give me 'from to'"
   assert to >= 0, "give me 'from to'"
   assert _from < to, "give me 'from to'"
-  download_zips(_from, to)
+  wget = False
+  if len(sys.argv) > 3 and sys.argv[3].lower().strip() == "wget":
+    wget = True
+  download_zips(_from, to, wget)
