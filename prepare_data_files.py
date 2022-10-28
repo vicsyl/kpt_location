@@ -16,7 +16,7 @@ def download_zips(zips_to_download_start=0, zips_to_download_end=10, wget=False)
     zip_file = url[url.rfind("/") + 1:]
     print(zip_file)
     if wget:
-      run_command(f"wget {url} -O ./zips/{zip_file}")
+      run_command(f"wget {url} -q -O ./zips/{zip_file}")
     else:
       run_command(f"curl {url} -s --output ./zips/{zip_file}")
     print("unzipping ...")
