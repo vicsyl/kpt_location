@@ -142,6 +142,9 @@ def do_loop(max_iter):
       else:
         print("running ...")
         run(gpus)
+        secs = 300
+        print(f"will sleep for {secs} seconds ...")
+        sleep(secs)
     except KeyboardInterrupt:
       traceback.print_exc()
       print("quitting because of KeyInterrupt")
@@ -153,10 +156,6 @@ def do_loop(max_iter):
 
 
 def main():
-
-  run([1, 0])
-  if True:
-    return 0
 
   parser = argparse.ArgumentParser(description='Schedule your processes')
   # todo "queue", dir with configs

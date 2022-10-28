@@ -80,9 +80,6 @@ if __name__ == "__main__":
     config_path = 'config/config.yaml' if not args.config else args.config
     print(f"config_path={config_path}")
 
-    if True:
-        raise Exception()
-
     train(config_path=config_path,
           args=args,
           set_config_dir_scheme=False,
