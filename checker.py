@@ -88,8 +88,8 @@ def do_loop(max_iter):
 
   for i in range(max_iter):
     try:
-      #process = run_command("nvidia-smi -l 1")
-      process = run_command("cat ./test_data/nvidia1.txt")
+      process = run_command("nvidia-smi -l 1")
+      # process = run_command("cat ./test_data/nvidia1.txt")
       if process == None:
         print("didn't succeed, will retry")
         continue
@@ -99,6 +99,9 @@ def do_loop(max_iter):
       else:
         print("running ...")
         run(gpus)
+    except KeyboardInterrupt:
+      traceback.print_exc()
+      print("quitting because of KeyInterrupt")
     except:
       traceback.print_exc()
     print(f"loop no. finished {i + 1}")
