@@ -1,8 +1,17 @@
 import argparse
+import os
 import re
 import subprocess
 import traceback
 from time import sleep
+
+import config
+
+def run_command_list(cmd_list):
+
+  print(f"Running '{cmd_list}'")
+  process = subprocess.Popen(cmd_list, stdout=subprocess.PIPE)
+  return process
 
 
 def run_command(cmd):
@@ -23,7 +32,41 @@ def run_command(cmd):
 
 
 def run(gpus):
-  run_command(f"echo running on {gpus}")
+
+  def get_name():
+    process = run_command("./get_name.sh")
+    sleep(0.01)
+    name = process.stdout.readline().strip()
+    return str(name)[2:-1]
+
+  def get_file():
+    files = [f"queue/{f}" for f in os.listdir("./queue") if os.path.isfile(f"queue/{f}") and f.endswith(".yaml")]
+    if len(files) == 0:
+      return None
+    else:
+      files.sort(key=os.path.getmtime)
+      return files[-1]
+
+  def get_config_path(name, file_path):
+    full_path = f"./work/{name}"
+    run_command(f"mkdir {full_path}")
+    run_command(f"mv {file_path} {full_path}")
+    return f"{full_path}/{file[6:]}"
+
+  print(f"echo running on {gpus}")
+
+  file = get_file()
+  if file is None:
+    print("no file found")
+    return
+  name = get_name()
+  config_path = get_config_path(name, file)
+  devices = " ".join([str(g) for g in gpus])
+
+  final_cmd = ["./sch_train.sh", name, config_path, devices]
+  #final_cmd = ["python", "-u", "./train.py", "--config", config_path, "--name", name, "--devices", devices]
+  print(f"running {final_cmd}")
+  run_command_list(final_cmd)
 
 
 def analyze(process):
@@ -109,10 +152,18 @@ def do_loop(max_iter):
   print("All finished")
 
 
-if __name__ == "__main__":
+def main():
+
+  run([1, 0])
+  if True:
+    return 0
 
   parser = argparse.ArgumentParser(description='Schedule your processes')
   # todo "queue", dir with configs
   parser.add_argument('--max_iter', help='max iter, ideally number of processes', required=True)
   args = parser.parse_args()
   do_loop(int(args.max_iter))
+
+
+if __name__ == "__main__":
+  main()
