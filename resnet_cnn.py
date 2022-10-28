@@ -76,8 +76,8 @@ class BasicModule(LightningModule):
         self.cumulative_losses_lists = {}
         self.baseline_loss = None
 
-    def set_baseline_loss(self, loss):
-        self.baseline_loss = loss
+    def set_baseline_loss(self, baseline_loss):
+        self.baseline_loss = baseline_loss
 
     def compute_representations(self, x):
         # TODO flatten and put to the child class
@@ -142,7 +142,7 @@ class BasicModule(LightningModule):
         if not self.cumulative_losses_lists.__contains__(key):
             self.cumulative_losses_lists[key] = []
         l = self.cumulative_losses_lists[key]
-        norm_factor = self.baseline_loss["train dataset"] if self.baseline_loss else 1.0
+        norm_factor = self.baseline_loss["train"] if self.baseline_loss else 1.0
         normalized_loss = loss.detach().cpu() / (self.scale_error**2 * norm_factor)
         l.append(normalized_loss)
         if len(l) * self.tr_conf['batch_size'] >= self.log_every_n_entries:

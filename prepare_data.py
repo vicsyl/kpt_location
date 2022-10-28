@@ -724,7 +724,7 @@ def log_config_and_datasets(metadata_list_map, dataset_conf, file=None, conf_to_
     for dataset_name in metadata_list_map:
         metadata_list = metadata_list_map[dataset_name]
 
-        log_all(f"# {dataset_name}")
+        log_all(f"# {dataset_name} dataset")
         log_all("#      entries: {}".format(len(metadata_list)))
         detector_name = dataset_conf['detector'].upper()
         log_all(f"#      detector: {detector_name}")
@@ -746,7 +746,6 @@ def log_config_and_datasets(metadata_list_map, dataset_conf, file=None, conf_to_
 
         print_m_am_stat(errors, "")
         print_m_am_stat(angles, "angle")
-
         patch_size_min_max, scale_min_max, scale_ratio_min_max = get_ds_stats(metadata_list.items())
         print_min_max_stat(patch_size_min_max, "patch size")
         print_min_max_stat(scale_min_max, "original scale")

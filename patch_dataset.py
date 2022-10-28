@@ -81,9 +81,6 @@ class DataRecord:
     resized_img_size_x: int
     augmented: str  # original, rotated_$angles, reflected_$axis
 
-    def is_augmented(self):
-        return self.augmented != "original"
-
     def line_str(self):
         return ", ".join([str(i) for i in dataclasses.astuple(self)])
 
@@ -240,7 +237,7 @@ class PatchDataset(Dataset):
         all_items_l = []
         all_items_map = {}
         for i, subdir in enumerate(dirs):
-            metadata_list = DataRecord.read_metadata_list_from_file(f"{root_dir}/{subdir}/a_values.txt".format(root_dir), subdir)
+            metadata_list = DataRecord.read_metadata_list_from_file(f"{root_dir}/{subdir}/a_values.txt", subdir)
             metadata_list = PatchDataset.filter_metadata_list(metadata_list, conf['dataset']['filtering'])
             integer_part = items // len(dirs)
             remainder = items % len(dirs)
@@ -487,14 +484,33 @@ class PatchesDataModule(pl.LightningDataModule):
     def get_all_metadata_list_map(self):
         train, validation, test = self.get_dss()
         return {
-            "train dataset": dict(train.metadata_list),
-            "validation dataset": dict(validation.metadata_list),
-            "test dataset": dict(test.metadata_list)
+            "train": dict(train.metadata_list),
+            "validation": dict(validation.metadata_list),
+            "test": dict(test.metadata_list)
         }
 
     def get_dss(self):
         # needs to be called (and dss created) twice, such is life
-        return PatchDataset.get_split_datasets(self.root_dir, self.conf, self.wandb_logger)
+        all = PatchDataset.get_split_datasets(self.root_dir, self.conf, self.wandb_logger)
+        train = all[0]
+        PatchesDataModule.normalize(train, all)
+        return all
+
+    @staticmethod
+    def normalize(normalizing_dataset, datasets):
+
+        errors = []
+        for _, data_record in normalizing_dataset.metadata_list:
+            dxy = np.array([data_record.dy, data_record.dx])
+            errors.append(dxy)
+        errors = np.array(errors)
+        mean = errors.mean(axis=0)
+        std_dev = np.sqrt(errors.var(axis=0))
+
+        for ds in datasets:
+            for _, dr in ds.metadata_list:
+                dr.dy = (dr.dy - mean[0]) / std_dev[0]
+                dr.dx = (dr.dx - mean[1]) / std_dev[1]
 
     def setup(self, stage: str):
         self.train, self.validation, self.test = self.get_dss()
@@ -542,19 +558,16 @@ def iterate_dataset():
     dm.teardown(stage="test")
 
 
-def get_error_stats(entry_list, adjustment=[0.0, 0.0]):
+def get_error_stats(entry_list):
 
     distances = []
     errors = []
     angles = []
     for _, data_record in entry_list:
-        if data_record.is_augmented():
-            continue
         dxy = np.array([data_record.dy, data_record.dx])
-        dxy_adjusted = dxy + adjustment
-        errors.append(dxy_adjusted)
-        distances.append([math.sqrt(dxy_adjusted[0] ** 2 + dxy_adjusted[1] ** 2)])
-        angles.append([np.arctan2(dxy_adjusted[0], dxy_adjusted[1])])
+        errors.append(dxy)
+        distances.append([math.sqrt(dxy[0] ** 2 + dxy[1] ** 2)])
+        angles.append([np.arctan2(dxy[0], dxy[1])])
 
     distances = np.array(distances)
     errors = np.array(errors)
@@ -585,7 +598,7 @@ def log_stats(scale, tags, histogram_wandb_project):
         print("{} mean: {}".format(name, mean))
         print("{} abs mean: {}".format(name, abs_mean))
 
-    distances, errors, angles = get_error_stats(metadata_list, [0.0, 0.0])
+    distances, errors, angles = get_error_stats(metadata_list)
     print_stat(distances, "distance")
     print_stat(errors, "error")
     print_stat(angles, "angle")
