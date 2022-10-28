@@ -510,7 +510,9 @@ class PatchesDataModule(pl.LightningDataModule):
         for ds in datasets:
             for _, dr in ds.metadata_list:
                 dr.dy = (dr.dy - mean[0]) / std_dev[0]
+                dr.dy = dr.dy.item()
                 dr.dx = (dr.dx - mean[1]) / std_dev[1]
+                dr.dx = dr.dx.item()
 
     def setup(self, stage: str):
         self.train, self.validation, self.test = self.get_dss()
