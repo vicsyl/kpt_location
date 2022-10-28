@@ -261,7 +261,7 @@ class PatchDataset(Dataset):
         path = "{}/{}".format(self.root_dir, metadata[0])
         patch_pil = Image.open(path)
         patch_t = torchvision.transforms.functional.to_tensor(np.array(patch_pil))
-        self.show_patch(patch_t, "on input")
+        #self.show_patch(patch_t, "on input")
 
         def merge(data):
                 assert data.shape[1] * 2 == data.shape[2]
