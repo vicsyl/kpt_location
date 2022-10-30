@@ -28,6 +28,8 @@ def get_module_by_key(module_key, conf, checkpoint_path=None):
             return ZeroModule(conf)
         elif module_key == "mlp":
             return MlpModule(conf)
+        elif module_key == "hardnet_based":
+            return HardnetBasedModule(conf)
         else:
             raise ValueError(f"unknown '{module_key}' module name")
     elif type(module_key) == omegaconf.dictconfig.DictConfig:
@@ -88,6 +90,8 @@ class BasicModule(LightningModule):
                 features = self.feature_extractor(x)
         else:
             features = self.feature_extractor(x)
+        # HN
+        # features.view(features.size(0), -1) // 512
         representations = features.flatten(1)
         return representations
 
@@ -205,6 +209,19 @@ class ResnetBasedModule(BasicModule):
         self.classifier = nn.Linear(in_features, 2)
         # checkpoint = torch.load(checkpoint, map_location=lambda storage, loc: storage)
         # print(checkpoint["hyper_parameters"])
+        self.save_hyperparameters()
+
+
+class HardnetBasedModule(BasicModule):
+
+    def __init__(self, conf=None):
+        super().__init__(conf)
+        from kornia.feature.hardnet import HardNet
+        hardnet = HardNet(pretrained=conf['train']['pretrained'])
+        self.feature_extractor = hardnet.features
+        self.feature_extractor[0] = nn.Conv2d(3, 32, kernel_size=3, padding=1, bias=False)
+        # TODO rename it
+        self.classifier = nn.Linear(512, 2)
         self.save_hyperparameters()
 
 
