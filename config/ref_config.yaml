@@ -73,6 +73,7 @@ train:
 
     # learning
     module: resnet_based #mlp, zero_inference, resnet_based
+    pretrained: False
     accelerator: 'cpu' # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
     devices: [1, 0]
     batch_size: 16

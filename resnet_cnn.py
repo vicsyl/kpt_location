@@ -198,7 +198,7 @@ class ResnetBasedModule(BasicModule):
 
     def __init__(self, conf=None):
         super().__init__(conf)
-        resnet50 = models.resnet50(pretrained=True)
+        resnet50 = models.resnet50(pretrained=conf['train']['pretrained'])
         in_features = resnet50.fc.in_features
         layers = list(resnet50.children())[:-1]
         self.feature_extractor = nn.Sequential(*layers)

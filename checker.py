@@ -5,8 +5,6 @@ import subprocess
 import traceback
 from time import sleep
 
-import config
-
 def run_command_list(cmd_list):
 
   print(f"Running '{cmd_list}'")
