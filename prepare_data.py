@@ -77,7 +77,8 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
 
     min_distances_reprojected = min0[0] * scale
     up_to_k_min = up_to_k_min * scale
-    assert torch.all(up_to_k_min[0, :] == min_distances_reprojected)
+    if up_to_k_min.shape[1] > 0:
+        assert torch.all(up_to_k_min[0, :] == min_distances_reprojected)
     # distances for reprojected
     return kpts0, kpts_scales, kpts1, kpts_r_scales, diffs, scale_ratios, up_to_k_min
 
