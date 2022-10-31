@@ -1,6 +1,4 @@
-import copy
 import glob
-import os
 import sys
 import time
 
@@ -11,7 +9,6 @@ from patch_dataset import *
 from wand_utils import wand_log_me
 
 sys.path.append('/content/kpt_location')
-from prepare_data_files import run_command
 from dataset_utils import get_dirs_and_keys
 from config import *
 
@@ -35,8 +32,11 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
     # min0 => minima of resized
     min0 = torch.min(d_mat, dim=0)
     k = 3
+    if k > d_mat.shape[0]:
+        up_to_k_min = torch.zeros((k, 0))
+    else:
     # FIXME dmat.shape[0] can be less than k! -> I will still need k values (hstack later on)
-    up_to_k_min = torch.topk(d_mat, k, largest=False, axis=0).values # [k, dim]
+        up_to_k_min = torch.topk(d_mat, k, largest=False, axis=0).values # [k, dim]
     min1 = torch.min(d_mat, dim=1)
 
     mask = min1[1][min0[1]] == torch.arange(0, min0[1].shape[0])
@@ -864,7 +864,7 @@ if __name__ == "__main__":
     if args.method == name_prepare_data_from_files:
         prepare_data_from_files(config_path)
 
-    elif args.method == name_prepare_data_from_files:
+    elif args.method == name_prepare_data_by_scale:
         def tenths(_from, to):
             return [scale_int / 10 for scale_int in range(_from, to)]
 
