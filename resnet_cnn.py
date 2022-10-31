@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from pytorch_lightning import LightningModule
+from kornia.feature.keynet import _FeatureExtractor
+from kornia.feature.hardnet import HardNet
 
 import wandb
 
@@ -30,6 +32,8 @@ def get_module_by_key(module_key, conf, checkpoint_path=None):
             return MlpModule(conf)
         elif module_key == "hardnet_based":
             return HardnetBasedModule(conf)
+        elif module_key == "keynet_based":
+            return KeyNetBased(conf)
         else:
             raise ValueError(f"unknown '{module_key}' module name")
     elif type(module_key) == omegaconf.dictconfig.DictConfig:
@@ -217,13 +221,27 @@ class HardnetBasedModule(BasicModule):
 
     def __init__(self, conf=None):
         super().__init__(conf)
-        from kornia.feature.hardnet import HardNet
         hardnet = HardNet(pretrained=conf['train']['pretrained'])
         self.feature_extractor = hardnet.features
         self.feature_extractor[0] = nn.Conv2d(3, 32, kernel_size=3, padding=1, bias=False)
+        # foo = True
+        # if foo:
+        #     self.feature_extractor = nn.Sequential([fe for i, fe in enumerate(self.feature_extractor) if i not in [9, 10, 11, 15, 16, 17]])
         # TODO rename it
         self.classifier = nn.Linear(512, 2)
         self.save_hyperparameters()
+
+
+class KeyNetBased(BasicModule):
+
+    def __init__(self, conf=None):
+        super().__init__(conf)
+        self.feature_extractor = _FeatureExtractor()
+        self.classifier = nn.Linear(8712, 2)
+        self.save_hyperparameters()
+
+    def forward(self, x, clip=False):
+        return super().forward(x[:, 0:1, :, :])
 
 
 # TODO apparently this is broken
