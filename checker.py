@@ -5,6 +5,7 @@ import subprocess
 import traceback
 from time import sleep
 
+
 def run_command_list(cmd_list):
 
   print(f"Running '{cmd_list}'")
@@ -57,6 +58,7 @@ def run(gpus):
   if file is None:
     print("no file found")
     return None
+  # FIXME name as directory (work/$name/out.txt) and as a wandb name
   name = get_name()
   config_path = get_config_path(name, file)
   devices = " ".join([str(g) for g in gpus])
@@ -73,6 +75,9 @@ def analyze(process):
   counter = 0
   free_counters = [-1] * 16
   cpu_number_re = re.compile(".*\|\s*(\d+).*\.\.\..*On")
+  # FIXME
+  # 82, b'| 38%   61C    P2   112W / 250W |   1351MiB / 11178MiB |     50%      Default |'
+  # msg: it's free!! 3
   cpu_load_re = re.compile(".*\|\s*(\d+)MiB\s+/\s+(\d+)MiB.*(\d+)%")
   cpu_number = None
   empty_lines_all = 0

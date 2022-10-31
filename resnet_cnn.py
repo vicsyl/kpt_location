@@ -77,6 +77,7 @@ class BasicModule(LightningModule):
         assert self.log_every_n_entries is not None
         self.cumulative_losses_lists = {}
         self.baseline_loss = None
+        self.weight_decay = train_conf['weight_decay']
 
     def set_baseline_loss(self, baseline_loss):
         self.baseline_loss = baseline_loss
@@ -140,7 +141,7 @@ class BasicModule(LightningModule):
         )
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=1e-4, eps=1e-2)
+        return torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay, eps=1e-8)
 
     def add_loss_log(self, key, loss):
         if not self.cumulative_losses_lists.__contains__(key):

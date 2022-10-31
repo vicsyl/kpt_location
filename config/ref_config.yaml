@@ -79,6 +79,7 @@ train:
     batch_size: 16
     max_epochs: 10
     learning_rate: 0.001
+    weight_decay: 0.01
     freeze_feature_extractor: False
     scale_error: 1000
     log_every_n_entries: 1024

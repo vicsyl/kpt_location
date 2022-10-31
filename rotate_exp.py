@@ -58,6 +58,13 @@ def mnn_generic(pts1, pts2, err_th):
     return pts1_new, pts2_new, mask1, mask2
 
 
+def detect_robust(detector, img_np):
+    kpts = detector.detect(img_np, mask=None)
+    if len(kpts) == 2:
+        kpts = kpts[0]
+    return kpts
+
+
 def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
     print(f"experiment for n rotations: {rotations_90_deg}")
 
@@ -65,12 +72,12 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
     new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
     img_np_o = img_np_o[:new_h, :new_w]
 
-    kpts_0_cv, _ = detector.detect(img_np_o, mask=None)
+    kpts_0_cv = detect_robust(detector, img_np_o)
     kpts_0 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
 
     img_np_r = np.rot90(img_np_o, rotations_90_deg, [0, 1])
 
-    kpts_1_cv, _ = detector.detect(img_np_r, mask=None)
+    kpts_1_cv = detect_robust(detector, img_np_r)
     kpts_1 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_1_cv])
 
     coord0_max = img_np_r.shape[0] - 1
@@ -115,7 +122,8 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
     # TODO rename
     mean = (kpts_1_new_1d - kpts_0_new_1d).mean(dim=0)
     var = (kpts_1_new_1d - kpts_0_new_1d).var(dim=0)
-    print("mean: {}, variance: {}".format(mean, var))
+    stad_dev = var.sqrt()
+    print("mean: {}, variance: {}, std dev: {}".format(mean, var, stad_dev  ))
 
 
 def rotate_experiment_loop(detector, img_to_show, err_th):
