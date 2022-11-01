@@ -502,12 +502,12 @@ def process_patches_for_images(img,
     const_patch_size = ds_config.get('const_patch_size')
     compare = ds_config['compare_patches']
 
-    start_time = time.time()
+    # start_time = time.time()
     # either here or given
     kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, ds_config)
     kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th * real_scale, const_patch_size, ds_config)
-    end_time = time.time()
-    print("DETECTTIME {:.4f}.".format(end_time - start_time))
+    # end_time = time.time()
+    # print("DETECTTIME {:.4f}.".format(end_time - start_time))
 
     if len(kpts) == 0 or len(kpts_r) == 0:
         return
@@ -526,7 +526,7 @@ def process_patches_for_images(img,
         key = key + "_"
     file_name_prefix = key + file_path[file_path.rfind("/") + 1:file_path.rfind(".")]
 
-    start_time = time.time()
+    # start_time = time.time()
     for i in range(len(patches_list[0])):
 
         def concat_patches(p_l):
@@ -561,8 +561,8 @@ def process_patches_for_images(img,
                     out_dir,
                     ds_config,
                     augment_index)
-    end_time = time.time()
-    print("IOTIME {:.4f}.".format(end_time - start_time))
+    # end_time = time.time()
+    # print("IOTIME {:.4f}.".format(end_time - start_time))
 
 
 def get_ds_stats(entries):

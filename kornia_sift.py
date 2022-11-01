@@ -21,6 +21,7 @@ class NumpyKorniaSiftDetector:
             mr_size=6.0,
         )
         self.detector.eval()
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     def detect(self, img_np, mask=None):
 
@@ -33,6 +34,7 @@ class NumpyKorniaSiftDetector:
             img_np = cv.cvtColor(img_np, cv.COLOR_BGR2GRAY)
         with torch.no_grad():
             img_t3 = KU.image_to_tensor(img_np, False).float() / 255.
+            img_t3 = img_t3.to(device=self.device)
             laffs, responses = self.detector(img_t3, mask)
             kpts = []
             for i, response in enumerate(responses[0]):
