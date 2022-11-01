@@ -1,0 +1,115 @@
+# maybe put under ds preparation?
+
+# dataset:
+dataset:
+
+    # transforms
+    reflection: null
+    to_grey_scale: True
+
+    # wandb
+    enable_wandlog: True
+    tags: ["dev"]
+    #  "magic_items"
+    wandb_run_name_keys: ["no_key_detector", "err_th", "max_files", "reflection", "min_scale_th", "scale_ratio_th"]
+    wandb_log_imgs: True
+
+    # ds
+    augment: eager # eager, lazy, null
+    in_dirs: ["./dataset/raw_data"]
+    keys: [""]
+    #out_dir: "./dataset/var_sizes"
+    #const_patch_size: null
+    #out_dir: "./dataset/superpoint_30_files_int_"
+    # TODO automate this, too
+    out_dir: "./dataset/a_SUPERPOINT_test_"
+    # out_dir: "./test_data/test_out_"
+    max_files: 10
+    ends_with: 'color.jpg'
+    #ends_with: '.tonemap.jpg'
+    clean_out_dir: True
+    write_metadata: False
+    write_data: False
+    write_imgs: False
+    write_other: False
+
+    # detection
+    detector: ADJUSTED_SIFT_KORNIA # SIFT, SUPERPOINT, ADJUSTED_SUPERPOINT, SIFT_KORNIA, ADJUSTED_SIFT case-insensitive
+    # scale_ratio_th: null # for superpoint
+    # min_scale_th: 0.0 # for superpoint
+    # scale_ratio_th > 1, scale_ratio \in [1 / scale_ratio_th, scale_ratio_th]
+    # scale_ratio_th: 100
+    scale_ratio_th: 10
+    min_scale_th: 0.0
+    #min_scale_th: 30.0
+    err_th: 3.0
+    down_scale: 0.25
+    const_patch_size: 33
+
+    # show
+    show_kpt_patches: False
+    compare_patches: False
+    show_inputs: True
+
+    # irrelevant, only defaults
+    half_pixel_adjusted: False
+    integer_scale: True # try to scale so that the new size is exactly an integer
+    dynamic_resizing: False # not for superpoint
+
+    filtering:
+        train_entries: 140
+        train_scenes: 10
+        val_entries: 100
+        val_scenes: 1
+        test_entries: 100
+        test_scenes: 1
+        max_error_distance: null
+        sort_error: null # max, null
+        heatmap_or_img: both # heatmap, img, both, or null BUT relevant only to SuperPoint
+        train_crop: 33
+        train_patch_upscale_factor: 3
+        train_patch_upscale_method: LANCZOS
+
+
+train:
+
+    # learning
+    # TODO freeze_feature_extractor here? But what about wandb_run_name_keys?
+    module: keynet_based
+    pretrained: False
+#        two_heads:
+#            - resnet_based #:
+#                #foo: bar
+#                #bar: var
+#            - resnet_based #:
+#                #foo_bar: bar_foo
+#                #hoo: heybar
+
+      #mlp, zero_inference, resnet_based
+    accelerator: 'cpu' # ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
+    devices: 1
+    batch_size: 16
+    max_epochs: 1
+    learning_rate: 0.001
+    weight_decay: 0.01
+    freeze_feature_extractor: True
+    scale_error: 1000
+    log_every_n_entries: 16
+    loss: L1 # L1, L2
+
+    # wandb
+    enable_wandlog: False
+    wandb_project: "kpt_location_training_dev"
+    tags: [ "train-dev" ]
+    wandb_run_name_keys: [ "magic_out_dir",
+                           "train.freeze_feature_extractor",
+                           #"train.scale_error",
+                           "train.module",
+                           "dataset.filtering.entries",
+                           "dataset.filtering.heatmap_or_img",
+                           "dataset.filtering.train_crop",
+                           "dataset.filtering.max_error_distance",
+    ]
+
+    # irrelevant, only defaults
+    grouped_by_sizes: False
