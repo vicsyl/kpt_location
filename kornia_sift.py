@@ -1,15 +1,27 @@
-import math
+import numpy as np
 import torch
-from kornia.feature import ScaleSpaceDetector, BlobDoG, LAFOrienter, PassLAF
+
+from kornia.feature import ScaleSpaceDetector, BlobDoG, LAFOrienter, PassLAF, LocalFeature, LAFDescriptor, SIFTDescriptor
+from kornia.feature.laf import scale_laf
 from kornia.geometry.subpix import ConvQuadInterp3d
 from kornia.geometry.transform import ScalePyramid
 import kornia.utils as KU
 
+
 import cv2 as cv
 
+from typing import Optional, Tuple
 
-class NumpyKorniaSiftDetector:
-    def __init__(self, upright=False, num_features=500, scale_pyramid=ScalePyramid(3, 1.6, 32, double_image=True)):
+default_scale_pyramid = ScalePyramid(3, 1.6, 32, double_image=True)
+
+
+class NumpyKorniaSiftDescriptor:
+    """
+    see kornia.feature.integrated.SIFTFeature
+    plus num_features is different (originally 8000) and the ScalePyramid can be overriden for obvious reasons
+    """
+    def __init__(self, upright=False, num_features=500, scale_pyramid=default_scale_pyramid, rootsift=True, adjustment=[0.0, 0.0]):
+        self.adjustment = np.array(adjustment)
         self.detector = ScaleSpaceDetector(
             num_features=num_features,
             resp_module=BlobDoG(),
@@ -20,11 +32,15 @@ class NumpyKorniaSiftDetector:
             minima_are_also_good=True,
             mr_size=6.0,
         )
-        self.detector.eval()
+        patch_size = 41
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.descriptor = LAFDescriptor(
+            SIFTDescriptor(patch_size=patch_size, rootsift=rootsift), patch_size=patch_size, grayscale_descriptor=True
+        ).to(self.device)
+        self.detector.eval()
+        self.scaling_coef = 1.0
 
-    def detect(self, img_np, mask=None):
-
+    def get_lafs_responses(self, img_np, mask=None):
         # FIXME handle greyscale consistently
         # NOTE a simple check on number of dims would suffice here for greyscale option being on,
         # but the visualization won't work
@@ -36,9 +52,28 @@ class NumpyKorniaSiftDetector:
             img_t3 = KU.image_to_tensor(img_np, False).float() / 255.
             img_t3 = img_t3.to(device=self.device)
             laffs, responses = self.detector(img_t3, mask)
-            kpts = []
-            for i, response in enumerate(responses[0]):
-                yx = laffs[0, i, :, 2]
-                kp = cv.KeyPoint(yx[0].item(), yx[1].item(), response.item(), angle=0)
-                kpts.append(kp)
-            return kpts
+            laffs[0, :, :, 2] = laffs[0, :, :, 2] + self.adjustment
+            return laffs, responses, img_t3
+
+    def cv_kpt_from_laffs_responses(self, laffs, responses):
+        kpts = []
+        for i, response in enumerate(responses[0]):
+            yx = laffs[0, i, :, 2]
+            kp = cv.KeyPoint(yx[0].item(), yx[1].item(), response.item(), angle=0)
+            kpts.append(kp)
+        return kpts
+
+    def detect(self, img_np, mask=None):
+        laffs, responses, _ = self.get_lafs_responses(img_np, mask)
+        kpts = self.cv_kpt_from_laffs_responses(laffs, responses)
+        return kpts
+
+    def detectAndCompute(self, img, mask):
+        lafs, responses, img_t = self.get_lafs_responses(img, mask)
+        kpts = self.cv_kpt_from_laffs_responses(lafs, responses)
+        lafs = scale_laf(lafs, self.scaling_coef)
+        with torch.no_grad():
+            descs = self.descriptor(img_t, lafs)
+            descs = descs[0].numpy()
+        # TODO
+        return kpts, descs
