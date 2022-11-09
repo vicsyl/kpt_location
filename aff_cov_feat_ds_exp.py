@@ -10,7 +10,7 @@ from kornia_sift import NumpyKorniaSiftDescriptor
 from scale_pyramid import MyScalePyramid
 from sift_detectors import AdjustedSiftDescriptor
 from superpoint_local import SuperPointDetector
-
+from utils import get_tentatives
 
 # https://www.robots.ox.ac.uk/~vgg/data/affine/
 
@@ -60,7 +60,7 @@ def get_descriptor_by_key(key):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     key = key.lower()
     if key == 'sift':
-        return cv.SIFT_create(nfeatures=8000)
+        return cv.SIFT_create()
     elif key == 'adjusted_sift':
         return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], nfeatures=8000)
     elif key == 'adjusted_sift_negative':
@@ -76,15 +76,15 @@ def get_descriptor_by_key(key):
     elif key == 'adjusted_sift_kornia_negative':
         custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
         num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=custom_scale_pyramid, adjustment=[-0.25, -0.25])
+        return NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.25, -0.25])
     elif key == 'adjusted_sift_kornia_double_negative':
         custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
         num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=custom_scale_pyramid, adjustment=[-0.5, -0.5])
+        return NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.5, -0.5])
     elif key == 'adjusted_sift_kornia':
         custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
         num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=custom_scale_pyramid)
+        return NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False)
     elif key == 'superpoint':
         return SuperPointDetector(device=device)
     elif key == 'adjusted_superpoint':
@@ -172,33 +172,6 @@ def draw_matches(kps1, kps2, tentative_matches, H_est, H_gt, inlier_mask, img1, 
     return img_out
 
 
-def split_points(tentative_matches, kps0, kps1):
-    src_pts = np.float32([kps0[m.queryIdx].pt for m in tentative_matches]).reshape(-1, 2)
-    dst_pts = np.float32([kps1[m.trainIdx].pt for m in tentative_matches]).reshape(-1, 2)
-    kps0 = [kps0[m.queryIdx] for m in tentative_matches]
-    kps1 = [kps1[m.trainIdx] for m in tentative_matches]
-    return src_pts, dst_pts, kps0, kps1
-
-
-def get_tentatives(kpts0, desc0, kpts1, desc1, ratio_threshold):
-    matcher = cv.BFMatcher(crossCheck=False)
-    knn_matches = matcher.knnMatch(desc0, desc1, k=2)
-    matches2 = matcher.match(desc1, desc0)
-
-    tentative_matches = []
-    for m, n in knn_matches:
-        if matches2[m.trainIdx].trainIdx != m.queryIdx:
-            continue
-        if m.distance < ratio_threshold * n.distance:
-            tentative_matches.append(m)
-
-    # matcher = cv.BFMatcher(crossCheck=True)
-    # knn_matches2 = matcher.knnMatch(desc0, desc1, k=1)
-
-    src, dst, kpts0, kpts1 = split_points(tentative_matches, kpts0, kpts1)
-    return src, dst, kpts0, kpts1, tentative_matches
-
-
 def read_imgs(file_paths, show=False):
     imgs = []
     for i, file in enumerate(file_paths):
@@ -214,7 +187,70 @@ def read_imgs(file_paths, show=False):
     return imgs
 
 
+def print_Hs_decomposition(Hs):
+
+    print("scale\trotation")
+    for H_gt in Hs:
+
+        pure_homography, affine = decompose_homographies(torch.from_numpy(H_gt[None]))
+
+        affine = affine[0].numpy()
+        # print(f"affine: {affine}")
+
+        det = np.linalg.det(affine)
+        scale = math.sqrt(det)
+        affine = affine / scale
+
+        acos00 = math.acos(affine[0, 0]) * 180 / math.pi
+        acos11 = math.acos(affine[1, 1]) * 180 / math.pi
+        asin01 = math.asin(affine[0, 1]) * 180 / math.pi
+        asin10 = -math.asin(affine[1, 0]) * 180 / math.pi
+        cos_avg = (affine[0, 0] + affine[1, 1]) / 2.0
+        sin_avg = (affine[0, 1] - affine[1, 0]) / 2.0
+        a11 = math.acos(affine[1, 1]) * 180 / math.pi
+        a01 = math.asin(affine[0, 1]) * 180 / math.pi
+        a10 = -math.asin(affine[1, 0]) * 180 / math.pi
+        alpha = math.atan2(sin_avg, cos_avg) * 180 / math.pi
+        # if asin01 < 0:
+        #     acos00 = -acos00
+        #     acos11 = -acos11
+        pure_homography = pure_homography[0].numpy()
+        norm = np.linalg.norm(pure_homography[2, :2])
+        print(f"{scale:.3f}\t{alpha:.3f}")
+
+
 def main():
+
+    Hs_bark = [
+        [[0.7022029025774007, 0.4313737491020563, -127.94661199701689],
+         [-0.42757325092889575, 0.6997834349758094, 201.26193857481698],
+         [4.083733373964227E-6, 1.5076445750988132E-5, 1.0]],
+
+        [[-0.48367041358997964, -0.2472935325077872, 870.2215120216712],
+         [0.29085746679198893, -0.45733473891783305, 396.1604918833091],
+         [-3.578663704630333E-6, 6.880007548843957E-5, 1.0]],
+
+        [[-0.20381418476462312, 0.3510201271914591, 247.1085214229702],
+         [-0.3499531830464912, -0.1975486500576974, 466.54576370699766],
+         [-1.5735788289619667E-5, 1.0242951905091244E-5, 1.0]],
+
+        [[0.30558415717792214, 0.12841186681168829, 200.94588793078017],
+         [-0.12861248979242065, 0.3067557133397112, 133.77000196887894],
+         [2.782320090398499E-6, 5.770764104061954E-6, 1.0]],
+
+        [[-0.23047631546234373, -0.10655686701035443, 583.3200507850402],
+         [0.11269946585180685, -0.20718914340861153, 355.2381263740649],
+         [-3.580280012615393E-5, 3.2283960511548054E-5, 1.0]],
+    ]
+
+    Hs_bark = np.array(Hs_bark)
+    files_bark = [f"bark/img{i + 1}.ppm" for i in range(6)]
+    imgs_bark = read_imgs(files_bark, show=False)
+
+    print("BARK experiment hompographies decomposition")
+    print_Hs_decomposition(Hs_bark)
+    print()
+
     Hs_boat = [
         [[8.5828552e-01, 2.1564369e-01, 9.9101418e+00],
          [-2.1158440e-01, 8.5876360e-01, 1.3047838e+02],
@@ -238,44 +274,40 @@ def main():
     ]
     Hs_boat = np.array(Hs_boat)
     files_boat = [f"boat/img{i + 1}.pgm" for i in range(6)]
-    imgs_boat = read_imgs(files_boat, show=True)
+    imgs_boat = read_imgs(files_boat, show=False)
 
-    Hs_bark = [
-        [[0.7022029025774007, 0.4313737491020563, -127.94661199701689],
-         [-0.42757325092889575, 0.6997834349758094, 201.26193857481698],
-         [4.083733373964227E-6, 1.5076445750988132E-5, 1.0]],
+    print("BOAT experiment hompographies decomposition")
+    print_Hs_decomposition(Hs_boat)
 
-        [[-0.48367041358997964, -0.2472935325077872, 870.2215120216712],
-         [0.29085746679198893, -0.45733473891783305, 396.1604918833091],
-         [-3.578663704630333E-6, 6.880007548843957E-5, 1.0]],
-
-        [[-0.20381418476462312, 0.3510201271914591, 247.1085214229702],
-         [-0.3499531830464912, -0.1975486500576974, 466.54576370699766],
-         [-1.5735788289619667E-5, 1.0242951905091244E-5, 1.0]],
-
-        [[0.30558415717792214, 0.12841186681168829, 200.94588793078017],
-         [-0.12861248979242065, 0.3067557133397112, 133.77000196887894],
-         [2.782320090398499E-6, 5.770764104061954E-6, 1.0]],
-
-        [[-0.23047631546234373, -0.10655686701035443, 583.3200507850402],
-         [0.11269946585180685, -0.20718914340861153, 355.2381263740649],
-         [-3.580280012615393E-5, 3.2283960511548054E-5, 1.0]],
+    num_features = 8000
+    kornia_sift_descriptors = [
+        NumpyKorniaSiftDescriptor(num_features=num_features),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False),
+        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[-0.25, -0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.25, -0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.5, -0.5]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.5, 0.5]),
     ]
-    Hs_bark = np.array(Hs_bark)
-    files_bark = [f"bark/img{i + 1}.ppm" for i in range(6)]
-    imgs_bark = read_imgs(files_bark, show=False)
-
-    adj_lin2 = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25], q_adjustment=[0.11, 0.11])
-    adj_lin3 = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25], q_adjustment=[0.22, 0.22])
-    adj_lin4 = AdjustedSiftDescriptor(adjustment=[0.375, 0.375], q_adjustment=[-0.08, -0.08])
-    adj_lin5 = AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.13, 0.13])
 
     # !!!
-    others = [
-        #!!!
-        AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.09, 0.09]),
-        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0925, 0.0925]),
+    cv_sift_descriptors = [
+            "SIFT",
+            AdjustedSiftDescriptor(adjustment=[0.25, 0.25]),
+            AdjustedSiftDescriptor(adjustment=[-0.25, -0.25]),
+            AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.09, 0.09]),
+            AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11]),
+            AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.2, -0.2]),
+            AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.25, -0.25]),
+        ]
 
+    # adj_lin2 = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25], q_adjustment=[0.11, 0.11])
+    # adj_lin3 = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25], q_adjustment=[0.22, 0.22])
+    # adj_lin4 = AdjustedSiftDescriptor(adjustment=[0.375, 0.375], q_adjustment=[-0.08, -0.08])
+    # adj_lin5 = AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.13, 0.13])
+
+    # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0925, 0.0925]),
         # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.2, 0.2]),
         # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0, 0.0]),
         # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[-0.1, -0.1]),
@@ -294,8 +326,6 @@ def main():
         # AdjustedSiftDescriptor(adjustment=[0.21, 0.21], q_adjustment=[-0.2, -0.2]),
         # AdjustedSiftDescriptor(adjustment=[0.23, 0.23], q_adjustment=[-0.2, -0.2]),
 
-        AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.2, -0.2]),
-
         # AdjustedSiftDescriptor(adjustment=[0.27, 0.27], q_adjustment=[-0.2, -0.2]),
         # AdjustedSiftDescriptor(adjustment=[0.29, 0.29], q_adjustment=[-0.2, -0.2]),
         # AdjustedSiftDescriptor(adjustment=[0.31, 0.31], q_adjustment=[-0.2, -0.2]),
@@ -304,12 +334,9 @@ def main():
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.22, -0.22]),
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.23, -0.23]),
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.24, -0.24]),
-        # for the sake of aesthetics/symetry
-        AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.25, -0.25]),
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.30, -0.30]),
-   ]
 
-    run_exp("sift", Hs_bark, imgs_bark, "bark")
+    # run_exp("sift", Hs_bark, imgs_bark, "bark")
     # run_exp("adjusted_sift", Hs_bark, imgs_bark, "bark")
     # run_exp("adjusted_sift_negative", Hs_bark, imgs_bark, "bark")
     # run_exp("sift_kornia", Hs_bark, imgs_bark, "bark")
@@ -318,10 +345,12 @@ def main():
     # run_exp("adjusted_sift_kornia_negative", Hs_bark, imgs_bark, "bark")
     # run_exp("adjusted_sift_kornia_double_negative", Hs_bark, imgs_bark, "bark")
     # run_exp("adjusted_sift_linear", Hs_bark, imgs_bark, "bark")
-    for other in others:
+    # for other in cv_sift_descriptors:
+    #     run_exp(other, Hs_bark, imgs_bark, "bark")
+    for other in kornia_sift_descriptors:
         run_exp(other, Hs_bark, imgs_bark, "bark")
 
-    run_exp("sift", Hs_boat, imgs_boat, "boat")
+    # run_exp("sift", Hs_boat, imgs_boat, "boat")
     # run_exp("adjusted_sift", Hs_boat, imgs_boat, "boat")
     # run_exp("adjusted_sift_negative", Hs_boat, imgs_boat, "boat")
     # run_exp("sift_kornia", Hs_boat, imgs_boat, "boat")
@@ -330,11 +359,13 @@ def main():
     # run_exp("adjusted_sift_kornia_negative", Hs_boat, imgs_boat, "boat")
     # run_exp("adjusted_sift_kornia_double_negative", Hs_boat, imgs_boat, "boat")
     # run_exp("adjusted_sift_linear", Hs_boat, imgs_boat, "boat")
-    for other in others:
-        run_exp(other, Hs_bark, imgs_bark, "boat")
+    # for other in cv_sift_descriptors:
+    #     run_exp(other, Hs_boat, imgs_boat, "boat")
+    for other in kornia_sift_descriptors:
+        run_exp(other, Hs_boat, imgs_boat, "boat")
 
-    Hs_gt, imgs = Hs_imgs_for_rotation(files_bark[0], show=True)
-    run_exp("sift", Hs_gt, imgs, "synthetic pi rotation")
+    Hs_gt, imgs = Hs_imgs_for_rotation(files_bark[0], show=False)
+    # run_exp("sift", Hs_gt, imgs, "synthetic pi rotation")
     # run_exp("adjusted_sift", Hs_gt, imgs, "synthetic pi rotation")
     # run_exp("adjusted_sift_negative", Hs_gt, imgs, "synthetic pi rotation")
     # run_exp("sift_kornia", Hs_gt, imgs, "synthetic pi rotation")
@@ -347,12 +378,14 @@ def main():
     # run_exp(adj_lin3, Hs_gt, imgs, "synthetic pi rotation")
     # run_exp(adj_lin4, Hs_gt, imgs, "synthetic pi rotation")
     # run_exp(adj_lin5, Hs_gt, imgs, "synthetic pi rotation")
-    for other in others:
+    # for other in cv_sift_descriptors:
+    #     run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
+    for other in kornia_sift_descriptors:
         run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
 
     scales = [scale_int / 10 for scale_int in range(1, 10)]
-    Hs_gt, imgs = Hs_imgs_for_scaling(files_bark[0], scales, show=True)
-    run_exp("sift", Hs_gt, imgs, "synthetic rescaling")
+    Hs_gt, imgs = Hs_imgs_for_scaling(files_bark[0], scales, show=False)
+    # run_exp("sift", Hs_gt, imgs, "synthetic rescaling")
     # run_exp("sift_kornia", Hs_gt, imgs, "synthetic rescaling")
     # run_exp("adjusted_sift_kornia", Hs_gt, imgs, "synthetic rescaling")
     # run_exp("sift_kornia_negative", Hs_gt, imgs, "synthetic rescaling")
@@ -364,7 +397,9 @@ def main():
     # run_exp(adj_lin3, Hs_gt, imgs, "synthetic rescaling")
     # run_exp(adj_lin4, Hs_gt, imgs, "synthetic rescaling")
     # run_exp(adj_lin5, Hs_gt, imgs, "synthetic rescaling")
-    for other in others:
+    # for other in cv_sift_descriptors:
+    #     run_exp(other, Hs_gt, imgs, "synthetic rescaling")
+    for other in kornia_sift_descriptors:
         run_exp(other, Hs_gt, imgs, "synthetic rescaling")
 
     bark_img = Image.open(files_bark[0])
@@ -551,14 +586,14 @@ def Hs_imgs_for_scaling(file, scales, show=False):
     return Hs_gt, imgs
 
 
-def get_detector_special(det, prefix="detector:"):
+def get_detector_special(det, prefix=""):
     if type(det) == str:
         detector = get_descriptor_by_key(det)
         detector_name = det
     else:
         detector = det
         detector_name = str(detector)
-    print(f"{prefix} {detector_name}")
+    print(f"{prefix}{detector_name}")
     return detector
 
 
@@ -670,10 +705,9 @@ def run_identity_exp(detector_names, img, name):
 
 
 def run_exp(detector_name, Hs_gt, imgs, name):
-    print(f"experiment: {name}")
+    print(f"\n\nexperiment: {name}")
     detector = get_detector_special(detector_name)
-
-    ratio_threshold = 0.9
+    ratio_threshold = 0.8
 
     ransac_th = 0.5
     ransac_conf = 0.9999
@@ -696,12 +730,16 @@ def run_exp(detector_name, Hs_gt, imgs, name):
         # print(f"other_i: {other_i}")
         kpts_other, desc_other = detector.detectAndCompute(imgs[other_i], mask=None)
         src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)
+        if len(src_pts) < 4:
+            print(f"WARNING: less than 4 tentatives: {len(src_pts)}")
+            metrics.append(["N/A"] * 3)
+            continue
         H_est, inlier_mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,
                                                maxIters=ransac_iters, ransacReprojThreshold=ransac_th,
                                                confidence=ransac_conf)
 
-        np_show(imgs[0], "original")
-        np_show(imgs[other_i], "query")
+        # np_show(imgs[0], "original")
+        # np_show(imgs[other_i], "query")
 
         H_gt = Hs_gt[other_i - 1]
         # print("found H")
@@ -719,7 +757,7 @@ def run_exp(detector_name, Hs_gt, imgs, name):
         metrics.append([MAE, tent_count, in_count])
         # print(f"tentatives: {tent_count} inliers: {in_count}, ratio: {in_count / tent_count}")
 
-        show_matches = True
+        show_matches = False
         if show_matches:
             plt.figure(figsize=(8, 8))
             info = f"tentatives: {tent_count} inliers: {in_count}, ratio: {in_count / tent_count}"
@@ -729,13 +767,16 @@ def run_exp(detector_name, Hs_gt, imgs, name):
             plt.show(block=False)
 
     for i_m, metric_name in enumerate(metric_names):
-        print(f"metric: {metric_name}")
+        print(f"\nmetric: {metric_name}")
         sum = 0
         for i in range(len(metrics)):
             val = metrics[i][i_m]
             print(val)
-            sum += val
-        print(f"sum: {sum}")
+            if type(val) == str:
+                sum = "N/A"
+            else:
+                sum += val
+        print(f"{sum}")
 
 
 if __name__ == "__main__":

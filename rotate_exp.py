@@ -65,7 +65,7 @@ def detect_robust(detector, img_np):
     return kpts
 
 
-def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
+def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=True):
     print(f"experiment for n rotations: {rotations_90_deg}")
 
     img_np_o = np.array(Image.open(file_path))
@@ -75,10 +75,14 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
     kpts_0_cv = detect_robust(detector, img_np_o)
     kpts_0 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
 
+    sizes_0 = np.array([k.size for k in kpts_0_cv])
+    print(np.histogram(sizes_0))
+
     img_np_r = np.rot90(img_np_o, rotations_90_deg, [0, 1])
 
     kpts_1_cv = detect_robust(detector, img_np_r)
     kpts_1 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_1_cv])
+    sizes_1 = np.array([k.size for k in kpts_1_cv])
 
     coord0_max = img_np_r.shape[0] - 1
     coord1_max = img_np_r.shape[1] - 1
@@ -96,6 +100,7 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
 
     # mnn
     kpts_0_new_1d, kpts_1_new_1d, mask_00, mask_10 = mnn_generic(kpts_0, kpts_1, err_th=err_th)
+
     print("number of filtered kpts: {}, {}".format(kpts_0_new_1d.shape[0], kpts_1_new_1d.shape[0]))
 
     distances = torch.linalg.norm(kpts_1_new_1d - kpts_0_new_1d, axis=1)
@@ -111,13 +116,14 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
                 unmatched_l.append(item)
         return matched_l, unmatched_l
 
-    # visualize the matched and umatched keypoints
+    # visualize the matched and unmatched keypoints
     kpts_0_cv_matched, kpts_0_cv_unmatched = get_lists(kpts_0_cv, mask_00)
     kpts_1_cv_matched, kpts_1_cv_unmatched = get_lists(kpts_1_cv, mask_10)
     print("Matched keypoints: {}".format(len(kpts_0_cv_matched) + len(kpts_1_cv_matched)))
     print("Unmatched keypoints: {}".format(len(kpts_0_cv_unmatched) + len(kpts_1_cv_unmatched)))
-    draw_all_kpts(img_np_o, kpts_0_cv_matched, kpts_1_cv_matched, "matched keypoints")
-    draw_all_kpts(img_np_o, kpts_0_cv_unmatched, kpts_1_cv_unmatched, "unmatched keypoints")
+    if show_img:
+        draw_all_kpts(img_np_o, kpts_0_cv_matched, kpts_1_cv_matched, "matched keypoints")
+        draw_all_kpts(img_np_o, kpts_0_cv_unmatched, kpts_1_cv_unmatched, "unmatched keypoints")
 
     # TODO rename
     mean = (kpts_1_new_1d - kpts_0_new_1d).mean(dim=0)
@@ -126,15 +132,16 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th):
     print("mean: {}, variance: {}, std dev: {}".format(mean, var, stad_dev  ))
 
 
-def rotate_experiment_loop(detector, img_to_show, err_th):
+def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True):
     img_dir = "demo_imgs"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
         for rots in range(1, 4):
-            rotate_experiment(file_path, detector, rots, err_th)
+            rotate_experiment(file_path, detector, rots, err_th, show_img)
 
 
 if __name__ == "__main__":
     from superpoint_local import SuperPointDetector
-    detector = SuperPointDetector()
+    from sift_detectors import AdjustedSiftDescriptor
+    detector = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
     rotate_experiment_loop(detector, img_to_show=1, err_th=4)

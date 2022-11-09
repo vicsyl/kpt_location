@@ -7,7 +7,7 @@ import numpy as np
 class AdjustedSiftDescriptor:
 
     def __str__(self) -> str:
-        return f"abs: {self.abs_adjustment}, q: {self.q_adjustment}"
+        return f"{self.abs_adjustment[0]}/{self.q_adjustment[0]}"
 
     def __init__(self, adjustment, nfeatures=None, lin_adjustment=[0.0, 0.0], sqrt_adjustment=[0.0, 0.0], q_adjustment=[0.0, 0.0]):
         self.cv_sift = cv.SIFT_create() if not nfeatures else cv.SIFT_create(nfeatures=nfeatures)

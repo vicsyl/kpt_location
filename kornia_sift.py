@@ -1,26 +1,33 @@
 import numpy as np
 import torch
 
-from kornia.feature import ScaleSpaceDetector, BlobDoG, LAFOrienter, PassLAF, LocalFeature, LAFDescriptor, SIFTDescriptor
+from kornia.feature import ScaleSpaceDetector, BlobDoG, LAFOrienter, PassLAF, LAFDescriptor, SIFTDescriptor
 from kornia.feature.laf import scale_laf
 from kornia.geometry.subpix import ConvQuadInterp3d
 from kornia.geometry.transform import ScalePyramid
 import kornia.utils as KU
 
-
 import cv2 as cv
 
-from typing import Optional, Tuple
+from scale_pyramid import MyScalePyramid
 
-default_scale_pyramid = ScalePyramid(3, 1.6, 32, double_image=True)
+default_nearest_scale_pyramid = ScalePyramid(3, 1.6, 32, double_image=True)
+lin_interpolation_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
 
 
 class NumpyKorniaSiftDescriptor:
+
+    def __str__(self):
+        n_s = "nearest" if self.nearest else "bilinear"
+        return f"SIFT kornia {n_s} {self.adjustment}"
+
     """
     see kornia.feature.integrated.SIFTFeature
     plus num_features is different (originally 8000) and the ScalePyramid can be overriden for obvious reasons
     """
-    def __init__(self, upright=False, num_features=500, scale_pyramid=default_scale_pyramid, rootsift=True, adjustment=[0.0, 0.0]):
+    def __init__(self, upright=False, num_features=500, nearest=True, rootsift=True, adjustment=[0.0, 0.0]):
+        scale_pyramid = default_nearest_scale_pyramid if nearest else lin_interpolation_scale_pyramid
+        self.nearest = nearest
         self.adjustment = np.array(adjustment)
         self.detector = ScaleSpaceDetector(
             num_features=num_features,
