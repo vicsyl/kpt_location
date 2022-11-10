@@ -347,8 +347,8 @@ def main():
     # run_exp("adjusted_sift_linear", Hs_bark, imgs_bark, "bark")
     # for other in cv_sift_descriptors:
     #     run_exp(other, Hs_bark, imgs_bark, "bark")
-    for other in kornia_sift_descriptors:
-        run_exp(other, Hs_bark, imgs_bark, "bark")
+    # for other in kornia_sift_descriptors:
+    #     run_exp(other, Hs_bark, imgs_bark, "bark")
 
     # run_exp("sift", Hs_boat, imgs_boat, "boat")
     # run_exp("adjusted_sift", Hs_boat, imgs_boat, "boat")
@@ -361,8 +361,8 @@ def main():
     # run_exp("adjusted_sift_linear", Hs_boat, imgs_boat, "boat")
     # for other in cv_sift_descriptors:
     #     run_exp(other, Hs_boat, imgs_boat, "boat")
-    for other in kornia_sift_descriptors:
-        run_exp(other, Hs_boat, imgs_boat, "boat")
+    # for other in kornia_sift_descriptors:
+    #     run_exp(other, Hs_boat, imgs_boat, "boat")
 
     Hs_gt, imgs = Hs_imgs_for_rotation(files_bark[0], show=False)
     # run_exp("sift", Hs_gt, imgs, "synthetic pi rotation")
@@ -380,8 +380,8 @@ def main():
     # run_exp(adj_lin5, Hs_gt, imgs, "synthetic pi rotation")
     # for other in cv_sift_descriptors:
     #     run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
-    for other in kornia_sift_descriptors:
-        run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
+    # for other in kornia_sift_descriptors:
+    #     run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
 
     scales = [scale_int / 10 for scale_int in range(1, 10)]
     Hs_gt, imgs = Hs_imgs_for_scaling(files_bark[0], scales, show=False)
@@ -773,7 +773,7 @@ def run_exp(detector_name, Hs_gt, imgs, name):
             val = metrics[i][i_m]
             print(val)
             if type(val) == str:
-                sum = "N/A"
+                pass
             else:
                 sum += val
         print(f"{sum}")
