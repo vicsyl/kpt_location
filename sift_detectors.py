@@ -19,7 +19,6 @@ class AdjustedSiftDescriptor:
     def adjust_cv_kpts(self, cv_kpts):
         for cv_kpt in cv_kpts:
             # x, y!!
-            # CONTINUE
             pt = np.array(cv_kpt.pt) + self.abs_adjustment + cv_kpt.size * self.lin_adjustment + \
                  math.sqrt(cv_kpt.size) * self.sqrt_adjustment + math.sqrt(cv_kpt.size)**2 * self.q_adjustment
             cv_kpt.pt = tuple(pt)

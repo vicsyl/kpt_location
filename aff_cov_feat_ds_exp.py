@@ -12,7 +12,7 @@ from sift_detectors import AdjustedSiftDescriptor
 from superpoint_local import SuperPointDetector
 from utils import get_tentatives
 
-# https://www.robots.ox.ac.uk/~vgg/data/affine/
+from hloc_sift import HlocSiftDescriptor
 
 
 def decompose_homographies(Hs):
@@ -47,11 +47,6 @@ def decompose_homographies(Hs):
 
     assert torch.all(affines[:, 2, :2] == 0)
     test_compose_back = pure_homographies @ affines
-    # assert torch.allclose(test_compose_back, Hs, rtol=1e-03, atol=1e-05)
-    # print("allclose check (rtol=1e-02, atol=1e-02): {}".format(torch.allclose(test_compose_back, Hs, rtol=1e-02, atol=1e-02)))
-    # print("allclose check (rtol=1e-03, atol=1e-03): {}".format(torch.allclose(test_compose_back, Hs, rtol=1e-03, atol=1e-03)))
-    # print("allclose check (rtol=1e-03, atol=1e-04): {}".format(torch.allclose(test_compose_back, Hs, rtol=1e-03, atol=1e-04)))
-    # print("allclose check (rtol=1e-03, atol=1e-05): {}".format(torch.allclose(test_compose_back, Hs, rtol=1e-03, atol=1e-05)))
     assert torch.allclose(test_compose_back, Hs, rtol=1e-01, atol=1e-01)
     return pure_homographies, affines
 
@@ -201,25 +196,17 @@ def print_Hs_decomposition(Hs):
         scale = math.sqrt(det)
         affine = affine / scale
 
-        acos00 = math.acos(affine[0, 0]) * 180 / math.pi
-        acos11 = math.acos(affine[1, 1]) * 180 / math.pi
-        asin01 = math.asin(affine[0, 1]) * 180 / math.pi
-        asin10 = -math.asin(affine[1, 0]) * 180 / math.pi
         cos_avg = (affine[0, 0] + affine[1, 1]) / 2.0
         sin_avg = (affine[0, 1] - affine[1, 0]) / 2.0
-        a11 = math.acos(affine[1, 1]) * 180 / math.pi
-        a01 = math.asin(affine[0, 1]) * 180 / math.pi
-        a10 = -math.asin(affine[1, 0]) * 180 / math.pi
         alpha = math.atan2(sin_avg, cos_avg) * 180 / math.pi
-        # if asin01 < 0:
-        #     acos00 = -acos00
-        #     acos11 = -acos11
         pure_homography = pure_homography[0].numpy()
         norm = np.linalg.norm(pure_homography[2, :2])
         print(f"{scale:.3f}\t{alpha:.3f}")
 
 
 def main():
+
+    # https://www.robots.ox.ac.uk/~vgg/data/affine/
 
     Hs_bark = [
         [[0.7022029025774007, 0.4313737491020563, -127.94661199701689],
@@ -279,6 +266,13 @@ def main():
     print("BOAT experiment hompographies decomposition")
     print_Hs_decomposition(Hs_boat)
 
+    hloc_sif_descriptors = [
+        HlocSiftDescriptor(),
+        HlocSiftDescriptor([-0.25, -0.25]),
+        HlocSiftDescriptor([0.25, 0.25]),
+        HlocSiftDescriptor([-0.5, -0.5]),
+    ]
+
     num_features = 8000
     kornia_sift_descriptors = [
         NumpyKorniaSiftDescriptor(num_features=num_features),
@@ -288,6 +282,8 @@ def main():
         NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.5, -0.5]),
         NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[0.25, 0.25]),
         NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.4, 0.4]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, nearest=True, adjustment=[0.4, 0.4]),
         NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.5, 0.5]),
     ]
 
@@ -302,12 +298,7 @@ def main():
             AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.25, -0.25]),
         ]
 
-    # adj_lin2 = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25], q_adjustment=[0.11, 0.11])
-    # adj_lin3 = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25], q_adjustment=[0.22, 0.22])
-    # adj_lin4 = AdjustedSiftDescriptor(adjustment=[0.375, 0.375], q_adjustment=[-0.08, -0.08])
-    # adj_lin5 = AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.13, 0.13])
-
-    # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0925, 0.0925]),
+        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0925, 0.0925]),
         # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.2, 0.2]),
         # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0, 0.0]),
         # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[-0.1, -0.1]),
@@ -336,85 +327,50 @@ def main():
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.24, -0.24]),
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.30, -0.30]),
 
-    # run_exp("sift", Hs_bark, imgs_bark, "bark")
-    # run_exp("adjusted_sift", Hs_bark, imgs_bark, "bark")
-    # run_exp("adjusted_sift_negative", Hs_bark, imgs_bark, "bark")
-    # run_exp("sift_kornia", Hs_bark, imgs_bark, "bark")
-    # run_exp("adjusted_sift_kornia", Hs_bark, imgs_bark, "bark")
-    # run_exp("sift_kornia_negative", Hs_bark, imgs_bark, "bark")
-    # run_exp("adjusted_sift_kornia_negative", Hs_bark, imgs_bark, "bark")
-    # run_exp("adjusted_sift_kornia_double_negative", Hs_bark, imgs_bark, "bark")
-    # run_exp("adjusted_sift_linear", Hs_bark, imgs_bark, "bark")
-    # for other in cv_sift_descriptors:
-    #     run_exp(other, Hs_bark, imgs_bark, "bark")
-    # for other in kornia_sift_descriptors:
+    for other in cv_sift_descriptors:
+        run_exp(other, Hs_bark, imgs_bark, "bark")
+    for other in kornia_sift_descriptors:
+        run_exp(other, Hs_bark, imgs_bark, "bark")
+    # for other in hloc_sif_descriptors:
     #     run_exp(other, Hs_bark, imgs_bark, "bark")
 
-    # run_exp("sift", Hs_boat, imgs_boat, "boat")
-    # run_exp("adjusted_sift", Hs_boat, imgs_boat, "boat")
-    # run_exp("adjusted_sift_negative", Hs_boat, imgs_boat, "boat")
-    # run_exp("sift_kornia", Hs_boat, imgs_boat, "boat")
-    # run_exp("adjusted_sift_kornia", Hs_boat, imgs_boat, "boat")
-    # run_exp("sift_kornia_negative", Hs_boat, imgs_boat, "boat")
-    # run_exp("adjusted_sift_kornia_negative", Hs_boat, imgs_boat, "boat")
-    # run_exp("adjusted_sift_kornia_double_negative", Hs_boat, imgs_boat, "boat")
-    # run_exp("adjusted_sift_linear", Hs_boat, imgs_boat, "boat")
-    # for other in cv_sift_descriptors:
-    #     run_exp(other, Hs_boat, imgs_boat, "boat")
-    # for other in kornia_sift_descriptors:
+    for other in cv_sift_descriptors:
+        run_exp(other, Hs_boat, imgs_boat, "boat")
+    for other in kornia_sift_descriptors:
+        run_exp(other, Hs_boat, imgs_boat, "boat")
+    # for other in hloc_sif_descriptors:
     #     run_exp(other, Hs_boat, imgs_boat, "boat")
 
     Hs_gt, imgs = Hs_imgs_for_rotation(files_bark[0], show=False)
-    # run_exp("sift", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("adjusted_sift", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("adjusted_sift_negative", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("sift_kornia", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("adjusted_sift_kornia", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("sift_kornia_negative", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("adjusted_sift_kornia_negative", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("adjusted_sift_kornia_double_negative", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp("adjusted_sift_linear", Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp(adj_lin2, Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp(adj_lin3, Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp(adj_lin4, Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp(adj_lin5, Hs_gt, imgs, "synthetic pi rotation")
-    # for other in cv_sift_descriptors:
-    #     run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
-    # for other in kornia_sift_descriptors:
+    for other in cv_sift_descriptors:
+        run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
+    for other in kornia_sift_descriptors:
+        run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
+    # for other in hloc_sif_descriptors:
     #     run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
 
     scales = [scale_int / 10 for scale_int in range(1, 10)]
     Hs_gt, imgs = Hs_imgs_for_scaling(files_bark[0], scales, show=False)
-    # run_exp("sift", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("sift_kornia", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("adjusted_sift_kornia", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("sift_kornia_negative", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("adjusted_sift_kornia_negative", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("adjusted_sift_kornia_double_negative", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("adjusted_sift_linear", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp("adjusted_sift_negative", Hs_gt, imgs, "synthetic rescaling")
-    # run_exp(adj_lin2, Hs_gt, imgs, "synthetic rescaling")
-    # run_exp(adj_lin3, Hs_gt, imgs, "synthetic rescaling")
-    # run_exp(adj_lin4, Hs_gt, imgs, "synthetic rescaling")
-    # run_exp(adj_lin5, Hs_gt, imgs, "synthetic rescaling")
-    # for other in cv_sift_descriptors:
-    #     run_exp(other, Hs_gt, imgs, "synthetic rescaling")
+    for other in cv_sift_descriptors:
+        run_exp(other, Hs_gt, imgs, "synthetic pi rotation")
     for other in kornia_sift_descriptors:
         run_exp(other, Hs_gt, imgs, "synthetic rescaling")
+    # for other in hloc_sif_descriptors:
+    #     run_exp(other, Hs_gt, imgs, "synthetic rescaling")
 
     bark_img = Image.open(files_bark[0])
     bark_img = np.array(bark_img)
     boat_img = Image.open(files_boat[0])
     boat_img = np.array(boat_img)
 
-    # detectors_cv = ["sift", "adjusted_sift", "adjusted_sift_negative", "adjusted_sift_linear"]
-    # run_identity_exp(detectors_cv, bark_img, "identity sift cv vanilla vs other variants on bark")
-    # run_identity_exp(detectors_cv, boat_img, "identity sift cv vanilla vs other variants on boat")
-    #
-    # detectors_kornia = ["sift_kornia", "adjusted_sift_kornia", "sift_kornia_negative",
-    #                   "adjusted_sift_kornia_negative", "adjusted_sift_kornia_double_negative"]
-    # run_identity_exp(detectors_kornia, bark_img, "identity sift kornia vanilla vs other variants on bark")
-    # run_identity_exp(detectors_kornia, boat_img, "identity sift kornia vanilla vs other variants on boat")
+    detectors_cv = ["sift", "adjusted_sift", "adjusted_sift_negative", "adjusted_sift_linear"]
+    run_identity_exp(detectors_cv, bark_img, "identity sift cv vanilla vs other variants on bark")
+    run_identity_exp(detectors_cv, boat_img, "identity sift cv vanilla vs other variants on boat")
+
+    detectors_kornia = ["sift_kornia", "adjusted_sift_kornia", "sift_kornia_negative",
+                      "adjusted_sift_kornia_negative", "adjusted_sift_kornia_double_negative"]
+    run_identity_exp(detectors_kornia, bark_img, "identity sift kornia vanilla vs other variants on bark")
+    run_identity_exp(detectors_kornia, boat_img, "identity sift kornia vanilla vs other variants on boat")
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
@@ -467,25 +423,12 @@ def rotate(img, sin_a, cos_a, rotation_index, show=False):
 def scale_img(img, scale, show=False):
 
     H_gt = np.array([
-        [scale, 0., 0.],  # (1 - cos_a) * center_x - sin_a * center_y
-        [0., scale, 0.],  # (1 - cos_a) * center_y + sin_a * center_x],
+        [scale, 0., 0.],
+        [0., scale, 0.],
         [0., 0., 1.],
     ])
 
-    # box = np.array([[0., 0., 1.], [0., h - 1, 1.], [w - 1, 0., 1.], [w - 1, h - 1, 1.]])
-    # box2 = (H_gt @ box.T).T
-    # min_x = box2[:, 0].min()
-    # min_y = box2[:, 1].min()
-    #
-    # H_gt[0, 2] = -min_x
-    # H_gt[1, 2] = -min_y
-    # box3 = (H_gt @ box.T).T
-
-    # print(H_gt)
-
     h, w = img.shape[:2]
-    bb = (w, h) # if rotation_index == 2 else (h, w)
-    # bb = (w, h)
     img_scaled_h = cv.warpPerspective(img, H_gt, (round(w * scale), round(h * scale)), flags=cv.INTER_LINEAR)
     if show:
         plt.figure()
@@ -525,7 +468,6 @@ def np_show(img, title=None):
 
 
 def Hs_imgs_for_rotation(file, show=False):
-    # print(f"file: {file}")
 
     img = Image.open(file)
     img = np.array(img)
@@ -695,13 +637,6 @@ def run_identity_exp(detector_names, img, name):
             print(f"MAE(vec): {MAE}")
             print(f"tent_count: {tent_count}")
             print(f"in_count: {in_count}")
-            print()
-            # metrics.append([MAE, tent_count, in_count])
-
-    # for i_m, metric_name in enumerate(metric_names):
-    #     print(f"metric: {metric_name}")
-    #     for i in range(len(metrics)):
-    #         print(metrics[i][i_m])
 
 
 def run_exp(detector_name, Hs_gt, imgs, name):
@@ -713,15 +648,7 @@ def run_exp(detector_name, Hs_gt, imgs, name):
     ransac_conf = 0.9999
     ransac_iters = 100000
 
-    # for H_gt in Hs_gt:
-    #     pure_homographies, affines = decompose_homographies(torch.from_numpy(H_gt[None]))
-    #     print(f"ph: {pure_homographies}")
-    #     print(f"affs: {affines}")
-
     kpts_0, desc_0 = detector.detectAndCompute(imgs[0], mask=None)
-
-    # sift.
-    # src_pts = np.float32([kpt.pt for kpt in kpts_0]).reshape(-1, 2)
 
     metric_names = ["MAE", "tentatives", "inliers"]
     metrics = []
@@ -738,26 +665,14 @@ def run_exp(detector_name, Hs_gt, imgs, name):
                                                maxIters=ransac_iters, ransacReprojThreshold=ransac_th,
                                                confidence=ransac_conf)
 
-        # np_show(imgs[0], "original")
-        # np_show(imgs[other_i], "query")
-
         H_gt = Hs_gt[other_i - 1]
-        # print("found H")
-        # print(H_est)
-        # print("gt H")
-        # print(H_gt)
-
         MAE = get_visible_part_mean_absolute_reprojection_error(imgs[0], imgs[other_i], H_gt, H_est, metric="L2")
 
-        # print(f"H computed: {H_est}")
-        # print(f"GT: {H_gt}")
-        # print(f"{MAE}")
         tent_count = len(src_pts)
         in_count = inlier_mask.sum()
         metrics.append([MAE, tent_count, in_count])
-        # print(f"tentatives: {tent_count} inliers: {in_count}, ratio: {in_count / tent_count}")
 
-        show_matches = False
+        show_matches = True
         if show_matches:
             plt.figure(figsize=(8, 8))
             info = f"tentatives: {tent_count} inliers: {in_count}, ratio: {in_count / tent_count}"
