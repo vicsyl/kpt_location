@@ -67,6 +67,38 @@ def detect_robust(detector, img_np):
     return kpts
 
 
+def scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, show_img=True):
+
+    img_np_o = np.array(Image.open(file_path))
+    new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
+    img_np_o = img_np_o[:new_h, :new_w]
+
+    # kpts_0 = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
+    # sizes_0 = np.array([k.size for k in kpts_0_cv])
+    # print(np.histogram(sizes_0))
+
+    h, w = img_np_o.shape[:2]
+    img_np_r = cv.resize(img_np_o, dsize=(round(w * scale), round(h * scale)), interpolation=cv.INTER_LINEAR)
+
+    kpts_1_cv, desc_1_cv = detector.detectAndCompute(img_np_r, None)
+    kpts_1_geo = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_1_cv])
+    kpts_1_geo = kpts_1_geo / scale
+
+    for i, e_kpts_1_cv in enumerate(kpts_1_cv):
+        e_kpts_1_cv.pt = (kpts_1_geo[i, 1].item(), kpts_1_geo[i, 0].item())
+
+    # print("number of kpts: {}, {}".format(kpts_0.shape[0], kpts_1_geo.shape[0]))
+
+    ratio_threshold = 0.8
+    kpts_0_new_geo, kpts_1_new_geo, _, _, tentative_matches = get_tentatives(kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, ratio_threshold=ratio_threshold, space_dist_th=100.0)
+    # kpts_0_new_geo = torch.from_numpy(kpts_0_new_geo)
+    # kpts_1_new_geo = torch.from_numpy(kpts_1_new_geo)
+    mask_00 = torch.tensor([t.queryIdx for t in tentative_matches])
+    mask_10 = torch.tensor([t.trainIdx for t in tentative_matches])
+
+    return mask_00, mask_10, kpts_1_geo
+
+
 def rotate_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, rotations_90_deg, show_img=True):
 
     # print(f"experiment for n rotations: {rotations_90_deg}")
@@ -260,13 +292,69 @@ def rotate_detail_experiment_loop(detector, img_to_show, show_img=True):
                 continue
             if kpt_int[1].item() < margin or kpt_int[1].item() > img_np_o.shape[1] - 1 - margin:
                 continue
-            show_me(kpt, img_np_o)
+            show_me_rotate(kpt, img_np_o)
+
+
+def scale_detail_experiment_loop(detector, img_to_show, show_img=True):
+
+    all_kpts = np.zeros((0, 10, 2))
+
+    def open_img(f_p):
+        img_np_o = np.array(Image.open(f_p))
+        new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
+        img_np_o = img_np_o[:new_h, :new_w]
+        return img_np_o
+
+    img_dir = "demo_imgs/hypersim"
+    files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
+    for file_path in files:
+        print(f"\n\nFILE: {file_path}\n")
+
+        img_np_o = open_img(file_path)
+
+        kpts_0_cv, desc_0_cv = detector.detectAndCompute(img_np_o, None)
+        kpts_0_geo = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_0_cv])
+        #kpts_geos = [kpts_0_geo]
+
+        kpts_geos = torch.zeros(len(kpts_0_cv), 10, 2)
+        kpts_geos[:, 0, :] = kpts_0_geo
+
+        mask_00 = torch.ones(len(kpts_0_cv), dtype=bool)
+        for scale_int in range(1, 10):
+            scale = scale_int / 10
+            mask_00_and, mask_10, kpts_1_geo = scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, show_img)
+            mask_00_bool_and = torch.zeros(len(kpts_0_cv), dtype=bool)
+            mask_00_bool_and[mask_00_and] = True
+            mask_00 = mask_00 & mask_00_bool_and
+            # 10 - scale_int => so that original is at 0 and then scale 0.9, 0.8, etc.
+            kpts_geos[mask_00_and, 10 - scale_int, :] = kpts_1_geo[mask_10]
+
+        kpts_geos = kpts_geos[mask_00]
+        # if mask_00.sum() == 0:
+
+        margin = 21
+        for kpt in kpts_geos:
+            kpt_mean = kpt[0]
+            kpt_int = torch.round(kpt_mean)
+            if kpt_int[0].item() < margin or kpt_int[0].item() > img_np_o.shape[0] - 1 - margin:
+                continue
+            if kpt_int[1].item() < margin or kpt_int[1].item() > img_np_o.shape[1] - 1 - margin:
+                continue
+            show_me_scale(kpt, img_np_o, margin=margin)
+            kpt = kpt - kpt_mean
+            scales = torch.from_numpy(np.arange(start=1.0, stop=0.0, step=-0.1))
+            kpt = scales[:, None] * kpt
+            all_kpts = np.vstack((all_kpts, kpt[None]))
+
+    m = all_kpts.mean(axis=0)
+    v = all_kpts.var(axis=0)
+    print(f"mean: {m}, variance: {v}")
 
 
 counter_img = 0
 
 
-def show_me(kpt, img_np, margin=11):
+def show_me_rotate(kpt, img_np, margin=11):
 
     counter = 0
     global counter_img
@@ -374,6 +462,137 @@ def show_me(kpt, img_np, margin=11):
     show(use_cropped_kpts[3], "'real kpt' is actually the mean")
 
 
+def show_me_scale(kpt, img_np, margin=11):
+
+    counter = 0
+    global counter_img
+    counter_img += 1
+
+    print(f"counter: {counter_img}")
+    scale_crop = 5
+    scale_err = 10
+    cur_scale_err = scale_err
+
+    def show(img, title=None):
+        img = img.copy()
+        plt.figure(figsize=(4, 4))
+        # print(f"cur_scale_err: {cur_scale_err}")
+        bound = margin * scale_crop / cur_scale_err
+        # print(f"bound: {bound}")
+
+        quarter = 0.25
+        quarters = round(bound / quarter)
+        while quarters > 6:
+            quarter *= 2
+            quarters = round(bound / quarter)
+
+        labels = [quarter * i for i in range(-quarters, quarters + 1)]
+        tickz = [margin * scale_crop / quarters * i + margin * scale_crop for i in range(-quarters, quarters + 1)]
+        # print(f"labels: {labels}")
+        # print(f"ticks: {tickz}")
+
+        plt.title(title)
+
+        plt.xticks(tickz, labels)
+        plt.yticks(tickz, labels)
+        plt.xlabel("px")
+        plt.ylabel("px", rotation="horizontal")
+
+        # plt.xlim(-bound, bound)
+        plt.imshow(img)
+        plt.subplots_adjust(left=0.15, bottom=0.10, right=1.0, top=1.0, wspace=0, hspace=0)
+        plt.savefig(f"./visualizations/scale_{counter_img}_{counter}.png")
+        plt.show()
+        plt.close()
+
+    kpt_mean = kpt[0]
+    kpt = kpt - kpt_mean
+    kpt_int = torch.round(kpt_mean).to(dtype=int).tolist()
+    # kpt_mean_r = kpt_mean - kpt_int
+
+    fig = plt.figure()
+
+    # TODO - restrict wrt. to the higher values (i.e. right and bottom)
+    left = (kpt_int[1] - 50)
+    right = (kpt_int[1] + 50)
+    if left < 0:
+        right = right - left
+        left = 0
+    top = (kpt_int[0] - 50)
+    bottom = (kpt_int[0] + 50)
+    if top < 0:
+        bottom = bottom - top
+        top = 0
+
+    start = (kpt_int[1] - margin - left, kpt_int[0] - margin - top)
+    end = (kpt_int[1] + margin - left, kpt_int[0] + margin - top)
+
+    # start = (kpt_int[1] - margin, kpt_int[0] - margin)
+    # end = (kpt_int[1] + margin, kpt_int[0] + margin)
+
+    img_show = img_np.copy()[top:bottom, left:right]
+    #img_show = img_np.copy()
+    img_show = cv.rectangle(img_show, start, end, [0, 0, 255], 1)
+    plt.imshow(img_show)
+    # plt.title("original img")
+    fig.axes[0].set_axis_off()
+    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    plt.savefig(f"./visualizations/scale_{counter_img}_{counter}.png")
+    plt.show()
+    plt.close()
+
+    cropped = img_np[kpt_int[0] - margin: kpt_int[0] + margin, kpt_int[1] - margin: kpt_int[1] + margin]
+    cropped = cv.resize(cropped, dsize=(cropped.shape[1] * scale_crop, cropped.shape[0] * scale_crop), interpolation=cv.INTER_LINEAR)
+    use_cropped_only = cropped.copy()
+
+    cross_idx = np.array([[-2, -2], [-1, -1], [0, 0], [1, 1], [2, 2], [2, -2], [1, -1], [-2, 2], [-1, 1]])
+
+    # TODO np.round?
+    yx = cropped.shape[0] // 2
+    cropped[(cross_idx + yx)[:, 0], (cross_idx + yx)[:, 1]] = [0, 0, 255]
+    use_cropped_original = cropped.copy()
+
+    use_cropped_kpts = [None] * 10
+    cur_scale_err = scale_err
+    done = False
+    while not done:
+        cur_cropped = cropped.copy()
+        for i, k in enumerate(kpt):
+            # y, x = k[0].item(), k[1].item()
+            yx = (np.round((k.numpy() * scale_crop * cur_scale_err)) + cropped.shape[0] // 2).astype(dtype=int)
+            # y, x = yx[0], yx[1]
+            ys = (cross_idx + yx)[:, 0]
+            xs = (cross_idx + yx)[:, 1]
+            if ys.max() >= cropped.shape[0] or ys.min() < 0 or xs.max() >= cropped.shape[1] or xs.min() < 0:
+                cur_scale_err /= 1.5
+                print(f"cur_scale_err decreased to {cur_scale_err}")
+                break
+            cur_cropped[ys, xs] = [255, 0, 0]
+            use_cropped_kpts[i] = cur_cropped.copy()
+            if i == 9:
+                done = True
+
+    counter += 1
+    show(use_cropped_only, "crop only")
+    counter += 1
+    show(use_cropped_original, f"original keypoint; scale_err={cur_scale_err}")
+
+    for i in range(10):
+        # if i > 0:
+        #     use_cropped_kpts_rot = np.rot90(use_cropped_kpts[i-1], i, axes=[0, 1])
+        #     counter += 1
+        #     show(use_cropped_kpts_rot, "rotate...")
+        #     use_cropped_kpts_rot = np.rot90(use_cropped_kpts[i], i, axes=[0, 1])
+        #     counter += 1
+        #     show(use_cropped_kpts_rot, "...detect")
+        # title = "rotate back" if i > 0 else "detect"
+        counter += 1
+        show(use_cropped_kpts[i])
+
+    # counter += 1
+    # show(use_cropped_kpts[3], "'real kpt' is actually the mean")
+
+
 def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False):
     img_dir = "demo_imgs/hypersim"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
@@ -387,5 +606,6 @@ if __name__ == "__main__":
     from superpoint_local import SuperPointDetector
     from sift_detectors import AdjustedSiftDescriptor
     detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
-    #rotate_experiment_loop(detector, img_to_show=6, show_img=True, err_th=4, use_mnn=False)
-    rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
+    # rotate_experiment_loop(detector, img_to_show=6, show_img=True, err_th=4, use_mnn=False)
+    # rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
+    scale_detail_experiment_loop(detector, img_to_show=5, show_img=True)
