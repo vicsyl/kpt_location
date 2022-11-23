@@ -52,55 +52,6 @@ def decompose_homographies(Hs):
     return pure_homographies, affines
 
 
-def get_descriptor_by_key(key):
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    key = key.lower()
-    if key == 'sift':
-        return cv.SIFT_create()
-    elif key == 'adjusted_sift':
-        return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], nfeatures=8000)
-    elif key == 'adjusted_sift_negative':
-        return AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
-    elif key == 'adjusted_sift_linear':
-        return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11])
-    elif key == 'sift_kornia':
-        num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features)
-    elif key == 'sift_kornia_negative':
-        num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[-0.25, -0.25])
-    elif key == 'adjusted_sift_kornia_negative':
-        custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
-        num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.25, -0.25])
-    elif key == 'adjusted_sift_kornia_double_negative':
-        custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
-        num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[-0.5, -0.5])
-    elif key == 'adjusted_sift_kornia':
-        custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
-        num_features = 8000
-        return NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False)
-    elif key == 'superpoint':
-        return SuperPointDetector(device=device)
-    elif key == 'adjusted_superpoint':
-        # 3 SE translations
-        translations = np.array([[4, 4], [4, 0], [0, 4]])
-        # 9 translations
-        # translations = np.array([[4, 4], [4, 0], [0, 4], [2, 2], [2, 0], [0, 2], [1, 1], [1, 0], [0, 1]])
-        # 8 centered [4/0] translations
-        # translations = np.array([[4, 4], [4, 0], [0, 4], [-4, -4], [-4, 0], [0, -4], [-4, 4], [4, -4]])
-        translations = []
-        # rotations = range(1, 4)
-        rotations = []
-        # const_adjustment = None
-        const_adjustment = [0.45, 0.30]
-        return SuperPointDetector(device=device, const_adjustment=const_adjustment, translations=translations,
-                                  rotations=rotations)
-    else:
-        raise "unrecognized detector: {}".format(key)
-
-
 def get_visible_part_mean_absolute_reprojection_error(img1, img2, H_gt, H, metric="L2"):
     '''We reproject the image 1 mask to image2 and back to get the visible part mask.
     Then we average the reprojection absolute error over that area'''
@@ -296,6 +247,13 @@ def main():
         # NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.5, 0.5]),
     ]
 
+    fake_descriptors = [
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; +0.25; bilinear"),
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; -0.25; nearest"),
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; +0.25; bilinear"),
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; -0.25; nearest"),
+    ]
+
     # !!!
     cv_sift_descriptors = [
             AdjustedSiftDescriptor(adjustment=[0.0, 0.0]),
@@ -342,9 +300,14 @@ def main():
     #     run_exp(descriptor, Hs_bark, imgs_bark, "bark")
     # for descriptor in hloc_sif_descriptors:
     #     run_exp(descriptor, Hs_bark, imgs_bark, "bark")
-    for descriptor in lowe_sift_descriptors:
-        run_exp(descriptor, Hs_bark, imgs_bark_lowe, "bark", imgs_bark)
-
+    # for descriptor in fake_descriptors:
+    run_exp(fake_descriptors, Hs_bark, imgs_bark, "bark")
+    # for descriptor in lowe_sift_descriptors:
+    #     run_exp(descriptor, Hs_bark, imgs_bark_lowe, "bark", imgs_bark)
+    
+    if True:
+        return
+    
     # for descriptor in cv_sift_descriptors:
     #     run_exp(descriptor, Hs_boat, imgs_boat, "boat")
     # for descriptor in kornia_sift_descriptors:
@@ -571,64 +534,120 @@ def Hs_imgs_for_scaling(file, scales, show=False, mod4=True):
     return Hs_gt, imgs
 
 
-def run_exp(detector, Hs_gt, imgs, name, imgs_extra=None):
+def run_exp(detectors, Hs_gt, imgs, name, imgs_extra=None):
+
+    def is_cuda_descriptor(desc):
+        return type(desc) in [SuperPointDetector, NumpyKorniaSiftDescriptor]
+
     print(f"\n\nexperiment: {name}")
-    print(detector)
+
+    metric_names = ["MAE", "running time", "tentatives", "inliers"]
+
+    data = [[] for _ in enumerate(metric_names)]
+    data_formatted = [[] for _ in enumerate(metric_names)]
+
     ratio_threshold = 0.8
 
     ransac_th = 0.5
     ransac_conf = 0.9999
     ransac_iters = 100000
 
-    kpts_0, desc_0 = detector.detectAndCompute(imgs[0], mask=None)
+    for i_det, descriptor in enumerate(detectors):
 
-    metric_names = ["MAE", "tentatives", "inliers"]
-    metrics = []
+        metrics = []
 
-    for other_i in range(1, len(imgs)):
-        # print(f"other_i: {other_i}")
-        kpts_other, desc_other = detector.detectAndCompute(imgs[other_i], mask=None)
-        src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)
-        if len(src_pts) < 4:
-            print(f"WARNING: less than 4 tentatives: {len(src_pts)}")
-            metrics.append(["N/A"] * 3)
-            continue
-        H_est, inlier_mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,
-                                               maxIters=ransac_iters, ransacReprojThreshold=ransac_th,
-                                               confidence=ransac_conf)
+        kpts_0, desc_0, time_0 = descriptor.detect_compute_measure(imgs[0], mask=None)
+        # metrics.append([None, time_0] * 3 + [time_0])
 
-        if imgs_extra:
-            real_imgs = imgs_extra
-        else:
-            real_imgs = imgs
+        for other_i in range(1, len(imgs)):
+            # print(f"other_i: {other_i}")
 
-        H_gt = Hs_gt[other_i - 1]
-        MAE = get_visible_part_mean_absolute_reprojection_error(real_imgs[0], real_imgs[other_i], H_gt, H_est, metric="L2")
+            kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
+            time = time_0 + time_other
+            src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)
+            if len(src_pts) < 4:
+                print(f"WARNING: less than 4 tentatives: {len(src_pts)}")
+                na = "N/A"
+                metrics.append([na, time, na, na])
+                continue
+            H_est, inlier_mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,
+                                                   maxIters=ransac_iters, ransacReprojThreshold=ransac_th,
+                                                   confidence=ransac_conf)
 
-        tent_count = len(src_pts)
-        in_count = inlier_mask.sum()
-        metrics.append([MAE, tent_count, in_count])
-
-        show_matches = False
-        if show_matches:
-            plt.figure(figsize=(8, 8))
-            info = f"tentatives: {tent_count} inliers: {in_count}, ratio: {in_count / tent_count}"
-            plt.title(info)
-            img = draw_matches(kpts_0, kpts_other, tentative_matches, H_est, H_gt, inlier_mask, real_imgs[0], real_imgs[other_i])
-            plt.imshow(img)
-            plt.show(block=False)
-
-    for i_m, metric_name in enumerate(metric_names):
-        print(f"\nmetric: {metric_name}")
-        sum = 0
-        for i in range(len(metrics)):
-            val = metrics[i][i_m]
-            print(val)
-            if type(val) == str:
-                pass
+            if imgs_extra:
+                real_imgs = imgs_extra
             else:
-                sum += val
-        print(f"{sum}")
+                real_imgs = imgs
+
+            H_gt = Hs_gt[other_i - 1]
+            MAE = get_visible_part_mean_absolute_reprojection_error(real_imgs[0], real_imgs[other_i], H_gt, H_est, metric="L2")
+
+            tent_count = len(src_pts)
+            in_count = inlier_mask.sum()
+            metrics.append([MAE, time, tent_count, in_count])
+
+            show_matches = False
+            if show_matches:
+                plt.figure(figsize=(8, 8))
+                info = f"tentatives: {tent_count} inliers: {in_count}, ratio: {in_count / tent_count}"
+                plt.title(info)
+                img = draw_matches(kpts_0, kpts_other, tentative_matches, H_est, H_gt, inlier_mask, real_imgs[0], real_imgs[other_i])
+                plt.imshow(img)
+                plt.show(block=False)
+
+        detector_info = [s.strip() for s in str(descriptor).split(";")]
+        if len(detector_info) < 3:
+            detector_info + ([" "] * (3-len(detector_info)))
+
+        for i_m, metric_name in enumerate(metric_names):
+            metric_info = []
+            metric_info_formatted = []
+            if i_det == 0:
+                metric_info.append(metric_name)
+            else:
+                metric_info.append(" ")
+            # print(f"\nmetric: {metric_name}")
+            sum = 0
+            sum_formatted = 0
+            for i in range(len(metrics)):
+                val = metrics[i][i_m]
+                if not val:
+                    continue
+                metric_info.append(val)
+                # print(val)
+                if type(val) == str:
+                    metric_info_formatted.append(val)
+                else:
+                    val_formatted = val
+                    if type(val_formatted) in [float, np.float, np.float32, np.float64]:
+                        val_formatted = f"{val_formatted:.3f}"
+                    metric_info_formatted.append(val_formatted)
+                    if type(val_formatted) == str:
+                        sum_formatted += float(val_formatted)
+                    else:
+                        sum_formatted += val_formatted
+                    sum += val
+            metric_info.append(sum)
+            if type(sum_formatted) == float:
+                metric_info_formatted.append(f"{sum_formatted:.3f}")
+            else:
+                metric_info_formatted.append(str(int(sum_formatted)))
+            # print(f"{sum}")
+            data[i_m].append(detector_info + metric_info)
+            data_formatted[i_m].append(detector_info + metric_info_formatted)
+
+    def print_data(d, i):
+        print(f"{metric_names[i]}:")
+        s = ""
+        for i in range(len(d[0])):
+            s += "\t".join([str(d[j][i]) for j in range(len(d))]) + "\n"
+        print(s)
+    print("Unformatted data")
+    for i, d in enumerate(data):
+        print_data(d, i)
+    print("Formatted data")
+    for i, d in enumerate(data_formatted):
+        print_data(d, i)
 
 
 if __name__ == "__main__":
