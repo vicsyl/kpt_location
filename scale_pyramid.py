@@ -8,8 +8,7 @@ from kornia.filters import gaussian_blur2d
 from typing import List, Tuple
 
 
-# copied from kornia, the only change is bilinear subsumpling in the pyramid
-# - see the line marked with (***)
+# copied from kornia
 class MyScalePyramid(nn.Module):
     r"""Create an scale pyramid of image, usually used for local feature detection.
 
@@ -37,7 +36,14 @@ class MyScalePyramid(nn.Module):
         >>> sp, sigmas, pds = ScalePyramid(3, 15)(input)
     """
 
-    def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False):
+    def __str__(self):
+        return f"interpolation={self.interpolation_mode}_double_img={self.double_image}_init_sigma={self.init_sigma}"
+
+    def str_short(self):
+        return f"interpolation={self.interpolation_mode}"
+
+    def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False,
+                 use_bilinear=True, rotate90_gauss=0, rotate90_interpolation=0):
         super().__init__()
         # 3 extra levels are needed for DoG nms.
         self.n_levels = n_levels
@@ -47,6 +53,9 @@ class MyScalePyramid(nn.Module):
         self.border = min_size // 2 - 1
         self.sigma_step = 2 ** (1.0 / float(self.n_levels))
         self.double_image = double_image
+        self.interpolation_mode = 'bilinear' if use_bilinear else 'nearest'
+        self.rotate90_gauss = rotate90_gauss
+        self.rotate90_interpolation = rotate90_interpolation
 
     def __repr__(self) -> str:
         return (
@@ -74,6 +83,34 @@ class MyScalePyramid(nn.Module):
             + ')'
         )
 
+    def gaussian_blur2d(self, x, ksize, sigma):
+        if self.rotate90_gauss != 0:
+            x = torch.rot90(x, self.rotate90_gauss, (2, 3))
+        x = gaussian_blur2d(x, (ksize, ksize), (sigma, sigma))
+        if self.rotate90_gauss != 0:
+            x = torch.rot90(x, 4 - self.rotate90_gauss, (2, 3))
+        return x
+
+    def interpolate_factor2(self, x):
+        if self.rotate90_interpolation != 0:
+            x = torch.rot90(x, self.rotate90_interpolation, (2, 3))
+        x = F.interpolate(x, scale_factor=2.0, mode='bilinear', align_corners=False)
+        if self.rotate90_interpolation != 0:
+            x = torch.rot90(x, 4 - self.rotate90_interpolation, (2, 3))
+        return x
+
+    def interpolate_size(self, x, size, mode):
+        if self.rotate90_interpolation != 0:
+            x = torch.rot90(x, self.rotate90_interpolation, (2, 3))
+            if self.rotate90_interpolation % 2 == 1:
+                size = (size[1], size[0])
+        x = F.interpolate(
+            x, size=size, mode=mode
+        )
+        if self.rotate90_interpolation != 0:
+            x = torch.rot90(x, 4 - self.rotate90_interpolation, (2, 3))
+        return x
+
     def get_kernel_size(self, sigma: float):
         ksize = int(2.0 * 4.0 * sigma + 1.0)
 
@@ -90,7 +127,7 @@ class MyScalePyramid(nn.Module):
         cur_sigma = 0.5
         # Same as in OpenCV up to interpolation difference
         if self.double_image:
-            x = F.interpolate(input, scale_factor=2.0, mode='bilinear', align_corners=False)
+            x = self.interpolate_factor2(input)
             pixel_distance = 0.5
             cur_sigma *= 2.0
         else:
@@ -98,7 +135,7 @@ class MyScalePyramid(nn.Module):
         if self.init_sigma > cur_sigma:
             sigma = max(math.sqrt(self.init_sigma**2 - cur_sigma**2), 0.01)
             ksize = self.get_kernel_size(sigma)
-            cur_level = gaussian_blur2d(x, (ksize, ksize), (sigma, sigma))
+            cur_level = self.gaussian_blur2d(x, ksize, sigma)
             cur_sigma = self.init_sigma
         else:
             cur_level = x
@@ -125,16 +162,13 @@ class MyScalePyramid(nn.Module):
                 if ksize % 2 == 0:
                     ksize += 1
 
-                cur_level = gaussian_blur2d(cur_level, (ksize, ksize), (sigma, sigma))
+                cur_level = self.gaussian_blur2d(cur_level, ksize, sigma)
                 cur_sigma *= self.sigma_step
                 pyr[-1].append(cur_level)
                 sigmas[-1][:, level_idx] = cur_sigma
                 pixel_dists[-1][:, level_idx] = pixel_distance
             _pyr = pyr[-1][-self.extra_levels]
-            nextOctaveFirstLevel = F.interpolate(
-                # (***) THE only change!!! (was "mode='nearest'") - see the comment on the next line
-                _pyr, size=(_pyr.size(-2) // 2, _pyr.size(-1) // 2), mode='bilinear'
-            )  # Nearest matches OpenCV SIFT
+            nextOctaveFirstLevel = self.interpolate_size(_pyr, size=(_pyr.size(-2) // 2, _pyr.size(-1) // 2), mode=self.interpolation_mode)
             pixel_distance *= 2.0
             cur_sigma = self.init_sigma
             if min(nextOctaveFirstLevel.size(2), nextOctaveFirstLevel.size(3)) <= self.min_size:
