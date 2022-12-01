@@ -104,6 +104,6 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
         lafs = scale_laf(lafs, self.scaling_coef)
         with torch.no_grad():
             descs = self.descriptor(img_t, lafs)
-            descs = descs[0].numpy()
+            descs = descs[0].cpu().numpy()
         # TODO
         return kpts, descs
