@@ -9,8 +9,9 @@ import PIL
 from PIL import Image
 
 from utils import get_tentatives
-# from prepare_data import scale_pil
+from prepare_data import scale_pil
 from lowe_sift_file_descriptor import LoweSiftDescriptor
+from kornia_sift import NumpyKorniaSiftDescriptor
 
 
 class Counter:
@@ -85,7 +86,7 @@ def scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, s
 
     img_pil = Image.open(file_path)
 
-    img_pil, scale = None, None # scale_pil(img_pil, scale, {"integer_scale": True}, show=False)
+    img_pil, scale = scale_pil(img_pil, scale, {"integer_scale": True}, show=False)
     img_np_r = np.array(img_pil)
 
     kpts_1_cv, desc_1_cv = detector.detectAndCompute(img_np_r, None)
@@ -154,7 +155,6 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=Tr
     kpts_0_cv, desc_0_cv = detector.detectAndCompute(img_np_o, None)
 
     img_np_r = np.rot90(img_np_o, rotations_90_deg, [0, 1])
-
     kpts_1_cv, desc_1_cv = detector.detectAndCompute(img_np_r, None)
 
     rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, use_mnn, err_th, show_img)
@@ -190,6 +190,9 @@ def rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0
     else:
         ratio_threshold = 0.8
         kpts_0_new_geo, kpts_1_new_geo, _, _, tentative_matches = get_tentatives(kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, ratio_threshold=ratio_threshold, space_dist_th=3.0)
+        # get indices of "ideal" kpts...
+        indices = np.abs(kpts_0_new_geo[:, 0] - kpts_1_new_geo[:, 0] - 0.5).argsort()
+
         kpts_0_new_geo = torch.from_numpy(kpts_0_new_geo)
         kpts_1_new_geo = torch.from_numpy(kpts_1_new_geo)
         mask_00 = torch.tensor([t.queryIdx for t in tentative_matches])
@@ -313,7 +316,7 @@ def prepare_lowe_rotation():
 
     # img_dir = "demo_imgs/hypersim"
     # files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
-    files = [f"bark/img1.ppm"]
+    files = [f"demo_imgs/bark/img1.ppm"]
     for i, file_path in enumerate(files):
         img_np = open_img(file_path)
         cv.imwrite(f"demo_imgs/lowe_all/imgs/pure_rotation_{i}_rot_0.pgm", img_np)
@@ -327,12 +330,12 @@ def prepare_lowe_all():
     prepare_lowe_rotation()
 
     import shutil
-    files_bark = [f"bark/{f}" for f in sorted(list(os.listdir("bark"))) if f.endswith(".ppm")]
+    files_bark = [f"demo_imgs/bark/{f}" for f in sorted(list(os.listdir("bark"))) if f.endswith(".ppm")]
     for file in files_bark:
         img = np.array(Image.open(file))
         img = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
         cv.imwrite(f"demo_imgs/lowe_all/imgs/bark_{file[-5]}.pgm", img)
-    files_boat = [f"boat/{f}" for f in sorted(list(os.listdir("boat"))) if f.endswith(".pgm")]
+    files_boat = [f"demo_imgs/boat/{f}" for f in sorted(list(os.listdir("boat"))) if f.endswith(".pgm")]
     for file in files_boat:
         shutil.copyfile(file, f"demo_imgs/lowe_all/imgs/boat_{file[-5]}.pgm")
 
@@ -375,7 +378,7 @@ def prepare_lowe_scaling():
 
     # img_dir = "demo_imgs/hypersim"
     # files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
-    files = [f"bark/img1.ppm"]
+    files = [f"demo_imgs/bark/img1.ppm"]
     for lanczos in [False, True]:
         for resized_lin_pil in [False, True]:
             if lanczos and resized_lin_pil:
@@ -404,7 +407,7 @@ def scale_experiment_lowe(img_to_show, show_img=True):
     # CONTINUE
     # for i in range(5):
     #     for scale om
-    img_dir = f"lowe/imgs_scaling/{i}_rot_{j}.key"
+    img_dir = f"demo_imgs/lowe/imgs_scaling/{i}_rot_{j}.key"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
         print(f"\n\nFILE: {file_path}\n")
@@ -895,11 +898,11 @@ def rotate_lowe_exp():
     err_th = 10
     show_img = True
     for i in range(5):
-        img_o = open_img(f"lowe/img_rotation/{i}_rot_3.pgm")
-        kpts_0_cv, desc_0_cv = desc.detectAndCompute(f"lowe/{i}_rot_3.pgm.key")
+        img_o = open_img(f"demo_imgs/lowe/img_rotation/{i}_rot_3.pgm")
+        kpts_0_cv, desc_0_cv = desc.detectAndCompute(f"demo_imgs/lowe/{i}_rot_3.pgm.key")
         for j in range(3):
-            img_r = open_img(f"lowe/img_rotation/{i}_rot_{j}.pgm")
-            kpts_1_cv, desc_1_cv = desc.detectAndCompute(f"lowe/{i}_rot_{j}.pgm.key")
+            img_r = open_img(f"demo_imgs/lowe/img_rotation/{i}_rot_{j}.pgm")
+            kpts_1_cv, desc_1_cv = desc.detectAndCompute(f"demo_imgs/lowe/{i}_rot_{j}.pgm.key")
             rotations = j + 1
             rotate_exp_from_kpts(img_o, img_r, rotations, kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, use_mnn, err_th, show_img)
 
@@ -907,9 +910,10 @@ def rotate_lowe_exp():
 if __name__ == "__main__":
     #from superpoint_local import SuperPointDetector
     from sift_detectors import AdjustedSiftDescriptor
-    detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
+    # detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
+    detector = NumpyKorniaSiftDescriptor()
     #detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
-    rotate_experiment_loop(detector, img_to_show=6, show_img=True, err_th=4, use_mnn=False)
+    rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
     # rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
     # scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
     # prepare_lowe(img_to_show=5)
