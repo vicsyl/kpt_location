@@ -5,7 +5,8 @@ import cv2 as cv
 from dataclasses import dataclass
 from typing import Callable
 from config import get_detector_by_key
-
+from kornia_sift import NumpyKorniaSiftDescriptor
+from sift_detectors import AdjustedSiftDescriptor
 
 @dataclass(init=True, repr=True, eq=False, order=False, unsafe_hash=False, frozen=False)
 class SyntheticConf:
@@ -32,7 +33,7 @@ def simple_corner_synth_builder(corner_type, radius, max_int=255.0):
         distances_x = (np.abs(xs - kpt_center_x) > radius).astype(dtype=int)
         fact_distances_y = (ys <= conf.kpt_loc[0] - radius if corner_type[0] == "S" else ys >= conf.kpt_loc[0] + radius).astype(int) * max_dst
         distances_x = distances_x + fact_distances_y
-        return (np.minimum(distances_y, distances_x) == 0).astype(dtype=np.uint8) * int(max_int)
+        return (np.minimum(distances_y, distances_x) > 1).astype(dtype=np.uint8) * int(max_int)
 
     return to_ret
 
@@ -177,15 +178,27 @@ def main():
     img_size = (101, 101)
     kpt_loc = (50.0, 50.0)
     dist_to_grey_fncs = [
-        corner_synth_builder("SE", pyramid_distance_builder(radius=2.5), radius=2.5),
         simple_corner_synth_builder("SE", radius=2),
-        gauss_dist_to_grey_builder(sigma=2),
-        gauss_dist_to_grey_builder(sigma=4),
-        gauss_dist_to_grey_builder(sigma=6),
-        gauss_dist_to_grey_builder(sigma=8),
-        hyperbolic_spike_builder(eps=0.1),
-        hyperbolic_spike_builder(eps=1.0),
-        hyperbolic_spike_builder(eps=5.0),
+        corner_synth_builder("SE", pyramid_distance_builder(radius=2.5), radius=2.5),
+
+        # gauss_dist_to_grey_builder(sigma=0.1),
+        # gauss_dist_to_grey_builder(sigma=0.2),
+        #
+        # gauss_dist_to_grey_builder(sigma=0.5),
+        # gauss_dist_to_grey_builder(sigma=1),
+
+        gauss_dist_to_grey_builder(sigma=3.0),
+
+        # gauss_dist_to_grey_builder(sigma=4),
+        # gauss_dist_to_grey_builder(sigma=6),
+        # gauss_dist_to_grey_builder(sigma=8),
+        # hyperbolic_spike_builder(eps=0.1),
+        # hyperbolic_spike_builder(eps=1.0),
+        # hyperbolic_spike_builder(eps=5.0),
+
+        # hyperbolic_spike_builder(eps=0.5),
+        # hyperbolic_spike_builder(eps=0.2),
+        # hyperbolic_spike_builder(eps=0.1),
     ]
     confs = [SyntheticConf(
         img_size=img_size,
@@ -193,34 +206,39 @@ def main():
         dist_to_grey_fnc=f
     ) for f in dist_to_grey_fncs]
 
-    detector_names = ["sift", "superpoint"]
+    detectors = [AdjustedSiftDescriptor(adjustment=[0., 0.]),
+                 NumpyKorniaSiftDescriptor(num_features=10)]
 
     errors = []
 
     for shift_index in range(0, 1):
         shift = shift_index * 5
         for conf in confs:
-            conf.kpt_loc = (kpt_loc[0] + shift, kpt_loc[1] + shift)
-            img = get_synthetic_image(conf)
+            for detector in detectors:
 
-            detector_name = detector_names[0]
-            detector = get_detector_by_key(detector_name)
-            kpts = detector.detect(img, None)
+                if type(detector) == "str":
+                    detector = get_detector_by_key(detector)
 
-            print("conf: {}".format(conf))
-            best_kpt = analyze_kpts(kpts, img, conf, detector_name)
+                conf.kpt_loc = (kpt_loc[0] + shift, kpt_loc[1] + shift)
+                img = get_synthetic_image(conf)
 
-            print("kpts: {}".format(len(kpts)))
-            if not best_kpt:
-                print("NO KPT DETECTED")
-                continue
-            kpt_loc_det = np.array([best_kpt.pt[1], best_kpt.pt[0]])
-            print("kpt loc as detected: {}".format(kpt_loc_det))
-            kpt_loc_gt = np.array(list(conf.kpt_loc))
-            print("kpt loc gt: {}".format(kpt_loc_gt))
-            err = kpt_loc_det - kpt_loc_gt
-            print("err: {}".format(err))
-            errors.append(err)
+                kpts = detector.detect(img, None)
+
+                print(f"detector: {detector}")
+                print(f"conf: {conf}")
+                best_kpt = analyze_kpts(kpts, img, conf, detector)
+
+                print("kpts: {}".format(len(kpts)))
+                if not best_kpt:
+                    print("NO KPT DETECTED")
+                    continue
+                kpt_loc_det = np.array([best_kpt.pt[1], best_kpt.pt[0]])
+                print("kpt loc as detected: {}".format(kpt_loc_det))
+                kpt_loc_gt = np.array(list(conf.kpt_loc))
+                print("kpt loc gt: {}".format(kpt_loc_gt))
+                err = kpt_loc_det - kpt_loc_gt
+                print("err: {}".format(err))
+                errors.append(err)
 
     print("All errors: {}".format(errors))
 

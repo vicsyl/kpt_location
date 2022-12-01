@@ -223,6 +223,9 @@ class HardnetBasedModule(BasicModule):
         super().__init__(conf)
         hardnet = HardNet(pretrained=conf['train']['pretrained'])
         self.feature_extractor = hardnet.features
+        # TODO: 2
+        # heat - map
+        # take or kill exponent
         self.feature_extractor[0] = nn.Conv2d(3, 32, kernel_size=3, padding=1, bias=False)
         # foo = True
         # if foo:

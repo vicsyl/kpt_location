@@ -429,6 +429,7 @@ def process_patches_for_file_simple(file_path,
 
     scale = ds_config['down_scale']
     # convert and show the image
+
     img_or, img_r_or, real_scale = get_img_tuple(file_path, scale, ds_config)
 
     augment_index = 0
@@ -502,10 +503,32 @@ def process_patches_for_images(img,
     const_patch_size = ds_config.get('const_patch_size')
     compare = ds_config['compare_patches']
 
+    def get_rotated_img(img_np_o, rotations_90_deg):
+        return np.rot90(img_np_o, rotations_90_deg, [0, 1])
+
+    def get_backprojected_rotation_kpts_and_img_r(kpts_t, rotations_90_deg, img_np_r):
+        coord0_max = img_np_r.shape[0] - 1
+        coord1_max = img_np_r.shape[1] - 1
+        for _ in range(4 - rotations_90_deg):
+            kpts_10_new = coord1_max - kpts_t[:, 1]
+            kpts_11_new = kpts_t[:, 0].clone()
+            kpts_t[:, 0] = kpts_10_new.clone()
+            kpts_t[:, 1] = kpts_11_new.clone()
+            coord1_max, coord0_max = coord0_max, coord1_max
+            img_np_r = np.rot90(img_np_r, 4 - rotations_90_deg, [0, 1]).copy()
+        return kpts_t, img_np_r
+
+    number_of_rotations = 0
+    if number_of_rotations > 0:
+        img_r = get_rotated_img(img_r, number_of_rotations).copy()
+
     # start_time = time.time()
     # either here or given
     kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, ds_config)
+
     kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th * real_scale, const_patch_size, ds_config)
+    if number_of_rotations > 0:
+        kpts_r, img_r = get_backprojected_rotation_kpts_and_img_r(kpts_r, number_of_rotations, img_r)
     # end_time = time.time()
     # print("DETECTTIME {:.4f}.".format(end_time - start_time))
 
@@ -793,6 +816,7 @@ def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
         print("Scale={}".format(scale))
         entry_list = prepare_data(dataset_conf, in_dirs, keys)
         _, errors, _ = get_error_stats(entry_list)
+        print(f"entries for {scale}: {len(errors)}")
         means[i] = errors.mean(axis=0)
         sq_error[i] = (errors ** 2).sum(axis=1).mean()
         std_devs[i] = np.sqrt(errors.var(axis=0)).tolist()

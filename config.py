@@ -2,8 +2,8 @@ from omegaconf import OmegaConf
 import torch
 
 import cv2 as cv
-from kornia_sift import NumpyKorniaSiftDetector
-from sift_detectors import AdjustedSiftDetector
+from kornia_sift import NumpyKorniaSiftDescriptor
+from sift_detectors import AdjustedSiftDescriptor
 from scale_pyramid import MyScalePyramid
 import numpy as np
 from superpoint_local import SuperPointDetector
@@ -61,6 +61,7 @@ def set_config_dir_scale_scheme(dataset_config):
     dataset_config['out_dir'] = "dataset/{}_new_err_{}_files_{}_scale_{}_size_".format(dn, err, max_files, scale).replace(".", "_")
 
 
+# TODO needs a redo
 def get_detector_by_key(dict_key):
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -68,16 +69,17 @@ def get_detector_by_key(dict_key):
         dict_key = dict_key.lower()
         if dict_key == 'sift':
             return cv.SIFT_create()
-        # TODO add "improved kornia SIFT"
-        # custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
-        # detector = NumpyKorniaSiftDetector(scale_pyramid=custom_scale_pyramid)
         elif dict_key == 'adjusted_sift':
-            return AdjustedSiftDetector()
+            return AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
+        elif dict_key == 'adjusted_sift_negative':
+            return AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
+        elif dict_key == 'adjusted_sift_linear':
+            return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11])
         elif dict_key == 'sift_kornia':
-            return NumpyKorniaSiftDetector()
+            return NumpyKorniaSiftDescriptor()
         elif dict_key == 'adjusted_sift_kornia':
-            custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
-            return NumpyKorniaSiftDetector(scale_pyramid=custom_scale_pyramid)
+            #custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
+            return NumpyKorniaSiftDescriptor(nearest=False)
         elif dict_key == 'superpoint':
             return SuperPointDetector(device=device)
         elif dict_key == 'adjusted_superpoint':
