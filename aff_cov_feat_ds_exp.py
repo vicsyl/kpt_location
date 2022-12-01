@@ -16,6 +16,10 @@ from utils import get_tentatives
 from hloc_sift import HlocSiftDescriptor
 
 
+def get_device():
+    return torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+
 def decompose_homographies(Hs):
     """
     :param Hs:(B, 3, 3)
@@ -23,11 +27,11 @@ def decompose_homographies(Hs):
     :return: pure_homographies(B, 3, 3), affine(B, 3, 3)
     """
 
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     B, three1, three2 = Hs.shape
     assert three1 == 3
     assert three2 == 3
 
+    device = get_device()
     def batched_eye_deviced(B, D):
         eye = torch.eye(D, device=device)[None].repeat(B, 1, 1)
         return eye
@@ -139,7 +143,7 @@ def print_Hs_decomposition(Hs):
     print("scale\trotation")
     for H_gt in Hs:
 
-        pure_homography, affine = decompose_homographies(torch.from_numpy(H_gt[None]))
+        pure_homography, affine = decompose_homographies(torch.from_numpy(H_gt[None]).to(get_device()))
 
         affine = affine[0].numpy()
         # print(f"affine: {affine}")
