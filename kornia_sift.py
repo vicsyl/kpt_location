@@ -9,13 +9,14 @@ import kornia.utils as KU
 
 import cv2 as cv
 
+from sift_detectors import BaseDescriptor
 from scale_pyramid import MyScalePyramid
 
 default_nearest_scale_pyramid = ScalePyramid(3, 1.6, 32, double_image=True)
 lin_interpolation_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
 
 
-class NumpyKorniaSiftDescriptor:
+class NumpyKorniaSiftDescriptor(BaseDescriptor):
 
     def __str__(self):
         n_s = "nearest" if self.nearest else "bilinear"
@@ -25,8 +26,10 @@ class NumpyKorniaSiftDescriptor:
     see kornia.feature.integrated.SIFTFeature
     plus num_features is different (originally 8000) and the ScalePyramid can be overriden for obvious reasons
     """
-    def __init__(self, upright=False, num_features=500, nearest=True, rootsift=True, adjustment=[0.0, 0.0]):
-        scale_pyramid = default_nearest_scale_pyramid if nearest else lin_interpolation_scale_pyramid
+    def __init__(self, upright=False, num_features=500, nearest=True, rootsift=True, adjustment=[0.0, 0.0], scale_pyramid=None):
+        super().__init__()
+        if not scale_pyramid:
+            scale_pyramid = default_nearest_scale_pyramid if nearest else lin_interpolation_scale_pyramid
         self.nearest = nearest
         self.adjustment = np.array(adjustment)
         self.detector = ScaleSpaceDetector(
@@ -74,6 +77,25 @@ class NumpyKorniaSiftDescriptor:
         laffs, responses, _ = self.get_lafs_responses(img_np, mask)
         kpts = self.cv_kpt_from_laffs_responses(laffs, responses)
         return kpts
+
+    def detect_compute_measure(self, img, mask):
+
+        if torch.cuda.is_available():
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+
+            start.record()
+            kpts_other, desc_other = self.detectAndCompute(img, mask)
+            end.record()
+
+            # Waits for everything to finish running
+            torch.cuda.synchronize()
+
+            time = start.elapsed_time(end)
+            print(f"returning time: {time} : {type(time)}")
+            return kpts_other, desc_other, time
+        else:
+            return super().detect_compute_measure(img, mask)
 
     def detectAndCompute(self, img, mask):
         lafs, responses, img_t = self.get_lafs_responses(img, mask)

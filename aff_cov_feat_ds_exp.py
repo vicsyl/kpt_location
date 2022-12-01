@@ -183,7 +183,7 @@ def main():
     ]
 
     Hs_bark = np.array(Hs_bark)
-    files_bark = [f"bark/img{i + 1}.ppm" for i in range(6)]
+    files_bark = [f"demo_imgs/bark/img{i + 1}.ppm" for i in range(6)]
     imgs_bark = read_imgs(files_bark, show=False)
     imgs_bark_lowe = [f"demo_imgs/lowe_all/keys/bark_{i + 1}.pgm.key" for i in range(6)]
 
@@ -213,7 +213,7 @@ def main():
          [9.9064973e-05, -5.8498673e-05, 1.0000000e+00]]
     ]
     Hs_boat = np.array(Hs_boat)
-    files_boat = [f"boat/img{i + 1}.pgm" for i in range(6)]
+    files_boat = [f"demo_imgs/boat/img{i + 1}.pgm" for i in range(6)]
     imgs_boat = read_imgs(files_boat, show=False)
     imgs_boat_lowe = [f"demo_imgs/lowe_all/keys/boat_{i + 1}.pgm.key" for i in range(6)]
 
@@ -247,7 +247,7 @@ def main():
         # NumpyKorniaSiftDescriptor(num_features=num_features, nearest=False, adjustment=[0.5, 0.5]),
     ]
 
-    fake_descriptors = [
+    test_descriptors = [
         AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; +0.25; bilinear"),
         AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; -0.25; nearest"),
         AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; +0.25; bilinear"),
@@ -294,40 +294,24 @@ def main():
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.24, -0.24]),
         # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.30, -0.30]),
 
-    # for descriptor in cv_sift_descriptors:
-    #     run_exp(descriptor, Hs_bark, imgs_bark, "bark")
-    # for descriptor in kornia_sift_descriptors:
-    #     run_exp(descriptor, Hs_bark, imgs_bark, "bark")
-    # for descriptor in hloc_sif_descriptors:
-    #     run_exp(descriptor, Hs_bark, imgs_bark, "bark")
-    # for descriptor in fake_descriptors:
-    run_exp(fake_descriptors, Hs_bark, imgs_bark, "bark")
-    # for descriptor in lowe_sift_descriptors:
-    #     run_exp(descriptor, Hs_bark, imgs_bark_lowe, "bark", imgs_bark)
+    # run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
+    run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
+    # run_exp(hloc_sif_descriptors, Hs_bark, imgs_bark, "bark")
+    # run_exp(test_descriptors, Hs_bark, imgs_bark, "bark")
+    # run_exp(lowe_sift_descriptors, Hs_bark, imgs_bark_lowe, "bark", imgs_bark)
     
-    if True:
-        return
-    
-    # for descriptor in cv_sift_descriptors:
-    #     run_exp(descriptor, Hs_boat, imgs_boat, "boat")
-    # for descriptor in kornia_sift_descriptors:
-    #     run_exp(descriptor, Hs_boat, imgs_boat, "boat")
-    # for descriptor in hloc_sif_descriptors:
-    #     run_exp(descriptor, Hs_boat, imgs_boat, "boat")
-    for descriptor in lowe_sift_descriptors:
-        run_exp(descriptor, Hs_boat, imgs_boat_lowe, "boat", imgs_boat)
+    # run_exp(cv_sift_descriptors, Hs_boat, imgs_boat, "boat")
+    run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
+    # run_exp(hloc_sif_descriptors, Hs_boat, imgs_boat, "boat")
+    # run_exp(lowe_sift_descriptors, Hs_boat, imgs_boat_lowe, "boat", imgs_boat)
 
     Hs_gt, imgs = Hs_imgs_for_rotation(files_bark[0], show=False)
     imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
 
-    # for descriptor in cv_sift_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs, "synthetic pi rotation")
-    # for descriptor in kornia_sift_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs, "synthetic pi rotation")
-    # for descriptor in hloc_sif_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs, "synthetic pi rotation")
-    for descriptor in lowe_sift_descriptors:
-        run_exp(descriptor, Hs_gt, imgs_rotation_lowe, "synthetic pi rotation", imgs)
+    # run_exp(cv_sift_descriptors, Hs_gt, imgs, "synthetic pi rotation")
+    run_exp(kornia_sift_descriptors, Hs_gt, imgs, "synthetic pi rotation")
+    # run_exp(hloc_sif_descriptors, Hs_gt, imgs, "synthetic pi rotation")
+    # run_exp(lowe_sift_descriptors, Hs_gt, imgs_rotation_lowe, "synthetic pi rotation", imgs)
 
     scales = [scale_int / 10 for scale_int in range(1, 10)]
     Hs_gt, imgs_backward = Hs_imgs_for_scaling(files_bark[0], scales, show=False, mod4=True)
@@ -347,33 +331,14 @@ def main():
                  #imgs_scale_lowe_lanczos_mod4,
                  imgs_scale_lowe_lanczos]
 
-    # for descriptor in cv_sift_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs_backward, "synthetic rescaling backward")
+    # run_exp(cv_sift_descriptors, Hs_gt, imgs_backward, "synthetic rescaling backward")
     # for descriptor in kornia_sift_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs_backward, "synthetic rescaling backward")
-    # for descriptor in cv_sift_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs, "synthetic rescaling")
-    # for descriptor in kornia_sift_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs, "synthetic rescaling")
-    # for descriptor in hloc_sif_descriptors:
-    #     run_exp(descriptor, Hs_gt, imgs, "synthetic rescaling")
+    # run_exp(kornia_sift_descriptors, Hs_gt, imgs_backward, "synthetic rescaling backward")
+    run_exp(kornia_sift_descriptors, Hs_gt, imgs, "synthetic rescaling")
+    # run_exp(cv_sift_descriptors, Hs_gt, imgs, "synthetic rescaling")
+    # run_exp(hloc_sif_descriptors, Hs_gt, imgs, "synthetic rescaling")
     # for imgs_set in imgs_lowe:
-    #     for descriptor in lowe_sift_descriptors:
-    #         run_exp(descriptor, Hs_gt, imgs_set, f"Lowe: synthetic rescaling - {imgs_set[0]}", imgs)
-
-    bark_img = Image.open(files_bark[0])
-    bark_img = np.array(bark_img)
-    boat_img = Image.open(files_boat[0])
-    boat_img = np.array(boat_img)
-
-    # detectors_cv = ["sift", "adjusted_sift", "adjusted_sift_negative", "adjusted_sift_linear"]
-    # run_identity_exp(detectors_cv, bark_img, "identity sift cv vanilla vs other variants on bark")
-    # run_identity_exp(detectors_cv, boat_img, "identity sift cv vanilla vs other variants on boat")
-    #
-    # detectors_kornia = ["sift_kornia", "adjusted_sift_kornia", "sift_kornia_negative",
-    #                   "adjusted_sift_kornia_negative", "adjusted_sift_kornia_double_negative"]
-    # run_identity_exp(detectors_kornia, bark_img, "identity sift kornia vanilla vs other variants on bark")
-    # run_identity_exp(detectors_kornia, boat_img, "identity sift kornia vanilla vs other variants on boat")
+    #    run_exp(lowe_sift_descriptors, Hs_gt, imgs_set, f"Lowe: synthetic rescaling - {imgs_set[0]}", imgs)
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
