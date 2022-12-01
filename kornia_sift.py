@@ -20,7 +20,7 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
 
     def __str__(self):
         n_s = "nearest" if self.nearest else "bilinear"
-        return f"SIFT kornia {n_s} {self.adjustment}"
+        return f"SIFT kornia {n_s} {self.adjustment.cpu().numpy()}"
 
     """
     see kornia.feature.integrated.SIFTFeature
@@ -31,7 +31,8 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
         if not scale_pyramid:
             scale_pyramid = default_nearest_scale_pyramid if nearest else lin_interpolation_scale_pyramid
         self.nearest = nearest
-        self.adjustment = np.array(adjustment)
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.adjustment = torch.tensor(adjustment, device=device)
         self.detector = ScaleSpaceDetector(
             num_features=num_features,
             resp_module=BlobDoG(),
