@@ -70,6 +70,7 @@ def csv2latex(str):
         ret += " & ".join(tokens) + " \\\\ \n\\hline\n"
     return ret
 
+
 def csv2latex_exps():
 
     r = csv2latex("""OpenCV		VLFeat		Kornia		

@@ -14,6 +14,7 @@ from superpoint_local import SuperPointDetector
 from utils import get_tentatives
 
 from hloc_sift import HlocSiftDescriptor
+from utils import csv2latex
 
 
 def get_device():
@@ -335,14 +336,16 @@ def main():
                  #imgs_scale_lowe_lanczos_mod4,
                  imgs_scale_lowe_lanczos]
 
-    # run_exp(cv_sift_descriptors, Hs_gt, imgs_backward, "synthetic rescaling backward")
-    # for descriptor in kornia_sift_descriptors:
-    # run_exp(kornia_sift_descriptors, Hs_gt, imgs_backward, "synthetic rescaling backward")
+    # run_exp(cv_sift_descriptors, Hs_gt, imgs, "synthetic rescaling")
     run_exp(kornia_sift_descriptors, Hs_gt, imgs, "synthetic rescaling")
     # run_exp(cv_sift_descriptors, Hs_gt, imgs, "synthetic rescaling")
     # run_exp(hloc_sif_descriptors, Hs_gt, imgs, "synthetic rescaling")
+
     # for imgs_set in imgs_lowe:
     #    run_exp(lowe_sift_descriptors, Hs_gt, imgs_set, f"Lowe: synthetic rescaling - {imgs_set[0]}", imgs)
+
+    # run_exp(cv_sift_descriptors, Hs_gt, imgs_backward, "synthetic rescaling backward")
+    # run_exp(kornia_sift_descriptors, Hs_gt, imgs_backward, "synthetic rescaling backward")
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
@@ -573,8 +576,10 @@ def run_exp(detectors, Hs_gt, imgs, name, imgs_extra=None):
             metric_info_formatted = []
             if i_det == 0:
                 metric_info.append(metric_name)
+                metric_info_formatted.append(metric_name)
             else:
                 metric_info.append(" ")
+                metric_info_formatted.append(" ")
             # print(f"\nmetric: {metric_name}")
             sum = 0
             sum_formatted = 0
@@ -602,21 +607,26 @@ def run_exp(detectors, Hs_gt, imgs, name, imgs_extra=None):
             else:
                 metric_info_formatted.append(str(int(sum_formatted)))
             # print(f"{sum}")
-            data[i_m].append(detector_info + metric_info)
+            prepend = []
+            if i_m == 0:
+                prepend = detector_info
+            data[i_m].append(prepend + metric_info)
             data_formatted[i_m].append(detector_info + metric_info_formatted)
 
-    def print_data(d, i):
-        print(f"{metric_names[i]}:")
+    def format_data(d):
         s = ""
         for i in range(len(d[0])):
             s += "\t".join([str(d[j][i]) for j in range(len(d))]) + "\n"
-        print(s)
+        return s
     print("Unformatted data")
-    for i, d in enumerate(data):
-        print_data(d, i)
+    for d in data:
+        print(format_data(d))
     print("Formatted data")
-    for i, d in enumerate(data_formatted):
-        print_data(d, i)
+    for d in data_formatted:
+        print(format_data(d))
+    print("Latex data")
+    for d in data_formatted:
+        print(csv2latex(format_data(d)))
 
 
 if __name__ == "__main__":

@@ -92,8 +92,7 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
             # Waits for everything to finish running
             torch.cuda.synchronize()
 
-            time = start.elapsed_time(end)
-            print(f"returning time: {time} : {type(time)}")
+            time = start.elapsed_time(end) / 1000
             return kpts_other, desc_other, time
         else:
             return super().detect_compute_measure(img, mask)
