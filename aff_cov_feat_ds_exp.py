@@ -155,7 +155,7 @@ def print_Hs_decomposition(Hs):
         cos_avg = (affine[0, 0] + affine[1, 1]) / 2.0
         sin_avg = (affine[0, 1] - affine[1, 0]) / 2.0
         alpha = math.atan2(sin_avg, cos_avg) * 180 / math.pi
-        pure_homography = pure_homography[0].numpy()
+        pure_homography = pure_homography[0].cpu().numpy()
         norm = np.linalg.norm(pure_homography[2, :2])
         print(f"{scale:.3f}\t{alpha:.3f}")
 
