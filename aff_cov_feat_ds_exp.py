@@ -145,7 +145,7 @@ def print_Hs_decomposition(Hs):
 
         pure_homography, affine = decompose_homographies(torch.from_numpy(H_gt[None]).to(get_device()))
 
-        affine = affine[0].numpy()
+        affine = affine[0].cpu().numpy()
         # print(f"affine: {affine}")
 
         det = np.linalg.det(affine)
