@@ -108,7 +108,7 @@ class MyScalePyramid(nn.Module):
             if self.rotate90_interpolation % 2 == 1:
                 size = (size[1], size[0])
         if mode == 'lanczos':
-            pil = T.toPILImage()(x)
+            pil = T.ToPILImage()(x)
             pil.resize(size, resample=Image.LANCZOS) # width, height
             x = T.PILToTensor()(pil).float() / 255.
         else:
