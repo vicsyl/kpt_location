@@ -1,0 +1,1417 @@
+hloc.extractors.dog not found, NPE will shortly follow
+hloc.extractors.dog not found, NPE will shortly follow
+hloc.extractors.dog not found, NPE will shortly follow
+hloc.extractors.dog not found, NPE will shortly follow
+hloc.extractors.dog not found, NPE will shortly follow
+hloc.extractors.dog not found, NPE will shortly follow
+BARK experiment hompographies decomposition
+scale	rotation
+0.822	31.494
+0.541	-150.235
+0.404	119.795
+0.332	22.770
+0.244	-153.391
+
+BOAT experiment hompographies decomposition
+scale	rotation
+0.885	13.972
+0.736	39.582
+0.532	79.841
+0.424	-8.361
+0.358	40.536
+[ INFO:0@1.797] global /Users/vaclav/ownCloud/dev/opencv/modules/core/src/parallel/registry_parallel.impl.hpp (96) ParallelBackendRegistry core(parallel): Enabled backends(3, sorted by priority): ONETBB(1000); TBB(990); OPENMP(980)
+/Users/vaclav/ownCloud/dev/kpt_location/aff_cov_feat_ds_exp.py:431: DeprecationWarning: LANCZOS is deprecated and will be removed in Pillow 10 (2023-07-01). Use Resampling.LANCZOS instead.
+  pil_resized = pil.resize(size = dsize, resample=Image.LANCZOS)
+running experiment: bark
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+/Users/vaclav/ownCloud/dev/kpt_location/aff_cov_feat_ds_exp.py:627: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  if type(val_formatted) in [float, np.float, np.float32, np.float64]:
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+running experiment: boat
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+running experiment: synthetic pi rotation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+running experiment: synthetic rescaling lanczos
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+running experiment: synthetic rescaling homography
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+running experiment: synthetic rescaling linear
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+createInitialImage: INTER_LINEAR
+using linear interpolation
+Unformatted data
+
+
+ experiment: bark
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+1.208037709913427	1.2700537169763526	1.1659569593658268
+1.96335454970296	2.3909112769512446	1.5881003813825156
+1.1635996700112337	1.5527610230290032	0.827105433644812
+0.6118099835963031	0.7709966522416258	0.5218768749361724
+1.0292551476970997	1.3327142852583742	0.8404471603094362
+5.976057060921024	7.3174369544566	4.943486809638763
+
+running time	 	 
+1.5063250064849854	2.031464099884033	2.0156638622283936
+1.6326138973236084	2.672971725463867	2.0984487533569336
+1.6896889209747314	2.8219690322875977	2.1109859943389893
+1.7433538436889648	2.0863771438598633	2.099943161010742
+2.374211072921753	2.2200958728790283	2.129854917526245
+8.946192741394043	11.83287787437439	10.454896688461304
+
+tentatives	 	 
+648	648	648
+568	568	568
+684	684	684
+470	470	470
+287	287	287
+2657	2657	2657
+
+inliers	 	 
+189	189	189
+222	222	222
+423	423	423
+358	358	358
+186	186	186
+1378.0	1378.0	1378.0
+
+
+ experiment: boat
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.2771973380847688	0.31667860200257175	0.25849461329069484
+0.3598626264848218	0.5450613726352838	0.23794442916849978
+0.9537110726643598	0.976992214532872	1.0819008434256054
+0.7456038602941176	0.8003160683391003	0.722721669550173
+5.835221885813149	5.814198096885813	5.877651816608997
+8.171596783341217	8.453246354395642	8.178713372043969
+
+running time	 	 
+3.2103638648986816	2.8694775104522705	2.735198974609375
+3.212489604949951	2.885589838027954	2.8842661380767822
+3.1813461780548096	2.826159715652466	2.6970877647399902
+2.9089386463165283	2.746440887451172	2.6268808841705322
+2.8521599769592285	2.7272801399230957	2.591629981994629
+15.3652982711792	14.054948091506958	13.535063743591309
+
+tentatives	 	 
+2484	2484	2484
+1846	1846	1846
+772	772	772
+573	573	573
+259	259	259
+5934	5934	5934
+
+inliers	 	 
+1005	1005	1005
+845	845	845
+197	197	197
+147	147	147
+50	50	50
+2244.0	2244.0	2244.0
+
+
+ experiment: synthetic pi rotation
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.36094252642463237	0.8611116696027369	0.1390020432815053
+0.7071068857230393	1.4142137714460785	1.8295727356708324e-07
+0.37433734968596816	0.874371377782884	0.1262998094745711
+1.4423867618336397	3.1496968188316994	0.26530203571335
+
+running time	 	 
+1.7296757698059082	2.1075358390808105	1.8925271034240723
+1.9416248798370361	2.0045690536499023	2.033905267715454
+1.843261957168579	2.028031826019287	2.0172462463378906
+5.514562606811523	6.14013671875	5.943678617477417
+
+tentatives	 	 
+3738	3738	3738
+3738	3738	3738
+3738	3738	3738
+11214	11214	11214
+
+inliers	 	 
+3183	3181	3183
+2383	2383	2383
+3061	3059	3062
+8627.0	8623.0	8628.0
+
+
+ experiment: synthetic rescaling lanczos
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.2557015931372549	0.2232065918472652	0.5113206269349845
+0.24848255478662054	0.28811410675381266	0.454172233435858
+0.4043918584686479	0.636367817797692	0.23389591391569647
+0.0776652716343699	0.26529066297743054	0.1765805113549326
+0.1866849130360868	0.1764809573508058	0.33926331684851524
+0.12019533643535539	0.14686928543390013	0.21845776925679125
+0.35467457490808824	0.3687462102353962	0.3709693659364788
+0.17116102829478144	0.22018328897314135	0.1577844557419322
+0.28127387551700367	0.269451864404616	0.2976452995749081
+2.100231006218209	2.59471078577406	2.760089493000097
+
+running time	 	 
+0.9815428256988525	1.0106842517852783	1.0607099533081055
+1.0171878337860107	1.0470161437988281	1.099968671798706
+1.075402021408081	1.1152372360229492	1.1668481826782227
+1.1511189937591553	1.1980020999908447	1.2470011711120605
+1.2553200721740723	1.5038540363311768	1.3581619262695312
+1.350107192993164	1.4563350677490234	1.465843677520752
+1.527721881866455	1.5496041774749756	1.5894532203674316
+1.6721868515014648	1.693620204925537	1.7680437564849854
+1.7903411388397217	1.8413898944854736	1.8976950645446777
+11.820928812026978	12.415743112564087	12.653725624084473
+
+tentatives	 	 
+34	34	34
+170	170	170
+388	388	388
+667	667	667
+1135	1135	1135
+1405	1405	1405
+1781	1781	1781
+2336	2336	2336
+2654	2654	2654
+10570	10570	10570
+
+inliers	 	 
+26	26	26
+161	161	161
+361	361	361
+564	564	564
+1088	1088	1088
+1265	1265	1265
+1533	1533	1533
+2153	2153	2153
+2384	2384	2384
+9535.0	9535.0	9535.0
+
+
+ experiment: synthetic rescaling homography
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.8145293956398348	1.075424003482972	0.6090403686145511
+0.7869018326284762	1.0675617550941945	0.5077501041266179
+0.5795704561121323	0.81773681640625	0.36186754812602123
+0.43432533413756125	0.6452177159926471	0.22548959769454657
+0.3983189847456847	0.5743035920627454	0.22369326846137721
+0.3304473876953125	0.46979725158292485	0.19419563642514298
+0.13547302445555046	0.24048414043351715	0.038965733846028645
+0.10981147117864072	0.18016957800372754	0.040839807348313675
+0.05865381278243719	0.09252481896892872	0.028897872625612744
+3.6480316993756303	5.163219672027907	2.230739937268212
+
+running time	 	 
+1.0320920944213867	1.0579118728637695	1.0540409088134766
+1.07004714012146	1.0939431190490723	1.0900559425354004
+1.1298091411590576	1.1619999408721924	1.1552259922027588
+1.2144882678985596	1.246769905090332	1.2357399463653564
+1.3093011379241943	1.351733922958374	1.410935878753662
+1.4418110847473145	1.4541618824005127	1.4332191944122314
+1.5754220485687256	1.5882911682128906	1.5856359004974365
+1.732668161392212	1.7407732009887695	1.7329261302947998
+1.8505792617797852	1.8454108238220215	1.8771820068359375
+12.356218338012695	12.540995836257935	12.57496190071106
+
+tentatives	 	 
+19	19	19
+127	127	127
+340	340	340
+623	623	623
+929	929	929
+1391	1391	1391
+1779	1779	1779
+2199	2199	2199
+2431	2431	2431
+9838	9838	9838
+
+inliers	 	 
+11	11	11
+87	87	87
+211	211	211
+522	522	522
+729	729	729
+1036	1036	1036
+1356	1356	1356
+1992	1992	1992
+2141	2141	2141
+8085.0	8085.0	8085.0
+
+
+ experiment: synthetic rescaling linear
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.2730502612229102	0.20042509191176472	0.5571455753353973
+0.307560553633218	0.28059398228245547	0.49982162309368194
+0.42378799338745915	0.6546436185151144	0.24492873646854574
+0.0990312065174377	0.269166654698989	0.17628329407935048
+0.16415108685718158	0.15832667325803745	0.3166825858710324
+0.13361473332822713	0.11766823163998673	0.25471259223090276
+0.43658283707363155	0.45504230175142973	0.4409204819623162
+0.17619606965507556	0.21063954471762664	0.17102709003523284
+0.28790909511591095	0.27657488654641543	0.30403316722196694
+2.301883836791052	2.6230809853218195	2.965555146298426
+
+running time	 	 
+0.9887709617614746	1.0491304397583008	1.053987741470337
+1.0234730243682861	1.0856671333312988	1.0915908813476562
+1.0817420482635498	1.1507534980773926	1.1507887840270996
+1.1577320098876953	1.2679872512817383	1.2352068424224854
+1.2624731063842773	1.3288302421569824	1.3316097259521484
+1.361631155014038	1.4237732887268066	1.42252779006958
+1.5072529315948486	1.5572011470794678	1.5341687202453613
+1.6520538330078125	1.747751235961914	1.741161584854126
+1.7596070766448975	1.8724932670593262	1.8854329586029053
+11.79473614692688	12.483587503433228	12.4464750289917
+
+tentatives	 	 
+21	21	21
+138	138	138
+349	349	349
+659	659	659
+1135	1135	1135
+1385	1385	1385
+1716	1716	1716
+2208	2208	2208
+2417	2417	2417
+10028	10028	10028
+
+inliers	 	 
+15	15	15
+96	96	96
+269	269	269
+520	520	520
+998	998	998
+1134	1134	1134
+1256	1256	1256
+1891	1891	1891
+2129	2129	2129
+8308.0	8308.0	8308.0
+
+Formatted data
+
+
+ experiment: bark
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+1.208	1.270	1.166
+1.963	2.391	1.588
+1.164	1.553	0.827
+0.612	0.771	0.522
+1.029	1.333	0.840
+5.976	7.318	4.943
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+running time	 	 
+1.506	2.031	2.016
+1.633	2.673	2.098
+1.690	2.822	2.111
+1.743	2.086	2.100
+2.374	2.220	2.130
+8.946	11.832	10.455
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+tentatives	 	 
+648	648	648
+568	568	568
+684	684	684
+470	470	470
+287	287	287
+2657	2657	2657
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+inliers	 	 
+189	189	189
+222	222	222
+423	423	423
+358	358	358
+186	186	186
+1378	1378	1378
+
+
+ experiment: boat
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.277	0.317	0.258
+0.360	0.545	0.238
+0.954	0.977	1.082
+0.746	0.800	0.723
+5.835	5.814	5.878
+8.172	8.453	8.179
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+running time	 	 
+3.210	2.869	2.735
+3.212	2.886	2.884
+3.181	2.826	2.697
+2.909	2.746	2.627
+2.852	2.727	2.592
+15.364	14.054	13.535
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+tentatives	 	 
+2484	2484	2484
+1846	1846	1846
+772	772	772
+573	573	573
+259	259	259
+5934	5934	5934
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+inliers	 	 
+1005	1005	1005
+845	845	845
+197	197	197
+147	147	147
+50	50	50
+2244	2244	2244
+
+
+ experiment: synthetic pi rotation
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.361	0.861	0.139
+0.707	1.414	0.000
+0.374	0.874	0.126
+1.442	3.149	0.265
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+running time	 	 
+1.730	2.108	1.893
+1.942	2.005	2.034
+1.843	2.028	2.017
+5.515	6.141	5.944
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+tentatives	 	 
+3738	3738	3738
+3738	3738	3738
+3738	3738	3738
+11214	11214	11214
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+inliers	 	 
+3183	3181	3183
+2383	2383	2383
+3061	3059	3062
+8627	8623	8628
+
+
+ experiment: synthetic rescaling lanczos
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.256	0.223	0.511
+0.248	0.288	0.454
+0.404	0.636	0.234
+0.078	0.265	0.177
+0.187	0.176	0.339
+0.120	0.147	0.218
+0.355	0.369	0.371
+0.171	0.220	0.158
+0.281	0.269	0.298
+2.100	2.593	2.760
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+running time	 	 
+0.982	1.011	1.061
+1.017	1.047	1.100
+1.075	1.115	1.167
+1.151	1.198	1.247
+1.255	1.504	1.358
+1.350	1.456	1.466
+1.528	1.550	1.589
+1.672	1.694	1.768
+1.790	1.841	1.898
+11.820	12.416	12.654
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+tentatives	 	 
+34	34	34
+170	170	170
+388	388	388
+667	667	667
+1135	1135	1135
+1405	1405	1405
+1781	1781	1781
+2336	2336	2336
+2654	2654	2654
+10570	10570	10570
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+inliers	 	 
+26	26	26
+161	161	161
+361	361	361
+564	564	564
+1088	1088	1088
+1265	1265	1265
+1533	1533	1533
+2153	2153	2153
+2384	2384	2384
+9535	9535	9535
+
+
+ experiment: synthetic rescaling homography
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.815	1.075	0.609
+0.787	1.068	0.508
+0.580	0.818	0.362
+0.434	0.645	0.225
+0.398	0.574	0.224
+0.330	0.470	0.194
+0.135	0.240	0.039
+0.110	0.180	0.041
+0.059	0.093	0.029
+3.648	5.163	2.231
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+running time	 	 
+1.032	1.058	1.054
+1.070	1.094	1.090
+1.130	1.162	1.155
+1.214	1.247	1.236
+1.309	1.352	1.411
+1.442	1.454	1.433
+1.575	1.588	1.586
+1.733	1.741	1.733
+1.851	1.845	1.877
+12.356	12.541	12.575
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+tentatives	 	 
+19	19	19
+127	127	127
+340	340	340
+623	623	623
+929	929	929
+1391	1391	1391
+1779	1779	1779
+2199	2199	2199
+2431	2431	2431
+9838	9838	9838
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+inliers	 	 
+11	11	11
+87	87	87
+211	211	211
+522	522	522
+729	729	729
+1036	1036	1036
+1356	1356	1356
+1992	1992	1992
+2141	2141	2141
+8085	8085	8085
+
+
+ experiment: synthetic rescaling linear
+
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE	 	 
+0.273	0.200	0.557
+0.308	0.281	0.500
+0.424	0.655	0.245
+0.099	0.269	0.176
+0.164	0.158	0.317
+0.134	0.118	0.255
+0.437	0.455	0.441
+0.176	0.211	0.171
+0.288	0.277	0.304
+2.303	2.624	2.966
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+running time	 	 
+0.989	1.049	1.054
+1.023	1.086	1.092
+1.082	1.151	1.151
+1.158	1.268	1.235
+1.262	1.329	1.332
+1.362	1.424	1.423
+1.507	1.557	1.534
+1.652	1.748	1.741
+1.760	1.872	1.885
+11.795	12.484	12.447
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+tentatives	 	 
+21	21	21
+138	138	138
+349	349	349
+659	659	659
+1135	1135	1135
+1385	1385	1385
+1716	1716	1716
+2208	2208	2208
+2417	2417	2417
+10028	10028	10028
+
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+inliers	 	 
+15	15	15
+96	96	96
+269	269	269
+520	520	520
+998	998	998
+1134	1134	1134
+1256	1256	1256
+1891	1891	1891
+2129	2129	2129
+8308	8308	8308
+
+Latex data
+
+
+ experiment: bark
+
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+MAE \\ 
+\hline
+1.208 & 1.270 & 1.166 \\ 
+\hline
+1.963 & 2.391 & 1.588 \\ 
+\hline
+1.164 & 1.553 & 0.827 \\ 
+\hline
+0.612 & 0.771 & 0.522 \\ 
+\hline
+1.029 & 1.333 & 0.840 \\ 
+\hline
+5.976 & 7.318 & 4.943 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+running time \\ 
+\hline
+1.506 & 2.031 & 2.016 \\ 
+\hline
+1.633 & 2.673 & 2.098 \\ 
+\hline
+1.690 & 2.822 & 2.111 \\ 
+\hline
+1.743 & 2.086 & 2.100 \\ 
+\hline
+2.374 & 2.220 & 2.130 \\ 
+\hline
+8.946 & 11.832 & 10.455 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+tentatives \\ 
+\hline
+648 & 648 & 648 \\ 
+\hline
+568 & 568 & 568 \\ 
+\hline
+684 & 684 & 684 \\ 
+\hline
+470 & 470 & 470 \\ 
+\hline
+287 & 287 & 287 \\ 
+\hline
+2657 & 2657 & 2657 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+inliers \\ 
+\hline
+189 & 189 & 189 \\ 
+\hline
+222 & 222 & 222 \\ 
+\hline
+423 & 423 & 423 \\ 
+\hline
+358 & 358 & 358 \\ 
+\hline
+186 & 186 & 186 \\ 
+\hline
+1378 & 1378 & 1378 \\ 
+\hline
+ \\ 
+\hline
+
+
+ experiment: boat
+
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+MAE \\ 
+\hline
+0.277 & 0.317 & 0.258 \\ 
+\hline
+0.360 & 0.545 & 0.238 \\ 
+\hline
+0.954 & 0.977 & 1.082 \\ 
+\hline
+0.746 & 0.800 & 0.723 \\ 
+\hline
+5.835 & 5.814 & 5.878 \\ 
+\hline
+8.172 & 8.453 & 8.179 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+running time \\ 
+\hline
+3.210 & 2.869 & 2.735 \\ 
+\hline
+3.212 & 2.886 & 2.884 \\ 
+\hline
+3.181 & 2.826 & 2.697 \\ 
+\hline
+2.909 & 2.746 & 2.627 \\ 
+\hline
+2.852 & 2.727 & 2.592 \\ 
+\hline
+15.364 & 14.054 & 13.535 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+tentatives \\ 
+\hline
+2484 & 2484 & 2484 \\ 
+\hline
+1846 & 1846 & 1846 \\ 
+\hline
+772 & 772 & 772 \\ 
+\hline
+573 & 573 & 573 \\ 
+\hline
+259 & 259 & 259 \\ 
+\hline
+5934 & 5934 & 5934 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+inliers \\ 
+\hline
+1005 & 1005 & 1005 \\ 
+\hline
+845 & 845 & 845 \\ 
+\hline
+197 & 197 & 197 \\ 
+\hline
+147 & 147 & 147 \\ 
+\hline
+50 & 50 & 50 \\ 
+\hline
+2244 & 2244 & 2244 \\ 
+\hline
+ \\ 
+\hline
+
+
+ experiment: synthetic pi rotation
+
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+MAE \\ 
+\hline
+0.361 & 0.861 & 0.139 \\ 
+\hline
+0.707 & 1.414 & 0.000 \\ 
+\hline
+0.374 & 0.874 & 0.126 \\ 
+\hline
+1.442 & 3.149 & 0.265 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+running time \\ 
+\hline
+1.730 & 2.108 & 1.893 \\ 
+\hline
+1.942 & 2.005 & 2.034 \\ 
+\hline
+1.843 & 2.028 & 2.017 \\ 
+\hline
+5.515 & 6.141 & 5.944 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+tentatives \\ 
+\hline
+3738 & 3738 & 3738 \\ 
+\hline
+3738 & 3738 & 3738 \\ 
+\hline
+3738 & 3738 & 3738 \\ 
+\hline
+11214 & 11214 & 11214 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+inliers \\ 
+\hline
+3183 & 3181 & 3183 \\ 
+\hline
+2383 & 2383 & 2383 \\ 
+\hline
+3061 & 3059 & 3062 \\ 
+\hline
+8627 & 8623 & 8628 \\ 
+\hline
+ \\ 
+\hline
+
+
+ experiment: synthetic rescaling lanczos
+
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+MAE \\ 
+\hline
+0.256 & 0.223 & 0.511 \\ 
+\hline
+0.248 & 0.288 & 0.454 \\ 
+\hline
+0.404 & 0.636 & 0.234 \\ 
+\hline
+0.078 & 0.265 & 0.177 \\ 
+\hline
+0.187 & 0.176 & 0.339 \\ 
+\hline
+0.120 & 0.147 & 0.218 \\ 
+\hline
+0.355 & 0.369 & 0.371 \\ 
+\hline
+0.171 & 0.220 & 0.158 \\ 
+\hline
+0.281 & 0.269 & 0.298 \\ 
+\hline
+2.100 & 2.593 & 2.760 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+running time \\ 
+\hline
+0.982 & 1.011 & 1.061 \\ 
+\hline
+1.017 & 1.047 & 1.100 \\ 
+\hline
+1.075 & 1.115 & 1.167 \\ 
+\hline
+1.151 & 1.198 & 1.247 \\ 
+\hline
+1.255 & 1.504 & 1.358 \\ 
+\hline
+1.350 & 1.456 & 1.466 \\ 
+\hline
+1.528 & 1.550 & 1.589 \\ 
+\hline
+1.672 & 1.694 & 1.768 \\ 
+\hline
+1.790 & 1.841 & 1.898 \\ 
+\hline
+11.820 & 12.416 & 12.654 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+tentatives \\ 
+\hline
+34 & 34 & 34 \\ 
+\hline
+170 & 170 & 170 \\ 
+\hline
+388 & 388 & 388 \\ 
+\hline
+667 & 667 & 667 \\ 
+\hline
+1135 & 1135 & 1135 \\ 
+\hline
+1405 & 1405 & 1405 \\ 
+\hline
+1781 & 1781 & 1781 \\ 
+\hline
+2336 & 2336 & 2336 \\ 
+\hline
+2654 & 2654 & 2654 \\ 
+\hline
+10570 & 10570 & 10570 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+inliers \\ 
+\hline
+26 & 26 & 26 \\ 
+\hline
+161 & 161 & 161 \\ 
+\hline
+361 & 361 & 361 \\ 
+\hline
+564 & 564 & 564 \\ 
+\hline
+1088 & 1088 & 1088 \\ 
+\hline
+1265 & 1265 & 1265 \\ 
+\hline
+1533 & 1533 & 1533 \\ 
+\hline
+2153 & 2153 & 2153 \\ 
+\hline
+2384 & 2384 & 2384 \\ 
+\hline
+9535 & 9535 & 9535 \\ 
+\hline
+ \\ 
+\hline
+
+
+ experiment: synthetic rescaling homography
+
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+MAE \\ 
+\hline
+0.815 & 1.075 & 0.609 \\ 
+\hline
+0.787 & 1.068 & 0.508 \\ 
+\hline
+0.580 & 0.818 & 0.362 \\ 
+\hline
+0.434 & 0.645 & 0.225 \\ 
+\hline
+0.398 & 0.574 & 0.224 \\ 
+\hline
+0.330 & 0.470 & 0.194 \\ 
+\hline
+0.135 & 0.240 & 0.039 \\ 
+\hline
+0.110 & 0.180 & 0.041 \\ 
+\hline
+0.059 & 0.093 & 0.029 \\ 
+\hline
+3.648 & 5.163 & 2.231 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+running time \\ 
+\hline
+1.032 & 1.058 & 1.054 \\ 
+\hline
+1.070 & 1.094 & 1.090 \\ 
+\hline
+1.130 & 1.162 & 1.155 \\ 
+\hline
+1.214 & 1.247 & 1.236 \\ 
+\hline
+1.309 & 1.352 & 1.411 \\ 
+\hline
+1.442 & 1.454 & 1.433 \\ 
+\hline
+1.575 & 1.588 & 1.586 \\ 
+\hline
+1.733 & 1.741 & 1.733 \\ 
+\hline
+1.851 & 1.845 & 1.877 \\ 
+\hline
+12.356 & 12.541 & 12.575 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+tentatives \\ 
+\hline
+19 & 19 & 19 \\ 
+\hline
+127 & 127 & 127 \\ 
+\hline
+340 & 340 & 340 \\ 
+\hline
+623 & 623 & 623 \\ 
+\hline
+929 & 929 & 929 \\ 
+\hline
+1391 & 1391 & 1391 \\ 
+\hline
+1779 & 1779 & 1779 \\ 
+\hline
+2199 & 2199 & 2199 \\ 
+\hline
+2431 & 2431 & 2431 \\ 
+\hline
+9838 & 9838 & 9838 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+inliers \\ 
+\hline
+11 & 11 & 11 \\ 
+\hline
+87 & 87 & 87 \\ 
+\hline
+211 & 211 & 211 \\ 
+\hline
+522 & 522 & 522 \\ 
+\hline
+729 & 729 & 729 \\ 
+\hline
+1036 & 1036 & 1036 \\ 
+\hline
+1356 & 1356 & 1356 \\ 
+\hline
+1992 & 1992 & 1992 \\ 
+\hline
+2141 & 2141 & 2141 \\ 
+\hline
+8085 & 8085 & 8085 \\ 
+\hline
+ \\ 
+\hline
+
+
+ experiment: synthetic rescaling linear
+
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+MAE \\ 
+\hline
+0.273 & 0.200 & 0.557 \\ 
+\hline
+0.308 & 0.281 & 0.500 \\ 
+\hline
+0.424 & 0.655 & 0.245 \\ 
+\hline
+0.099 & 0.269 & 0.176 \\ 
+\hline
+0.164 & 0.158 & 0.317 \\ 
+\hline
+0.134 & 0.118 & 0.255 \\ 
+\hline
+0.437 & 0.455 & 0.441 \\ 
+\hline
+0.176 & 0.211 & 0.171 \\ 
+\hline
+0.288 & 0.277 & 0.304 \\ 
+\hline
+2.303 & 2.624 & 2.966 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+running time \\ 
+\hline
+0.989 & 1.049 & 1.054 \\ 
+\hline
+1.023 & 1.086 & 1.092 \\ 
+\hline
+1.082 & 1.151 & 1.151 \\ 
+\hline
+1.158 & 1.268 & 1.235 \\ 
+\hline
+1.262 & 1.329 & 1.332 \\ 
+\hline
+1.362 & 1.424 & 1.423 \\ 
+\hline
+1.507 & 1.557 & 1.534 \\ 
+\hline
+1.652 & 1.748 & 1.741 \\ 
+\hline
+1.760 & 1.872 & 1.885 \\ 
+\hline
+11.795 & 12.484 & 12.447 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+tentatives \\ 
+\hline
+21 & 21 & 21 \\ 
+\hline
+138 & 138 & 138 \\ 
+\hline
+349 & 349 & 349 \\ 
+\hline
+659 & 659 & 659 \\ 
+\hline
+1135 & 1135 & 1135 \\ 
+\hline
+1385 & 1385 & 1385 \\ 
+\hline
+1716 & 1716 & 1716 \\ 
+\hline
+2208 & 2208 & 2208 \\ 
+\hline
+2417 & 2417 & 2417 \\ 
+\hline
+10028 & 10028 & 10028 \\ 
+\hline
+ \\ 
+\hline
+
+OpenCV: 0.0 & OpenCV: 0.25 & OpenCV: -0.25 \\ 
+\hline
+inliers \\ 
+\hline
+15 & 15 & 15 \\ 
+\hline
+96 & 96 & 96 \\ 
+\hline
+269 & 269 & 269 \\ 
+\hline
+520 & 520 & 520 \\ 
+\hline
+998 & 998 & 998 \\ 
+\hline
+1134 & 1134 & 1134 \\ 
+\hline
+1256 & 1256 & 1256 \\ 
+\hline
+1891 & 1891 & 1891 \\ 
+\hline
+2129 & 2129 & 2129 \\ 
+\hline
+8308 & 8308 & 8308 \\ 
+\hline
+ \\ 
+\hline
+
