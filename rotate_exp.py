@@ -145,16 +145,26 @@ def rotate_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, rotatio
     return mask_00, mask_10, kpts_1_geo
 
 
-def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=True, use_mnn=True):
+def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=True, use_mnn=True, rotate90_gauss=None, rotate90_interpolation=None):
     print(f"experiment for n rotations: {rotations_90_deg}")
 
+    old_mod_8 = False
     img_np_o = np.array(Image.open(file_path))
-    new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
-    img_np_o = img_np_o[:new_h, :new_w]
+    if old_mod_8:
+        new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
+        img_np_o = img_np_o[:new_h, :new_w]
 
+    if rotate90_gauss is not None:
+        detector.set_rotate_gauss(0)
+    if rotate90_interpolation is not None:
+        detector.set_rotate_interpolation(0)
     kpts_0_cv, desc_0_cv = detector.detectAndCompute(img_np_o, None)
 
     img_np_r = np.rot90(img_np_o, rotations_90_deg, [0, 1])
+    if rotate90_gauss is not None and rotate90_gauss != 0:
+        detector.set_rotate_gauss(rotate90_gauss)
+    if rotate90_interpolation is not None and rotate90_interpolation != 0:
+        detector.set_rotate_interpolation(rotate90_interpolation)
     kpts_1_cv, desc_1_cv = detector.detectAndCompute(img_np_r, None)
 
     rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, use_mnn, err_th, show_img)
@@ -879,13 +889,19 @@ def show_me_scale(kpt, mask, img_np, margin=11):
             show(use_cropped_kpts[i])
 
 
-def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False):
+def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False, compensate_gauss=None, compensate_interpolation=None):
     img_dir = "demo_imgs/hypersim"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
         print(f"\n\nFILE: {file_path}\n")
         for rots in range(1, 4):
-            rotate_experiment(file_path, detector, rots, err_th, show_img, use_mnn)
+            rotate90_gauss = None
+            if compensate_gauss is not None:
+                rotate90_gauss = 4 - rots if compensate_gauss else 0
+            rotate90_interpolation = None
+            if compensate_interpolation is not None:
+                rotate90_interpolation = 4 - rots if compensate_interpolation else 0
+            rotate_experiment(file_path, detector, rots, err_th, show_img, use_mnn, rotate90_gauss, rotate90_interpolation)
 
 
 def rotate_lowe_exp():

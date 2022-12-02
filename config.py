@@ -79,7 +79,7 @@ def get_detector_by_key(dict_key):
             return NumpyKorniaSiftDescriptor()
         elif dict_key == 'adjusted_sift_kornia':
             #custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
-            return NumpyKorniaSiftDescriptor(nearest=False)
+            return NumpyKorniaSiftDescriptor(interpolation_mode='bilinear')
         elif dict_key == 'superpoint':
             return SuperPointDetector(device=device)
         elif dict_key == 'adjusted_superpoint':

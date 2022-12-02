@@ -6,6 +6,8 @@ import math
 from kornia.filters import gaussian_blur2d
 
 from typing import List, Tuple
+import torchvision.transforms as T
+from PIL import Image
 
 
 # copied from kornia
@@ -43,7 +45,7 @@ class MyScalePyramid(nn.Module):
         return f"interpolation={self.interpolation_mode}"
 
     def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False,
-                 use_bilinear=True, rotate90_gauss=0, rotate90_interpolation=0):
+                 interpolation_mode='bilinear', rotate90_gauss=0, rotate90_interpolation=0, gauss_separable=True):
         super().__init__()
         # 3 extra levels are needed for DoG nms.
         self.n_levels = n_levels
@@ -53,9 +55,10 @@ class MyScalePyramid(nn.Module):
         self.border = min_size // 2 - 1
         self.sigma_step = 2 ** (1.0 / float(self.n_levels))
         self.double_image = double_image
-        self.interpolation_mode = 'bilinear' if use_bilinear else 'nearest'
+        self.interpolation_mode = interpolation_mode
         self.rotate90_gauss = rotate90_gauss
         self.rotate90_interpolation = rotate90_interpolation
+        self.gauss_separable = gauss_separable
 
     def __repr__(self) -> str:
         return (
@@ -86,7 +89,7 @@ class MyScalePyramid(nn.Module):
     def gaussian_blur2d(self, x, ksize, sigma):
         if self.rotate90_gauss != 0:
             x = torch.rot90(x, self.rotate90_gauss, (2, 3))
-        x = gaussian_blur2d(x, (ksize, ksize), (sigma, sigma))
+        x = gaussian_blur2d(x, (ksize, ksize), (sigma, sigma), separable=self.gauss_separable)
         if self.rotate90_gauss != 0:
             x = torch.rot90(x, 4 - self.rotate90_gauss, (2, 3))
         return x
@@ -104,9 +107,14 @@ class MyScalePyramid(nn.Module):
             x = torch.rot90(x, self.rotate90_interpolation, (2, 3))
             if self.rotate90_interpolation % 2 == 1:
                 size = (size[1], size[0])
-        x = F.interpolate(
-            x, size=size, mode=mode
-        )
+        if mode == 'lanczos':
+            pil = T.toPILImage()(x)
+            pil.resize(size, resample=Image.LANCZOS) # width, height
+            x = T.PILToTensor()(pil).float() / 255.
+        else:
+            x = F.interpolate(
+                x, size=size, mode=mode
+            )
         if self.rotate90_interpolation != 0:
             x = torch.rot90(x, 4 - self.rotate90_interpolation, (2, 3))
         return x

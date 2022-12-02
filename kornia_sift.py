@@ -19,18 +19,19 @@ lin_interpolation_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
 class NumpyKorniaSiftDescriptor(BaseDescriptor):
 
     def __str__(self):
-        n_s = "nearest" if self.nearest else "bilinear"
-        return f"SIFT kornia {n_s} {self.adjustment.cpu().numpy()}"
+        return f"SIFT kornia {self.interpolation_mode} {self.adjustment.cpu().numpy()}"
 
     """
     see kornia.feature.integrated.SIFTFeature
     plus num_features is different (originally 8000) and the ScalePyramid can be overriden for obvious reasons
     """
-    def __init__(self, upright=False, num_features=500, nearest=True, rootsift=True, adjustment=[0.0, 0.0], scale_pyramid=None):
+    def __init__(self, upright=False, num_features=500, interpolation_mode='nearest', rootsift=True, adjustment=[0.0, 0.0], scale_pyramid=None):
         super().__init__()
+        self.interpolation_mode = interpolation_mode if not scale_pyramid else "via_scale_pyr"
         if not scale_pyramid:
-            scale_pyramid = default_nearest_scale_pyramid if nearest else lin_interpolation_scale_pyramid
-        self.nearest = nearest
+            scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode=interpolation_mode)
+        #     scale_pyramid = default_nearest_scale_pyramid if nearest else lin_interpolation_scale_pyramid
+
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.adjustment = torch.tensor(adjustment, device=device)
         self.detector = ScaleSpaceDetector(
@@ -50,6 +51,12 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
         ).to(self.device)
         self.detector.eval()
         self.scaling_coef = 1.0
+
+    def set_rotate_gauss(self, rotate90_gauss):
+        self.detector.scale_pyr.rotate90_gauss = rotate90_gauss
+
+    def set_rotate_interpolation(self, rotate90_interpolation):
+        self.detector.scale_pyr.rotate90_interpolation = rotate90_interpolation
 
     def get_lafs_responses(self, img_np, mask=None):
         # FIXME handle greyscale consistently

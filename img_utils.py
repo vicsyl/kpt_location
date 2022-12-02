@@ -154,7 +154,7 @@ def scale_pil(img, scale, config, show=False):
 
     w_sc = round(w * real_scale)
     h_sc = round(h * real_scale)
-    img_r = img.resize((h_sc, w_sc), resample=PIL.Image.LANCZOS)
+    img_r = img.resize((h_sc, w_sc), resample=Image.LANCZOS)
     if show:
         show_pil(img_r)
 
