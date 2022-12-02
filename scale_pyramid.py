@@ -6,7 +6,6 @@ import math
 from kornia.filters import gaussian_blur2d
 
 from typing import List, Tuple
-import torchvision.transforms as T
 from PIL import Image
 
 
@@ -108,6 +107,7 @@ class MyScalePyramid(nn.Module):
             if self.rotate90_interpolation % 2 == 1:
                 size = (size[1], size[0])
         if mode == 'lanczos':
+            import torchvision.transforms as T
             device = x.device
             x = x[0]
             pil = T.ToPILImage()(x)
