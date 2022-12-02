@@ -1,4 +1,5 @@
 import math
+import argparse
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -161,9 +162,11 @@ def print_Hs_decomposition(Hs):
         print(f"{scale:.3f}\t{alpha:.3f}")
 
 
-def main():
+def run_experiments(detector_sets):
 
-    hloc_sif_descriptors = [
+    detector_sets = [d.lower() for d in detector_sets]
+
+    vlfeat_sift_descriptors = [
         HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf),
         HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf, [0.25, 0.25]),
         HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf, [-0.25, -0.25]),
@@ -324,30 +327,37 @@ def main():
     imgs_scale_lowe_linear_cv = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_False_0_{i}.pgm.key" for i in scale_indices]
     imgs_scale_lowe_lanczos = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_True__mod4_False_0_{i}.pgm.key" for i in scale_indices]
 
-    run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
-    # run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
-    run_exp(hloc_sif_descriptors, Hs_bark, imgs_bark, "bark")
-    run_exp(lowe_sift_descriptors, Hs_bark, imgs_bark_lowe, "bark", imgs_bark)
-    
-    run_exp(cv_sift_descriptors, Hs_boat, imgs_boat, "boat")
-    # run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
-    run_exp(hloc_sif_descriptors, Hs_boat, imgs_boat, "boat")
-    run_exp(lowe_sift_descriptors, Hs_boat, imgs_boat_lowe, "boat", imgs_boat)
+    if 'opencv' in detector_sets:
+        run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
+        run_exp(cv_sift_descriptors, Hs_boat, imgs_boat, "boat")
+        run_exp(cv_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        run_exp(cv_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(cv_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
+        run_exp(cv_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
-    run_exp(cv_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-    # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-    run_exp(hloc_sif_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-    run_exp(lowe_sift_descriptors, Hs_gt_rot, imgs_rotation_lowe, "synthetic pi rotation", imgs_rot)
+    if 'vlfeat' in detector_sets:
+        run_exp(vlfeat_sift_descriptors, Hs_bark, imgs_bark, "bark")
+        run_exp(vlfeat_sift_descriptors, Hs_boat, imgs_boat, "boat")
+        run_exp(vlfeat_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        run_exp(vlfeat_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(vlfeat_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling linear")
+        run_exp(vlfeat_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
-    # run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-    run_exp(cv_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-    run_exp(hloc_sif_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-    run_exp(lowe_sift_descriptors, Hs_gt_sc_lanczos, imgs_scale_lowe_lanczos, "synthetic rescaling lanczos", imgs_sc_lanczos)
+    if 'lowe' in detector_sets:
+        run_exp(lowe_sift_descriptors, Hs_bark, imgs_bark_lowe, "bark", imgs_bark)
+        run_exp(lowe_sift_descriptors, Hs_boat, imgs_boat_lowe, "boat", imgs_boat)
+        run_exp(lowe_sift_descriptors, Hs_gt_rot, imgs_rotation_lowe, "synthetic pi rotation", imgs_rot)
+        run_exp(lowe_sift_descriptors, Hs_gt_sc_lanczos, imgs_scale_lowe_lanczos, "synthetic rescaling lanczos", imgs_sc_lanczos)
+        run_exp(lowe_sift_descriptors, Hs_gt_sc_hom, imgs_scale_lowe_linear_cv, "synthetic rescaling linear/homography", imgs_sc_hom)
+        run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
 
-    # run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
-    run_exp(cv_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
-    run_exp(hloc_sif_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
-    run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
+    if 'kornia' in detector_sets:
+        run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
+        run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
+        run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
+        run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
@@ -524,12 +534,15 @@ def Hs_imgs_for_scaling(file, scales, mode, show=False, mod4=False):
     return Hs_gt, imgs
 
 
-def run_exp(detectors, Hs_gt, imgs, name, imgs_extra=None):
+class Output:
+    unformatted = ""
+    formatted = ""
+    latex = ""
 
-    def is_cuda_descriptor(desc):
-        return type(desc) in [SuperPointDetector, NumpyKorniaSiftDescriptor]
 
-    print(f"\n\nexperiment: {name}")
+def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None):
+
+    print(f"running experiment: {e_name}")
 
     metric_names = ["MAE", "running time", "tentatives", "inliers"]
 
@@ -636,16 +649,29 @@ def run_exp(detectors, Hs_gt, imgs, name, imgs_extra=None):
         for i in range(len(d[0])):
             s += "\t".join([str(d[j][i]) for j in range(len(d))]) + "\n"
         return s
-    print("Unformatted data")
+    Output.unformatted += f"\n\n experiment: {e_name}\n\n"
     for d in data:
-        print(format_data(d))
-    print("Formatted data")
+        Output.unformatted += f"\n{format_data(d)}"
+
+    Output.formatted += f"\n\n experiment: {e_name}\n\n"
     for d in data_formatted:
-        print(format_data(d))
-    print("Latex data")
+        Output.formatted += f"\n{format_data(d)}"
+
+    Output.latex += f"\n\n experiment: {e_name}\n\n"
     for d in data_formatted:
-        print(csv2latex(format_data(d)))
+        Output.latex += f"\n{csv2latex(format_data(d))}"
 
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description='Homography experiment')
+    parser.add_argument('--detectors', nargs='+', help="list of detector sets (choose from 'opencv', 'vlfeat', 'kornia' and 'lowe')", required=True)
+    args = parser.parse_args()
+    run_experiments(args.detectors)
+
+    print("Unformatted data")
+    print(Output.unformatted)
+    print("Formatted data")
+    print(Output.formatted)
+    print("Latex data")
+    print(Output.latex)
