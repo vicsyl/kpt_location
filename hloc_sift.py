@@ -1,7 +1,6 @@
 import cv2 as cv
 import kornia.utils as KU
 import numpy as np
-from hloc.extractors.dog import DoG
 from sift_detectors import BaseDescriptor
 
 
@@ -33,15 +32,25 @@ class HlocSiftDescriptor(BaseDescriptor):
 
         return f"HLOC SIFT: adj={self.abs_adjustment[0]}, conf={self.conf_name}"
 
+    def try_to_construct_dog(self, conf):
+        import imp
+        try:
+            imp.find_module('hloc')
+            from hloc.extractors.dog import DoG
+            print("hloc.extractors.dog successfully imported")
+            return DoG(conf)
+        except ImportError:
+            print("hloc.extractors.dog not found, NPE will shortly follow")
+            return None
+
     def __init__(self, conf, adjustment=[0.0, 0.0]):
-        # self.dog = None # use the line below
+        self.dog = self.try_to_construct_dog(conf)
         if conf == HlocSiftDescriptor.default_conf:
             self.conf_name = "default_conf"
         elif conf == HlocSiftDescriptor.opencv_like_conf:
             self.conf_name = "opencv_like_conf"
         else:
             self.conf_name = "custom_conf"
-        self.dog = DoG(conf)
         self.abs_adjustment = np.array(adjustment)
 
     def adjust_cv_kpts(self, cv_kpts):
