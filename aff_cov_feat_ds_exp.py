@@ -340,7 +340,7 @@ def run_experiments(detector_sets):
         run_exp(vlfeat_sift_descriptors, Hs_boat, imgs_boat, "boat")
         run_exp(vlfeat_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
         run_exp(vlfeat_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-        run_exp(vlfeat_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling linear")
+        run_exp(vlfeat_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
         run_exp(vlfeat_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
     if 'lowe' in detector_sets:
