@@ -10,7 +10,7 @@ class HlocSiftDescriptor(BaseDescriptor):
     opencv_like_conf = {
         'options': {
             'first_octave': -1,
-            'peak_threshold': 0.04,
+            'peak_threshold': 0.01,
         },
         'descriptor': 'sift',
         'max_keypoints': -1,

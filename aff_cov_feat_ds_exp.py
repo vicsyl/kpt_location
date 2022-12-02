@@ -163,6 +163,88 @@ def print_Hs_decomposition(Hs):
 
 def main():
 
+    hloc_sif_descriptors = [
+        HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf),
+        HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf, [0.25, 0.25]),
+        HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf, [-0.25, -0.25]),
+        HlocSiftDescriptor(HlocSiftDescriptor.default_conf),
+        HlocSiftDescriptor(HlocSiftDescriptor.default_conf, [0.25, 0.25]),
+        HlocSiftDescriptor(HlocSiftDescriptor.default_conf, [-0.25, -0.25]),
+        # HlocSiftDescriptor([-0.5, -0.5]),
+    ]
+
+    lowe_sift_descriptors = [
+        LoweSiftDescriptor(),
+        LoweSiftDescriptor([0.25, 0.25]),
+        LoweSiftDescriptor([-0.25, -0.25]),
+    ]
+
+    num_features = 8000
+    kornia_sift_descriptors = [
+        NumpyKorniaSiftDescriptor(num_features=num_features),
+        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[-0.25, -0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear'),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.25, -0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos'),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[-0.25, -0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic'),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[0.25, 0.25]),
+        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[-0.25, -0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.5, -0.5]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.4, 0.4]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='nearest', adjustment=[0.4, 0.4]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.5, 0.5]),
+    ]
+
+    test_descriptors = [
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; +0.25; bilinear"),
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; -0.25; nearest"),
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; +0.25; bilinear"),
+        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; -0.25; nearest"),
+    ]
+
+    cv_sift_descriptors = [
+            AdjustedSiftDescriptor(adjustment=[0.0, 0.0]),
+            AdjustedSiftDescriptor(adjustment=[0.25, 0.25]),
+            AdjustedSiftDescriptor(adjustment=[-0.25, -0.25]),
+            # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.09, 0.09]),
+            # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11]),
+            # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.2, -0.2]),
+            # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.25, -0.25]),
+        ]
+
+        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0925, 0.0925]),
+        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.2, 0.2]),
+        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0, 0.0]),
+        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[-0.1, -0.1]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[0.0, 0.0]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.05, -0.05]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.1, -0.1]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.15, -0.15]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.2, -0.2]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.05, -0.05]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.1, -0.1]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.15, -0.15]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.18, -0.18]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.19, -0.19]),
+        # !!!
+        # AdjustedSiftDescriptor(adjustment=[0.19, 0.19], q_adjustment=[-0.2, -0.2]),
+        # AdjustedSiftDescriptor(adjustment=[0.21, 0.21], q_adjustment=[-0.2, -0.2]),
+        # AdjustedSiftDescriptor(adjustment=[0.23, 0.23], q_adjustment=[-0.2, -0.2]),
+
+        # AdjustedSiftDescriptor(adjustment=[0.27, 0.27], q_adjustment=[-0.2, -0.2]),
+        # AdjustedSiftDescriptor(adjustment=[0.29, 0.29], q_adjustment=[-0.2, -0.2]),
+        # AdjustedSiftDescriptor(adjustment=[0.31, 0.31], q_adjustment=[-0.2, -0.2]),
+
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.21, -0.21]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.22, -0.22]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.23, -0.23]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.24, -0.24]),
+        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.30, -0.30]),
+
     # https://www.robots.ox.ac.uk/~vgg/data/affine/
 
     Hs_bark = [
@@ -225,88 +307,22 @@ def main():
     print("BOAT experiment hompographies decomposition")
     print_Hs_decomposition(Hs_boat)
 
-    hloc_sif_descriptors = [
-        HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf),
-        HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf, [0.25, 0.25]),
-        HlocSiftDescriptor(HlocSiftDescriptor.opencv_like_conf, [-0.25, -0.25]),
-        HlocSiftDescriptor(HlocSiftDescriptor.default_conf),
-        HlocSiftDescriptor(HlocSiftDescriptor.default_conf, [0.25, 0.25]),
-        HlocSiftDescriptor(HlocSiftDescriptor.default_conf, [-0.25, -0.25]),
-        # HlocSiftDescriptor([-0.5, -0.5]),
-    ]
+    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False)
+    imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
 
-    lowe_sift_descriptors = [
-        LoweSiftDescriptor(),
-        LoweSiftDescriptor([0.25, 0.25]),
-        LoweSiftDescriptor([-0.25, -0.25]),
-    ]
+    scales = [scale_int / 10 for scale_int in range(1, 10)]
+    # Hs_gt_sc_backward, imgs_sc_backward = Hs_imgs_for_scaling(files_bark[0], scales, show=False, mod4=True)
+    Hs_gt_sc_lanczos, imgs_sc_lanczos = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos')
+    Hs_gt_sc_lin, imgs_sc_lin = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear')
+    Hs_gt_sc_hom, imgs_sc_hom = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear_homography')
 
-    num_features = 8000
-    kornia_sift_descriptors = [
-        NumpyKorniaSiftDescriptor(num_features=num_features),
-        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[-0.25, -0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear'),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.25, -0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos'),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[-0.25, -0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic'),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[-0.25, -0.25]),
-        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.5, -0.5]),
-        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.4, 0.4]),
-        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='nearest', adjustment=[0.4, 0.4]),
-        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.5, 0.5]),
-    ]
-
-    test_descriptors = [
-        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; +0.25; bilinear"),
-        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; -0.25; nearest"),
-        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; +0.25; bilinear"),
-        AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="VLFeat; -0.25; nearest"),
-    ]
-
-    # !!!
-    cv_sift_descriptors = [
-            AdjustedSiftDescriptor(adjustment=[0.0, 0.0]),
-            AdjustedSiftDescriptor(adjustment=[0.25, 0.25]),
-            AdjustedSiftDescriptor(adjustment=[-0.25, -0.25]),
-            # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.09, 0.09]),
-            # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11]),
-            # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.2, -0.2]),
-            # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.25, -0.25]),
-        ]
-
-        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0925, 0.0925]),
-        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.2, 0.2]),
-        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[0.0, 0.0]),
-        # AdjustedSiftDescriptor(adjustment=[-0.5, -0.5], q_adjustment=[-0.1, -0.1]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[0.0, 0.0]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.05, -0.05]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.1, -0.1]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.15, -0.15]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.2, -0.2]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.05, -0.05]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.1, -0.1]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.15, -0.15]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.18, -0.18]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.19, -0.19]),
-        # !!!
-        # AdjustedSiftDescriptor(adjustment=[0.19, 0.19], q_adjustment=[-0.2, -0.2]),
-        # AdjustedSiftDescriptor(adjustment=[0.21, 0.21], q_adjustment=[-0.2, -0.2]),
-        # AdjustedSiftDescriptor(adjustment=[0.23, 0.23], q_adjustment=[-0.2, -0.2]),
-
-        # AdjustedSiftDescriptor(adjustment=[0.27, 0.27], q_adjustment=[-0.2, -0.2]),
-        # AdjustedSiftDescriptor(adjustment=[0.29, 0.29], q_adjustment=[-0.2, -0.2]),
-        # AdjustedSiftDescriptor(adjustment=[0.31, 0.31], q_adjustment=[-0.2, -0.2]),
-
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.21, -0.21]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.22, -0.22]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.23, -0.23]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.24, -0.24]),
-        # AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.30, -0.30]),
+    scale_indices = [10] + list(range(1, 10))
+    # imgs_scale_lowe_linear_cv_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_True_0_{i}.pgm.key" for i in l]
+    # imgs_scale_lowe_linear_pil_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_True_mod4_True_0_{i}.pgm.key" for i in l]
+    # imgs_scale_lowe_linear_pil = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_True_mod4_False_0_{i}.pgm.key" for i in l]
+    # imgs_scale_lowe_lanczos_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_True__mod4_True_0_{i}.pgm.key" for i in l]
+    imgs_scale_lowe_linear_cv = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_False_0_{i}.pgm.key" for i in scale_indices]
+    imgs_scale_lowe_lanczos = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_True__mod4_False_0_{i}.pgm.key" for i in scale_indices]
 
     run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
     # run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
@@ -318,27 +334,10 @@ def main():
     run_exp(hloc_sif_descriptors, Hs_boat, imgs_boat, "boat")
     run_exp(lowe_sift_descriptors, Hs_boat, imgs_boat_lowe, "boat", imgs_boat)
 
-    Hs_gt, imgs = Hs_imgs_for_rotation(files_bark[0], show=False)
-    imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
-
-    run_exp(cv_sift_descriptors, Hs_gt, imgs, "synthetic pi rotation")
-    # run_exp(kornia_sift_descriptors, Hs_gt, imgs, "synthetic pi rotation")
-    run_exp(hloc_sif_descriptors, Hs_gt, imgs, "synthetic pi rotation")
-    run_exp(lowe_sift_descriptors, Hs_gt, imgs_rotation_lowe, "synthetic pi rotation", imgs)
-
-    scales = [scale_int / 10 for scale_int in range(1, 10)]
-    # Hs_gt_backward, imgs_backward = Hs_imgs_for_scaling(files_bark[0], scales, show=False, mod4=True)
-    Hs_gt_sc_lanczos, imgs_sc_lanczos = Hs_imgs_for_scaling(files_bark[0], scales, lanczos=True, show=False, mod4=False)
-    Hs_gt_sc_lin, imgs_sc_lin = Hs_imgs_for_scaling(files_bark[0], scales, lanczos=False, show=False, mod4=False)
-
-    l = [10] + list(range(1, 10))
-
-    # imgs_scale_lowe_linear_cv_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_True_0_{i}.pgm.key" for i in l]
-    # imgs_scale_lowe_linear_pil_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_True_mod4_True_0_{i}.pgm.key" for i in l]
-    # imgs_scale_lowe_linear_pil = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_True_mod4_False_0_{i}.pgm.key" for i in l]
-    # imgs_scale_lowe_lanczos_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_True__mod4_True_0_{i}.pgm.key" for i in l]
-    imgs_scale_lowe_linear_cv = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_False_0_{i}.pgm.key" for i in l]
-    imgs_scale_lowe_lanczos = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_True__mod4_False_0_{i}.pgm.key" for i in l]
+    run_exp(cv_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+    # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+    run_exp(hloc_sif_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+    run_exp(lowe_sift_descriptors, Hs_gt_rot, imgs_rotation_lowe, "synthetic pi rotation", imgs_rot)
 
     # run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
     run_exp(cv_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
@@ -398,7 +397,9 @@ def rotate(img, sin_a, cos_a, rotation_index, show=False):
     return H_gt, img_rot_h
 
 
-def scale_img(img, scale, show=False, lancsoz=True):
+def scale_img(img, scale, mode, show=False):
+
+    assert mode in ['lanczos', 'linear', 'linear_homography']
 
     H_gt = np.array([
         [scale, 0., 0.],
@@ -407,6 +408,7 @@ def scale_img(img, scale, show=False, lancsoz=True):
     ])
 
     h, w = img.shape[:2]
+    dsize = (round(w * scale), round(h * scale))
     img_scaled_h = cv.warpPerspective(img, H_gt, (round(w * scale), round(h * scale)), flags=cv.INTER_LINEAR)
     if show:
         plt.figure()
@@ -415,15 +417,11 @@ def scale_img(img, scale, show=False, lancsoz=True):
         plt.show()
         plt.close()
 
-    # try LANCZOS
-    # and not mod 4
-    dsize = (round(w * scale), round(h * scale))
-    if lancsoz:
-        pil = Image.fromarray(img)
-        pil_resized = pil.resize(size = dsize, resample=Image.LANCZOS)
-        img_scaled_resize = np.array(pil_resized)
-    else:
-        img_scaled_resize = cv.resize(img, dsize=dsize, interpolation=cv.INTER_LINEAR)
+    pil = Image.fromarray(img)
+    pil_resized = pil.resize(size = dsize, resample=Image.LANCZOS)
+    img_scaled_lanczos = np.array(pil_resized)
+    img_scaled_resize = cv.resize(img, dsize=dsize, interpolation=cv.INTER_LINEAR)
+
     if show:
         plt.figure()
         plt.imshow(img_scaled_resize)
@@ -437,12 +435,20 @@ def scale_img(img, scale, show=False, lancsoz=True):
         plt.show()
         plt.close()
 
-    if not lancsoz:
-        assert np.all(img_scaled_h == img_scaled_resize)
-        if not np.all(img_scaled_h == img_scaled_resize):
-            close = np.allclose(img_scaled_h, img_scaled_resize)
-            print(f"is it even close: {close}")
-    return H_gt, img_scaled_resize
+    # if not np.all(img_scaled_h == img_scaled_resize):
+    #     close = np.allclose(img_scaled_h, img_scaled_resize)
+    #     print(f"is it even close: {close}")
+
+    if mode == 'lanczos':
+        img_scaled = img_scaled_lanczos
+    elif mode == 'linear':
+        img_scaled = img_scaled_resize
+    elif mode == 'linear_homography':
+        img_scaled = img_scaled_h
+    else:
+        raise Exception("unexpected branch")
+
+    return H_gt, img_scaled
 
 
 def np_show(img, title=None):
@@ -500,7 +506,9 @@ def Hs_imgs_for_rotation(file, show=False):
     # print()
 
 
-def Hs_imgs_for_scaling(file, scales, lanczos, show=False, mod4=True):
+def Hs_imgs_for_scaling(file, scales, mode, show=False, mod4=False):
+
+    assert mode in ['lanczos', 'linear', 'linear_homography']
 
     img = Image.open(file)
     img = np.array(img)
@@ -509,7 +517,7 @@ def Hs_imgs_for_scaling(file, scales, lanczos, show=False, mod4=True):
     if show:
         np_show(img, f"original, already cropped, shape: {img.shape}")
 
-    h_i_tuples = [scale_img(img, scale, show, lanczos) for scale in scales]
+    h_i_tuples = [scale_img(img, scale, mode, show) for scale in scales]
     Hs_gt = [e[0] for e in h_i_tuples]
     imgs_r = [e[1] for e in h_i_tuples]
     imgs = [img] + imgs_r
