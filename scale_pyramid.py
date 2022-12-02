@@ -113,8 +113,7 @@ class MyScalePyramid(nn.Module):
             pil = T.ToPILImage()(x)
             pil = pil.resize(size, resample=Image.LANCZOS) # width, height
             x = T.PILToTensor()(pil).float() / 255.
-            x = x[None]
-            x.to(device)
+            x = x[None].to(device)
         else:
             x = F.interpolate(
                 x, size=size, mode=mode
