@@ -9,9 +9,59 @@ import PIL
 from PIL import Image
 
 from utils import get_tentatives
-from prepare_data import scale_pil
+# from prepare_data import scale_pil
 from lowe_sift_file_descriptor import LoweSiftDescriptor
 from kornia_sift import NumpyKorniaSiftDescriptor
+
+
+def gcd_euclid(a, b):
+
+    c = a % b
+    if c == 0:
+        return b
+    else:
+        return gcd_euclid(b, c)
+
+
+def scale_pil(img, scale, config, mode=("LANCZOS", PIL.Image.LANCZOS), show=False):
+    """
+    :param img:
+    :param scale: in [0, 1]
+    :param show:
+    :return:
+    """
+    real_scale = scale
+    h, w = img.size
+    integer_scale = config['integer_scale']
+    if integer_scale:
+        gcd = gcd_euclid(w, h)
+
+        real_scale_gcd = round(gcd * scale)
+        real_scale = real_scale_gcd / gcd
+
+        fall_back = False
+        if real_scale == 0.0 or math.fabs(real_scale - scale) > 0.1:
+            if fall_back:
+                print("WARNING: scale={} => {}".format(real_scale, scale), config)
+                real_scale = scale
+            else:
+                raise Exception("scale {} cannot be effectively realized for w, h = {}, {} in integer domain".format(scale, w, h))
+
+    w_sc = round(w * real_scale)
+    h_sc = round(h * real_scale)
+    # print(f"scaling by: {mode[0]} = {mode[1]}")
+    img_r = img.resize((h_sc, w_sc), resample=mode[1])
+    if show:
+        show_pil(img_r)
+
+    return img_r, real_scale
+
+
+def show_pil(img):
+    npa = np.array(img)
+    plt.figure()
+    plt.imshow(npa)
+    plt.show()
 
 
 class Counter:
@@ -91,8 +141,8 @@ def scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, s
 
     kpts_1_cv, desc_1_cv = detector.detectAndCompute(img_np_r, None)
     kpts_1_geo = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts_1_cv])
-    kpts_1_geo = kpts_1_geo / scale
 
+    kpts_1_geo = kpts_1_geo / scale
     for i, e_kpts_1_cv in enumerate(kpts_1_cv):
         e_kpts_1_cv.pt = (kpts_1_geo[i, 1].item(), kpts_1_geo[i, 0].item())
 
@@ -101,7 +151,7 @@ def scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, s
     mask_00 = torch.tensor([t.queryIdx for t in tentative_matches])
     mask_10 = torch.tensor([t.trainIdx for t in tentative_matches])
 
-    return mask_00, mask_10, kpts_1_geo
+    return mask_00, mask_10, kpts_1_geo, kpts_1_cv
 
 
 def rotate_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, rotations_90_deg, show_img=True):
@@ -417,7 +467,9 @@ def scale_experiment_lowe(img_to_show, show_img=True):
     # CONTINUE
     # for i in range(5):
     #     for scale om
-    img_dir = f"demo_imgs/lowe/imgs_scaling/{i}_rot_{j}.key"
+    # img_dir = f"demo_imgs/lowe/imgs_scaling/{i}_rot_{j}.key"
+    # FIXME
+    img_dir = f"demo_imgs/lowe/imgs_scaling/foo_rot_bar.key"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
         print(f"\n\nFILE: {file_path}\n")
@@ -436,7 +488,7 @@ def scale_experiment_lowe(img_to_show, show_img=True):
         mask_00 = torch.ones(len(kpts_0_cv), dtype=bool)
         for scale_int in range(1, 10):
             scale = scale_int / 10
-            mask_00_and, mask_10, kpts_1_geo = scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, show_img)
+            mask_00_and, mask_10, kpts_1_geo, _ = scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, show_img)
             if mask_00_and.sum().item() > 0:
                 mask_00_bool_and = torch.zeros(len(kpts_0_cv), dtype=bool)
                 mask_00_bool_and[mask_00_and] = True
@@ -507,7 +559,7 @@ def scale_detail_experiment_loop(detector, img_to_show, show_img=True):
         mask_00 = torch.ones(len(kpts_0_cv), dtype=bool)
         for scale_int in range(1, 10):
             scale = scale_int / 10
-            mask_00_and, mask_10, kpts_1_geo = scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, show_img)
+            mask_00_and, mask_10, kpts_1_geo, _ = scale_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, scale, show_img)
             if mask_00_and.sum().item() > 0:
                 mask_00_bool_and = torch.zeros(len(kpts_0_cv), dtype=bool)
                 mask_00_bool_and[mask_00_and] = True
@@ -518,16 +570,16 @@ def scale_detail_experiment_loop(detector, img_to_show, show_img=True):
 
         kpts_geos_bool_sums = kpts_geos_bool.sum(dim=1)
 
-        th = 9
+        th = 0
         kpts_geos = kpts_geos[kpts_geos_bool_sums > th]
         kpts_geos_bool = kpts_geos_bool[kpts_geos_bool_sums > th]
         # if mask_00.sum() == 0:
 
         margin = 21
-        for i, kpt in enumerate(kpts_geos[:1]):
+        for i, kpt in enumerate(kpts_geos):
             kpt_mean = kpt[0]
             kpt_int = torch.round(kpt_mean)
-            show = True
+            show = False
             if kpt_int[0].item() < margin or kpt_int[0].item() > img_np_o.shape[0] - 1 - margin:
                 show = False
             if kpt_int[1].item() < margin or kpt_int[1].item() > img_np_o.shape[1] - 1 - margin:
@@ -538,15 +590,217 @@ def scale_detail_experiment_loop(detector, img_to_show, show_img=True):
             kpt = kpt - kpt_mean
             scales = torch.from_numpy(np.arange(start=1.0, stop=0.0, step=-0.1))
             kpt = scales[:, None] * kpt
-            for i in range(10):
-                if mask[i]:
-                    all_kpts[i] = np.vstack((all_kpts[i], kpt[None, i]))
+            for mask_i in range(10):
+                if mask[mask_i]:
+                    all_kpts[mask_i] = np.vstack((all_kpts[mask_i], kpt[None, mask_i]))
             #all_kpts = np.vstack((all_kpts, kpt[None]))
 
     for i in range(10):
         m = all_kpts[i].mean(axis=0)
         v = all_kpts[i].var(axis=0)
         print(f"i: {i}/{all_kpts[i].shape[0]}: mean: {m}, variance: {v}")
+
+
+def match_and_print(kpts_original, desc_original, kpts_transformed, desc_transformed, title, scale=1.0):
+
+    ratio_threshold = 0.8
+    space_dist_th = 20.0
+    # space_dist_th = None
+    kpts_original_rotated_geo, kpts_match_rotated_geo, _, _, tentative_matches = get_tentatives(kpts_original,
+                                                                                                desc_original,
+                                                                                                kpts_transformed,
+                                                                                                desc_transformed,
+                                                                                                ratio_threshold=ratio_threshold,
+                                                                                                space_dist_th=space_dist_th)
+    # mask_00 = torch.tensor([t.queryIdx for t in tentative_matches])
+    # mask_10 = torch.tensor([t.trainIdx for t in tentative_matches])
+    residuum = (kpts_match_rotated_geo - kpts_original_rotated_geo) * scale
+    mean = residuum.mean(axis=0)
+    std = np.sqrt(residuum.var(axis=0))
+    print(f"{title}: mean: {mean}, std: {std}")
+    ret = np.array([mean, std])
+    return ret
+
+
+def scale_rotate_detail_experiment_loop(detector, imgs_to_show):
+
+    img_dir = "demo_imgs/hypersim"
+    files = sorted(["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:imgs_to_show])
+    for mode in [("LANCSOZ", PIL.Image.LANCZOS),
+                 ("NEAREST", PIL.Image.NEAREST)]:
+                 # ("LINEAR", PIL.Image.LINEAR),
+                 # ("NEAREST", PIL.Image.NEAREST),
+                 # ("BICUBIC", PIL.Image.BICUBIC),
+        scale_rotate_detail_experiment_loop_per_img(detector, files, mode)
+
+
+def scale_rotate_detail_experiment_loop_per_img(detector, files, mode):
+
+    def detect(img_np, crop):
+        def modulo32(n):
+            if not crop:
+                return n
+            n_n = n - ((n + 1) % 32)
+            assert n_n % 32 == 31
+            return n_n
+        h, w = img_np.shape[:2]
+        h = modulo32(h)
+        w = modulo32(w)
+        img_np = img_np[:h, :w]
+        kpts, desc = detector.detectAndCompute(img_np, None)
+        kpts_geo = torch.tensor([[kp.pt[1], kp.pt[0]] for kp in kpts])
+        return kpts, kpts_geo, desc
+
+    def backproject_scaled(kpts_cv, kpts_geo, scale):
+        kpts_geo = kpts_geo / scale
+        for i, e_kpts_cv in enumerate(kpts_cv):
+            e_kpts_cv.pt = (kpts_geo[i, 1].item(), kpts_geo[i, 0].item())
+        return kpts_cv, kpts_geo
+
+    def backproject_rotated(kpts_cv, kpts_geo, img_np):
+        coord0_max = img_np.shape[0] - 1
+        coord1_max = img_np.shape[1] - 1
+        return backproject_rotated_tuple(kpts_cv, kpts_geo, coord0_max, coord1_max)
+
+    def backproject_rotated_tuple(kpts_cv, kpts_geo, coord0_max, coord1_max):
+        rotations = 1
+        for i in range(4 - rotations):
+            kpts_0_new = coord1_max - kpts_geo[:, 1]
+            kpts_1_new = kpts_geo[:, 0].clone()
+            kpts_geo[:, 0] = kpts_0_new.clone()
+            kpts_geo[:, 1] = kpts_1_new.clone()
+            coord1_max, coord0_max = coord0_max, coord1_max
+        for i, e_kpts_cv in enumerate(kpts_cv):
+            e_kpts_cv.pt = (kpts_geo[i, 1].item(), kpts_geo[i, 0].item())
+        return kpts_cv, kpts_geo
+
+    def read_img(file_path, crop):
+        img_pil = Image.open(file_path)
+        w, h = img_pil.size[:2]
+        def modulo32(n):
+            n_n = n - ((n + 1) % 32)
+            assert n_n % 32 == 31
+            return n_n
+        if crop:
+            w = modulo32(w)
+            h = modulo32(h)
+            img_pil = img_pil.crop((0, 0, w, h))
+            check_pil_mod(img_pil)
+        return img_pil
+
+    def check_mod(n):
+        for i in range(6):
+            assert n % 2 == 1
+            n //= 2
+
+    def check_pil_mod(img_pil):
+        h, w = img_pil.size[:2]
+        check_mod(h)
+        check_mod(w)
+
+    def check_np_mod(img_np):
+        h, w = img_np.shape[:2]
+        check_mod(h)
+        check_mod(w)
+
+    print(f"MODE: {mode[0]}")
+
+    confs = [[False, False, True], [False, True, True]]
+    for crop_when_read, crop_when_detect, integer_scale in confs:
+        print(f"crop_when_read: {crop_when_read}")
+        print(f"crop_when_detect: {crop_when_detect}")
+        print(f"integer_scale: {integer_scale}")
+
+        scales = [i / 10 for i in range(1, 10)]
+        l_sc = len(scales)
+        rotated_stat = np.zeros((2, 2), dtype=float)
+        scaled_stat = np.zeros((l_sc, 2, 2), dtype=float)
+        scaled_rotated_vs_scaled = np.zeros((l_sc, 2, 2), dtype=float)
+        scaled_rotated_vs_rotated = np.zeros((l_sc, 2, 2), dtype=float)
+        rotated_scaled_vs_rotated = np.zeros((l_sc, 2, 2), dtype=float)
+        rotated_scaled_vs_scaled_rotated = np.zeros((l_sc, 2, 2), dtype=float)
+
+        for file_path in files:
+            print(f"FILE: {file_path}\n")
+
+            img_pil = read_img(file_path, crop_when_read)
+            img_np_original = np.array(img_pil)
+            if crop_when_read:
+                check_np_mod(img_np_original)
+            kpts_original, kpts_original_geo, desc_original = detect(img_np_original, crop_when_detect)
+
+            img_np_rotated = np.rot90(img_np_original, 1, [0, 1])
+            if crop_when_read:
+                check_np_mod(img_np_rotated)
+            kpts_rotated, kpts_rotated_geo, desc_rotated = detect(img_np_rotated, crop_when_detect)
+            kpts_rotated, kpts_rotated_geo = backproject_rotated(kpts_rotated, kpts_rotated_geo, img_np_rotated)
+            rotated_stat += match_and_print(kpts_original, desc_original, kpts_rotated, desc_rotated, "rotated")
+
+            img_pil_rotated = Image.fromarray(img_np_rotated)
+            if crop_when_read:
+                check_pil_mod(img_pil_rotated)
+
+            for scale_int, scale in enumerate(scales):
+                print(f"scale: {scale}")
+
+                img_pil_scaled, scale_real = scale_pil(img_pil, scale, {"integer_scale": integer_scale}, mode=mode, show=False)
+                # print(f"scale_real: {scale_real}")
+                img_np_scaled = np.array(img_pil_scaled)
+                kpts_scaled, kpts_scaled_geo, desc_scaled = detect(img_np_scaled, crop_when_detect)
+                kpts_scaled, kpts_scaled_geo = backproject_scaled(kpts_scaled, kpts_scaled_geo, scale_real)
+                scaled_stat[scale_int] += match_and_print(kpts_original, desc_original, kpts_scaled, desc_scaled, "scaled", scale=scale_real)
+
+                # kpts_scaled, kpts_scaled_geo, desc_scaled = detect(img_np_scaled)
+                img_np_scaled_rotated = np.rot90(img_np_scaled, 1, [0, 1])
+                kpts_scaled_rotated, kpts_scaled_rotated_geo, desc_scaled_rotated = detect(img_np_scaled_rotated, crop_when_detect)
+                kpts_scaled_rotated, kpts_scaled_rotated_geo = backproject_rotated(kpts_scaled_rotated, kpts_scaled_rotated_geo, img_np_scaled_rotated)
+                kpts_scaled_rotated, kpts_scaled_rotated_geo = backproject_scaled(kpts_scaled_rotated, kpts_scaled_rotated_geo, scale_real)
+                scaled_rotated_vs_scaled[scale_int] += match_and_print(kpts_scaled, desc_scaled, kpts_scaled_rotated, desc_scaled_rotated, "scaled and rotated vs scaled", scale_real)
+                scaled_rotated_vs_rotated[scale_int] += match_and_print(kpts_rotated, desc_rotated, kpts_scaled_rotated, desc_scaled_rotated, "scaled and rotated vs rotated", scale_real)
+
+                img_pil_rotated_scaled, scale_real2 = scale_pil(img_pil_rotated, scale, {"integer_scale": integer_scale}, mode=mode, show=False)
+                # print(f"scale_real2: {scale_real2}")
+                assert scale_real2 == scale_real
+                img_np_rotated_scaled = np.array(img_pil_rotated_scaled)
+                kpts_rotated_scaled, kpts_rotated_scaled_geo, desc_rotated_scaled = detect(img_np_rotated_scaled, crop_when_detect)
+                kpts_rotated_scaled, kpts_rotated_scaled_geo = backproject_scaled(kpts_rotated_scaled, kpts_rotated_scaled_geo, scale_real2)
+                kpts_rotated_scaled, kpts_rotated_scaled_geo = backproject_rotated(kpts_rotated_scaled, kpts_rotated_scaled_geo, img_np_rotated)
+
+                rotated_scaled_vs_rotated[scale_int] += match_and_print(kpts_rotated, desc_rotated, kpts_rotated_scaled, desc_rotated_scaled, "rotated and scaled vs rotated", scale_real)
+                rotated_scaled_vs_scaled_rotated[scale_int] += match_and_print(kpts_scaled_rotated, desc_scaled_rotated, kpts_rotated_scaled, desc_rotated_scaled, "rotated and scaled vs scaled rotated", scale_real)
+
+                fig, axs = plt.subplots(1, 2, figsize=(10, 7))
+                fig.tight_layout()
+                fig.suptitle("foo")
+                axs[0].set_axis_off()
+                axs[0].set_title(f"original: {file_path.split('/')[-1]}")
+                axs[0].imshow(img_np_original)
+                axs[1].set_axis_off()
+                axs[1].set_title(f"'rotated_scaled' - 'scaled_rotated': {mode[0]} at {scale}")
+                axs[1].imshow(img_np_rotated_scaled - img_np_scaled_rotated)
+                plt.savefig(f"demo_imgs/scale_rotate/diff_{mode[0]}_{scale}_{file_path.split('/')[-1]}.png")
+                # plt.show()
+                plt.close()
+
+        print(f"MODE: {mode[0]}")
+        print(f"crop_when_read: {crop_when_read}")
+        print(f"crop_when_detect: {crop_when_detect}")
+        print(f"integer_scale: {integer_scale}")
+
+        l = len(files)
+        rotated_stat /= l
+        print(f"rotated: mean: {rotated_stat[0]}, std: {rotated_stat[1]}")
+
+        def print_stat(stat, name):
+            stat /= l
+            for scale in range(9):
+                print(f"{name}: mean: {stat[scale, 0]}, std: {stat[scale, 1]}")
+
+        print_stat(scaled_stat, "scaled_stat")
+        print_stat(scaled_rotated_vs_scaled, "scaled_rotated_vs_scaled")
+        print_stat(scaled_rotated_vs_rotated, "scaled_rotated_vs_rotated")
+        print_stat(rotated_scaled_vs_rotated, "rotated_scaled_vs_rotated")
+        print_stat(rotated_scaled_vs_scaled_rotated, "rotated_scaled_vs_scaled_rotated")
 
 
 def show_me_rotate(kpt, img_np, margin=11):
@@ -745,11 +999,10 @@ def show_me_rotate(kpt, img_np, margin=11):
 
 def show_me_scale(kpt, mask, img_np, margin=11):
 
-    counter = 0
-    global counter_img
-    counter_img += 1
+    Counter.counter = 0
+    Counter.counter_img += 1
 
-    print(f"counter: {counter_img}")
+    print(f"counter: {Counter.counter_img}")
     scale_crop = 5
     scale_err = 10
     cur_scale_err = scale_err
@@ -790,7 +1043,7 @@ def show_me_scale(kpt, mask, img_np, margin=11):
 
         # fig.axes[0].set_axis_off()
         #plt.subplots_adjust(left=0.15, bottom=0.10, right=1.0, top=1.0, wspace=0, hspace=0)
-        plt.savefig(f"./visualizations/scale_{counter_img}_{counter}.png")
+        plt.savefig(f"./visualizations/scale_{Counter.counter_img}_{Counter.counter}.png")
         plt.show()
         plt.close()
 
@@ -831,7 +1084,7 @@ def show_me_scale(kpt, mask, img_np, margin=11):
     # plt.title("original img")
     # fig.axes[0].set_axis_off()
     # plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-    plt.savefig(f"./visualizations/scale_{counter_img}_{counter}.png")
+    plt.savefig(f"./visualizations/scale_{Counter.counter_img}_{Counter.counter}.png")
     plt.show()
     plt.close()
 
@@ -870,9 +1123,9 @@ def show_me_scale(kpt, mask, img_np, margin=11):
             if i == 9:
                 done = True
 
-    counter += 1
+    Counter.counter += 1
     show(use_cropped_only, "crop only")
-    counter += 1
+    Counter.counter += 1
     show(use_cropped_original, f"original keypoint; scale_err={cur_scale_err}")
 
     for i in range(10):
@@ -885,7 +1138,7 @@ def show_me_scale(kpt, mask, img_np, margin=11):
             #     counter += 1
             #     show(use_cropped_kpts_rot, "...detect")
             # title = "rotate back" if i > 0 else "detect"
-            counter += 1
+            Counter.counter += 1
             show(use_cropped_kpts[i])
 
 
@@ -924,12 +1177,15 @@ def rotate_lowe_exp():
 
 
 if __name__ == "__main__":
-    #from superpoint_local import SuperPointDetector
+    # from superpoint_local import SuperPointDetector
     from sift_detectors import AdjustedSiftDescriptor
-    # detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
-    detector = NumpyKorniaSiftDescriptor()
+    detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
+
+    scale_rotate_detail_experiment_loop(detector, imgs_to_show=5)
+
+    # detector = NumpyKorniaSiftDescriptor()
     #detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
-    rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
+    #rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
     # rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
     # scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
     # prepare_lowe(img_to_show=5)

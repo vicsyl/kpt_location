@@ -64,9 +64,16 @@ def get_tentatives(kpts0, desc0, kpts1, desc1, ratio_threshold, space_dist_th=No
 
 def csv2latex(str):
 
+    def format_number(s):
+        s = s.strip()
+        set1 = set(s)
+        if len(set1) > 0 and set1.issubset(set(list("0123456789."))):
+            s = "{:.3f}".format(float(s))
+        return s
+
     ret = ""
     for line in str.split("\n"):
-        tokens = [l.strip() for l in line.split("\t") if len(l.strip()) > 0]
+        tokens = [format_number(l) for l in line.split("\t") if len(l.strip()) > 0]
         ret += " & ".join(tokens) + " \\\\ \n\\hline\n"
     return ret
 
@@ -182,6 +189,93 @@ def csv2latex_exps():
 0.705	0.003	0.005	0.707	0.675	0.121	0.002	0.707
 0.500	0.001	0.004	0.499	0.455	0.068	0.002	0.499
 1.705	0.006	0.010	1.707	1.646	0.271	0.005	1.706""")
+    print(r)
+
+
+    r = csv2latex("""0.5	0.002	0	0.5	0.001	0.5	0.534	0.193
+0.705	0.003	0.001	0.707	0.002	0.707	0.707	0.001
+0.5	0.001	0.001	0.499	0.002	0.499	0.537	0.077
+1.705	0.006	0.002	1.706	0.005	1.706	1.778	0.271""")
+    print(r)
+
+    r = csv2latex("""0.591	0.29	0.922	0.608	0.91	0.598	N/A	N/A	N/A
+0.45	0.199	0.723	0.449	0.729	0.455	0.681	0.284	0.23
+0.179	0.347	0.229	0.183	0.219	0.178	0.225	0.362	0.274
+0.169	0.1	0.362	0.166	0.365	0.168	0.226	0.133	0.138
+0.392	0.246	0.56	0.396	0.568	0.403	0.428	0.342	0.256
+0.225	0.099	0.36	0.223	0.363	0.226	0.269	0.251	0.193
+0.351	0.342	0.392	0.354	0.39	0.353	0.427	0.391	0.349
+0.171	0.2	0.169	0.169	0.169	0.168	0.193	0.261	0.168
+0.293	0.28	0.31	0.293	0.305	0.288	0.323	0.344	0.317
+2.821	2.103	4.027	2.841	4.018	2.837	2.772	2.368	1.925""")
+    print(r)
+
+
+    r = csv2latex("""openCV					
+experiment: bark			experiment: bark		
+OWN BUILD			OWN BUILD		
+NEAREST	NEAREST	NEAREST	LINEAR	LINEAR	LINEAR
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25	OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE			MAE		
+1.332	1.436	1.246	1.208	1.27	1.166
+2.178	2.633	1.762	1.963	2.391	1.588
+1.34	1.729	0.993	1.164	1.553	0.827
+0.712	0.809	0.712	0.612	0.771	0.522
+1.257	1.596	0.981	1.029	1.333	0.84
+6.819	8.203	5.694	5.976	7.318	4.943
+					
+					
+experiment: bark			experiment: bark		
+OWN BUILD			OWN BUILD		
+LANCZOS	LANCZOS	LANCZOS	CUBIC	CUBIC	CUBIC
+OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25	OpenCV: 0.0	OpenCV: 0.25	OpenCV: -0.25
+MAE			MAE		
+0.888	0.972	0.833	0.939	1.005	0.9
+1.9	2.33	1.526	2.001	2.428	1.626
+1.089	1.474	0.762	1.193	1.579	0.862
+0.672	0.829	0.576	0.685	0.841	0.593
+1.043	1.341	0.863	1.025	1.33	0.833
+5.592	6.946	4.56	5.843	7.183	4.814""")
+    print(r)
+
+
+    r = csv2latex("""bark										
+HLOC SIFT: adj=0.0, conf=opencv_like_conf	HLOC SIFT: adj=0.25, conf=opencv_like_conf	HLOC SIFT: adj=-0.25, conf=opencv_like_conf	Lowe SIFT: [0.0, 0.0]	Lowe SIFT: [0.25, 0.25]	Lowe SIFT: [-0.25, -0.25]
+MAE			MAE		
+1.205	1.288	1.14	1.176	1.219	1.153
+1.694	2.107	1.349	1.689	2.096	1.353
+0.977	1.325	0.743	0.948	1.293	0.725
+0.715	0.725	0.837	0.709	0.694	0.837
+0.993	1.258	0.89	1.009	1.279	0.895
+5.584	6.703	4.959	5.531	6.581	4.963""")
+    print(r)
+
+
+    r = csv2latex("""experiment: bark					
+NEAREST			BILINEAR		
+	SIFT kornia nearest [0.25 0.25]		SIFT kornia bilinear [0. 0.]		SIFT kornia bilinear [-0.25 -0.25]
+SIFT kornia nearest [0. 0.]		SIFT kornia nearest [-0.25 -0.25]		SIFT kornia bilinear [0.25 0.25]	
+MAE					
+1.251	1.361	0.91	1.452	0.826	1.269
+2.085	2.621	1.712	2.289	2.602	1.378
+1.491	1.819	1.148	1.263	1.624	0.932
+0.771	0.861	0.84	0.679	0.734	0.713
+1.335	1.628	0.979	1.12	1.424	1.055
+6.933	8.29	5.589	6.803	7.21	5.347""")
+    print(r)
+
+
+    r = csv2latex("""					
+LANCZOS			BICUBIC		
+	SIFT kornia lanczos [0.25 0.25]		SIFT kornia bicubic [0. 0.]		
+SIFT kornia lanczos [0. 0.]		SIFT kornia lanczos [-0.25 -0.25]		SIFT kornia bicubic [0.25 0.25]	SIFT kornia bicubic [-0.25 -0.25]
+					
+1.518	1.137	1.211	1.362	1.237	1.248
+2.557	2.663	8.823	2.653	2.577	1.478
+1.255	1.857	1.103	1.141	1.619	0.918
+0.58	0.842	0.786	0.665	0.866	0.723
+1.021	1.086	0.942	0.998	1.513	0.562
+6.931	7.585	12.865	6.819	7.812	4.929""")
     print(r)
 
 
