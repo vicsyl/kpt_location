@@ -125,11 +125,22 @@ def draw_matches(kps1, kps2, tentative_matches, H_est, H_gt, inlier_mask, img1, 
     return img_out
 
 
-def read_imgs(file_paths, show=False):
+def read_imgs(file_paths, show=False, crop=None):
     imgs = []
     for i, file in enumerate(file_paths):
         img = Image.open(file)
         img = np.array(img)
+
+        def modulo32(n, modulo):
+            n_n = n - ((n - modulo) % 32)
+            assert n_n % 32 == modulo
+            return n_n
+        if crop:
+            h, w = img.shape[:2]
+            w = modulo32(w, crop)
+            h = modulo32(h, crop)
+            img = img[:h, :w]
+
         imgs.append(img)
         if show:
             plt.figure()
@@ -183,19 +194,31 @@ def run_experiments(detector_sets):
     ]
 
     num_features = 8000
+    nearest_fix_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
+    nearest_fix_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
+    nearest_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
+    nearest_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
     kornia_sift_descriptors = [
-        NumpyKorniaSiftDescriptor(num_features=num_features),
-        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[-0.25, -0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear'),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.25, -0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos'),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[-0.25, -0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic'),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[0.25, 0.25]),
-        NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[-0.25, -0.25]),
+
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp),
+
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
+
+        # NumpyKorniaSiftDescriptor(num_features=num_features),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[0.25, 0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, adjustment=[-0.25, -0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear'),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.25, 0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.25, -0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos'),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[0.25, 0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='lanczos', adjustment=[-0.25, -0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic'),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[0.25, 0.25]),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bicubic', adjustment=[-0.25, -0.25]),
         # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[-0.5, -0.5]),
         # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.4, 0.4]),
         # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='nearest', adjustment=[0.4, 0.4]),
@@ -310,7 +333,8 @@ def run_experiments(detector_sets):
     print("BOAT experiment hompographies decomposition")
     print_Hs_decomposition(Hs_boat)
 
-    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False)
+    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False, crop=1)
+
     imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
 
     scales = [scale_int / 10 for scale_int in range(1, 10)]
@@ -352,12 +376,12 @@ def run_experiments(detector_sets):
         run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
 
     if 'kornia' in detector_sets:
-        run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
-        run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
+        # run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
+        # run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
         run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-        run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-        run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
-        run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
+        # run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        # run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
+        # run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
@@ -470,17 +494,30 @@ def np_show(img, title=None):
     plt.close()
 
 
-def Hs_imgs_for_rotation(file, show=False):
+def Hs_imgs_for_rotation(file, show=False, crop=None):
 
     img = Image.open(file)
     img = np.array(img)
+
+    def modulo32(n, modulo):
+        n_n = n - ((n - modulo) % 32)
+        assert n_n % 32 == modulo
+        return n_n
+
+    if crop:
+        h, w = img.shape[:2]
+        w = modulo32(w, crop)
+        h = modulo32(h, crop)
+        img = img[:h, :w]
+
     if show:
         np_show(img, "original")
 
     cos_a = [0., -1., 0.]
     sin_a = [1., 0., -1.]
 
-    Hs_gt_img = [rotate(img, sin_a[i], cos_a[i], i + 1, show) for i in range(3)]
+    rotations = 1
+    Hs_gt_img = [rotate(img, sin_a[i], cos_a[i], i + 1, show) for i in range(rotations)]
     Hs_gt = [h[0] for h in Hs_gt_img]
     imgs = [img] + [h[1] for h in Hs_gt_img]
     return Hs_gt, imgs
@@ -559,12 +596,18 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None):
 
         metrics = []
 
+        # FIXME remove me
+        descriptor.set_rotate_gauss(0)
+        descriptor.detector.compensate_nms = 0
         kpts_0, desc_0, time_0 = descriptor.detect_compute_measure(imgs[0], mask=None)
         # metrics.append([None, time_0] * 3 + [time_0])
 
         for other_i in range(1, len(imgs)):
             # print(f"other_i: {other_i}")
 
+            # FIXME remove me
+            descriptor.set_rotate_gauss(4 - other_i)
+            # descriptor.detector.compensate_nms = (4 - other_i)
             kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
             time = time_0 + time_other
             src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)

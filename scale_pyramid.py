@@ -44,7 +44,8 @@ class MyScalePyramid(nn.Module):
         return f"interpolation={self.interpolation_mode}"
 
     def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False,
-                 interpolation_mode='bilinear', rotate90_gauss=0, rotate90_interpolation=0, gauss_separable=True):
+                 interpolation_mode='bilinear', rotate90_gauss=0, rotate90_interpolation=0, gauss_separable=True,
+                 every_2nd=False):
         super().__init__()
         # 3 extra levels are needed for DoG nms.
         self.n_levels = n_levels
@@ -58,6 +59,7 @@ class MyScalePyramid(nn.Module):
         self.rotate90_gauss = rotate90_gauss
         self.rotate90_interpolation = rotate90_interpolation
         self.gauss_separable = gauss_separable
+        self.every_2nd = every_2nd
 
     def __repr__(self) -> str:
         return (
@@ -106,7 +108,10 @@ class MyScalePyramid(nn.Module):
             x = torch.rot90(x, self.rotate90_interpolation, (2, 3))
             if self.rotate90_interpolation % 2 == 1:
                 size = (size[1], size[0])
-        if mode == 'lanczos':
+
+        if self.every_2nd:
+            x = x[:, :, ::2, ::2]
+        elif mode == 'lanczos':
             import torchvision.transforms as T
             device = x.device
             x = x[0]
