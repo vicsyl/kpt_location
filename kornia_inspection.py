@@ -313,7 +313,7 @@ def conv_quad_interp3d(
     print(f"torch.where(dx == 0.6956359148025513): {torch.where(dx == 0.6956359148025513)}")
     print(f"torch.where(dx_res == 0.6956359148025513): {torch.where(dx_res == 0.6956359148025513)}")
 
-    coords_max = coords_max + dx_res
+    #coords_max = coords_max + dx_res
     print(f"dx_res.abs().max(): {dx_res.abs().max()}")
 
     return coords_max, y_max
@@ -512,7 +512,7 @@ def debug_nms():
         coord_maxs_or[i][:, :, 2, :, :] = torch.clone(coord_maxs_or[i][:, :, 1, :, :])
         coord_maxs_or[i][:, :, 1, :, :] = coord_temp
         coord_maxs_or[i] = torch.rot90(coord_maxs_or[i], 1, [4, 5])
-        coord_maxs_or[i][:, :, 2] = torch.clone(torch.flip(coord_maxs_or[i][:, :, 2], [4]))
+        # coord_maxs_or[i][:, :, 2] = torch.clone(torch.flip(coord_maxs_or[i][:, :, 2], [4]))
         coord_maxs_or[i][:, :, 2] = 736 - coord_maxs_or[i][:, :, 2]
 
     #compare(coord_max_or, coord_max_1, levels, axes=[4, 5])
