@@ -111,6 +111,7 @@ def show_pyrs(scale_pyr, compensate_gauss, compensate_interpolation, show_imgs, 
     for sp, sp_r in m['frame.0004.color.jpg']:
         if show_imgs:
             r = range(len(sp) - 1, len(sp))
+            r = range(len(sp))
         else:
             r = range(len(sp))
         for i in r:
@@ -120,7 +121,9 @@ def show_pyrs(scale_pyr, compensate_gauss, compensate_interpolation, show_imgs, 
                 if show_imgs:
                     level_size1 = sp[i][:, 0:1, j]
                     level_size2 = sp_r[i][:, 0:1, j]
-                    add(axs, j // 3, j % 3, level_size1 - level_size2, title=f"size={j}")
+                    diff = (level_size1 - level_size2).abs()
+                    print(f"max at {i}, {j} : {diff.max()}")
+                    add(axs, j // 3, j % 3, diff, title=f"size={j}")
                 else:
                     level_size1 = scale_and_pad(sp[i][:, 0:1, j])
                     level_size2 = scale_and_pad(sp_r[i][:, 0:1, j])
@@ -192,16 +195,19 @@ class Cfg:
 
 if __name__ == "__main__":
 
-    nearest = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
+    nearest_fix = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     nearest_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     nearest_o = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
     bilinear = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='bilinear')
 
-    for c in [True, False]:
+    for c in [True]:
         Cfg.crop = c
-        show_pyrs_wrapper(scale_pyr=nearest, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=False, every_2nd=True")
-        show_pyrs_wrapper(scale_pyr=nearest_d, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=True, every_2nd=True")
-        show_pyrs_wrapper(scale_pyr=nearest_o, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=True, every_2nd=False (original)")
+        show_pyrs_wrapper(scale_pyr=nearest_fix, compensate_gauss=True, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=False, every_2nd=True")
+        show_pyrs_wrapper(scale_pyr=nearest_fix, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=False, every_2nd=True")
+        show_pyrs_wrapper(scale_pyr=nearest_d, compensate_gauss=True, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=False, every_2nd=True")
+        show_pyrs_wrapper(scale_pyr=nearest_d, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=False, every_2nd=True")
+        # show_pyrs_wrapper(scale_pyr=nearest_d, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=True, every_2nd=True")
+        # show_pyrs_wrapper(scale_pyr=nearest_o, compensate_gauss=False, compensate_interpolation=False, title=f"crop={Cfg.crop}; double=True, every_2nd=False (original)")
     # show_pyrs_wrapper(scale_pyr=nearest, compensate_gauss=True, compensate_interpolation=False)
     # show_pyrs_wrapper(scale_pyr=nearest, compensate_gauss=False, compensate_interpolation=True)
     # show_pyrs_wrapper(scale_pyr=nearest, compensate_gauss=True, compensate_interpolation=True)

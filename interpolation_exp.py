@@ -11,6 +11,8 @@ import kornia.utils as KU
 import matplotlib.pyplot as plt
 
 
+# NOTE: this is to show (a)symmetry of simple interpolations
+
 def prepare(title, rows=2, cols=2):
     fig, axs = plt.subplots(rows, cols, figsize=(15, 15))
     fig.tight_layout()
@@ -94,6 +96,8 @@ def get_image_path(file_path, crop):
     potentially_crop(img_np_o, crop)
     return img_np_o
 
+
+# x = F.interpolate(x, scale_factor=2.0, mode='bilinear', align_corners=False)
 
 def rotate_experiment_interpolation(img_np_o, rotations_90_deg):
 

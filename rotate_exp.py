@@ -604,7 +604,7 @@ def scale_detail_experiment_loop(detector, img_to_show, show_img=True):
 def match_and_print(kpts_original, desc_original, kpts_transformed, desc_transformed, title, scale=1.0):
 
     ratio_threshold = 0.8
-    space_dist_th = 20.0
+    space_dist_th = 3.0
     # space_dist_th = None
     kpts_original_rotated_geo, kpts_match_rotated_geo, _, _, tentative_matches = get_tentatives(kpts_original,
                                                                                                 desc_original,
@@ -626,8 +626,8 @@ def scale_rotate_detail_experiment_loop(detector, imgs_to_show):
 
     img_dir = "demo_imgs/hypersim"
     files = sorted(["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:imgs_to_show])
-    for mode in [("LANCSOZ", PIL.Image.LANCZOS),
-                 ("NEAREST", PIL.Image.NEAREST)]:
+    for mode in [("LANCSOZ", PIL.Image.LANCZOS)]:
+                 # ("NEAREST", PIL.Image.NEAREST)]:
                  # ("LINEAR", PIL.Image.LINEAR),
                  # ("NEAREST", PIL.Image.NEAREST),
                  # ("BICUBIC", PIL.Image.BICUBIC),
@@ -677,10 +677,15 @@ def scale_rotate_detail_experiment_loop_per_img(detector, files, mode):
     def read_img(file_path, crop):
         img_pil = Image.open(file_path)
         w, h = img_pil.size[:2]
+
         def modulo32(n):
-            n_n = n - ((n + 1) % 32)
-            assert n_n % 32 == 31
+            n_n = n - ((n - 1) % 32)
+            assert n_n % 32 == 1
             return n_n
+        # def modulo32(n):
+        #     n_n = n - ((n + 1) % 32)
+        #     assert n_n % 32 == 31
+        #     return n_n
         if crop:
             w = modulo32(w)
             h = modulo32(h)
@@ -689,9 +694,9 @@ def scale_rotate_detail_experiment_loop_per_img(detector, files, mode):
         return img_pil
 
     def check_mod(n):
-        for i in range(6):
+        for i in range(5):
             assert n % 2 == 1
-            n //= 2
+            n = n // 2 + 1
 
     def check_pil_mod(img_pil):
         h, w = img_pil.size[:2]
@@ -705,13 +710,14 @@ def scale_rotate_detail_experiment_loop_per_img(detector, files, mode):
 
     print(f"MODE: {mode[0]}")
 
-    confs = [[False, False, True], [False, True, True]]
+    confs = [[True, False, False], [False, False, False]]
     for crop_when_read, crop_when_detect, integer_scale in confs:
         print(f"crop_when_read: {crop_when_read}")
         print(f"crop_when_detect: {crop_when_detect}")
         print(f"integer_scale: {integer_scale}")
 
-        scales = [i / 10 for i in range(1, 10)]
+        # scales = [i / 10 for i in range(1, 10)]
+        scales = [0.5]
         l_sc = len(scales)
         rotated_stat = np.zeros((2, 2), dtype=float)
         scaled_stat = np.zeros((l_sc, 2, 2), dtype=float)
@@ -793,7 +799,7 @@ def scale_rotate_detail_experiment_loop_per_img(detector, files, mode):
 
         def print_stat(stat, name):
             stat /= l
-            for scale in range(9):
+            for scale in range(len(scales)):
                 print(f"{name}: mean: {stat[scale, 0]}, std: {stat[scale, 1]}")
 
         print_stat(scaled_stat, "scaled_stat")
@@ -1178,10 +1184,16 @@ def rotate_lowe_exp():
 
 if __name__ == "__main__":
     # from superpoint_local import SuperPointDetector
+    from kornia_sift import NumpyKorniaSiftDescriptor
     from sift_detectors import AdjustedSiftDescriptor
+    from scale_pyramid import MyScalePyramid
     detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
 
-    scale_rotate_detail_experiment_loop(detector, imgs_to_show=5)
+    # sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest')
+    fix = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
+    detector = NumpyKorniaSiftDescriptor(num_features=500, scale_pyramid=fix)
+
+    scale_rotate_detail_experiment_loop(detector, imgs_to_show=3)
 
     # detector = NumpyKorniaSiftDescriptor()
     #detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
