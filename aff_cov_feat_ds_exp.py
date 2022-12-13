@@ -202,6 +202,7 @@ def run_experiments(detector_sets):
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
         NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d),
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d),
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp),
@@ -333,7 +334,7 @@ def run_experiments(detector_sets):
     print("BOAT experiment hompographies decomposition")
     print_Hs_decomposition(Hs_boat)
 
-    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False, crop=1)
+    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False, crop=1, rotations=1)
 
     imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
 
@@ -494,7 +495,7 @@ def np_show(img, title=None):
     plt.close()
 
 
-def Hs_imgs_for_rotation(file, show=False, crop=None):
+def Hs_imgs_for_rotation(file, show=False, crop=None, rotations=3):
 
     img = Image.open(file)
     img = np.array(img)
@@ -516,7 +517,6 @@ def Hs_imgs_for_rotation(file, show=False, crop=None):
     cos_a = [0., -1., 0.]
     sin_a = [1., 0., -1.]
 
-    rotations = 1
     Hs_gt_img = [rotate(img, sin_a[i], cos_a[i], i + 1, show) for i in range(rotations)]
     Hs_gt = [h[0] for h in Hs_gt_img]
     imgs = [img] + [h[1] for h in Hs_gt_img]
@@ -607,7 +607,7 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None):
 
             # FIXME remove me
             descriptor.set_rotate_gauss(4 - other_i)
-            # descriptor.detector.compensate_nms = (4 - other_i)
+            descriptor.detector.compensate_nms = (4 - other_i)
             kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
             time = time_0 + time_other
             src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)

@@ -177,7 +177,7 @@ def conv_quad_interp3d(
         # coords_max.shape = torch.Size([1, 1, 3, 5, 481, 737])
         # coords_max[0, 0, 1, 1, 6, 279] = 279.0009
         # coords_max_sub = coords_max[0, 0, 1, 1, 6, 279].item()
-        coords_max[0, 0, 1, 1, 6, 457] = 457.0009
+        # coords_max[0, 0, 1, 1, 6, 457] = 457.0009
         coords_max_sub = coords_max[0, 0, 1, 1, 6, 457].item()
         # dx_res_sub = dx_res[0, 0, 1, 1, 6, 279].item()
         dx_res_sub = dx_res[0, 0, :, 1, 6, 457]
@@ -202,12 +202,6 @@ def conv_quad_interp3d(
         dxs_lin = 0.25 * A_orig[0, 0, 5, 1, 6, 457]
         Cfg.Hes_lin = torch.stack([dxx_lin, dxy_lin, dxs_lin, dxy_lin, dyy_lin, dys_lin, dxs_lin, dys_lin, dss_lin], dim=-1).view(-1, 3, 3)
         Cfg.b_lin = b_orig[:, :, :, 1, 6, 457].permute(0, 2, 1)
-
-        # TODO: construct hessian and b, solve:
-        #safe_solve_with_mask(B: torch.Tensor, A: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # test the result,
-        # test the other result ....
-
 
         # coords_max_sub: 279.0
         # dx_res_sub: -0.0
@@ -247,7 +241,6 @@ def conv_quad_interp3d(
         print(f"Rot b: {b_lin}")
         print(f"Rot x: {x_solved_masked_lin}")
 
-
         print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
         print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
 
@@ -273,7 +266,7 @@ def conv_quad_interp3d(
         #            [0.0089, 0.0088, 0.0070]]]]])
         # A_sub: tensor([[[-0.0022, -0.0015, -0.0018,  0.0001, -0.0019,  0.0016]]])
         # b_sub: tensor([[[-0.0004,  0.0001,  0.0002]]])
-        coords_max_sub = coords_max[0, 0, 2, 1, 279, 6].item()
+        coords_max_sub = coords_max[0, 0, :, 1, 279, 6]
         dx_res_sub = dx_res[0, 0, :, 1, 279, 6]
         # 457 = 737 - 1 - 279
         # input_sub = input[:, :, 0:3, 456:459, 5:8]
@@ -313,7 +306,11 @@ def conv_quad_interp3d(
     print(f"torch.where(dx == 0.6956359148025513): {torch.where(dx == 0.6956359148025513)}")
     print(f"torch.where(dx_res == 0.6956359148025513): {torch.where(dx_res == 0.6956359148025513)}")
 
-    #coords_max = coords_max + dx_res
+    tmp = torch.clone(dx_res[:, :, 1])
+    dx_res[:, :, 1] = torch.clone(dx_res[:, :, 2])
+    dx_res[:, :, 2] = tmp
+
+    coords_max = coords_max + dx_res
     print(f"dx_res.abs().max(): {dx_res.abs().max()}")
 
     return coords_max, y_max
@@ -511,8 +508,12 @@ def debug_nms():
         coord_temp = torch.clone(coord_maxs_or[i][:, :, 2, :, :])
         coord_maxs_or[i][:, :, 2, :, :] = torch.clone(coord_maxs_or[i][:, :, 1, :, :])
         coord_maxs_or[i][:, :, 1, :, :] = coord_temp
+        # coord_maxs_or[i][:, :, 2] = 736 - coord_maxs_or[i][:, :, 2]
+        # coord_maxs_or[i][:, :, 2] = 480 - coord_maxs_or[i][:, :, 2]
+        # coord_maxs_or[i][:, :, 1] = -coord_maxs_or[i][:, :, 1]
+        # coord_maxs_or[i][:, :, 1] = 737 - coord_maxs_or[i][:, :, 1]
+        # coord_maxs_or[i][:, :, 2] = torch.clone(torch.flip(coord_maxs_or[i][:, :, 2], [3]))
         coord_maxs_or[i] = torch.rot90(coord_maxs_or[i], 1, [4, 5])
-        # coord_maxs_or[i][:, :, 2] = torch.clone(torch.flip(coord_maxs_or[i][:, :, 2], [4]))
         coord_maxs_or[i][:, :, 2] = 736 - coord_maxs_or[i][:, :, 2]
 
     #compare(coord_max_or, coord_max_1, levels, axes=[4, 5])
@@ -525,6 +526,8 @@ def debug_nms():
         values, counts = torch.unique(diff, return_counts=True)
         print(f"values: {values}")
         print(f"counts: {counts}")
+        diff_a = diff.abs()
+        print(f"max: {diff_a.max()}")
         diff_a = diff[2:].abs()
         print(f"max: {diff_a.max()}")
 
@@ -539,9 +542,19 @@ def debug_nms():
         # rot1 = coord_maxs_rot[i][0, 0][1, 3, 14, 327]
         # dim0=2
         rot2 = coord_maxs_rot[i][0, 0][2, 1, 279, 6]
-        rot = rot2
-
+        rot = coord_maxs_rot[i][0, 0, :, 1, 279, 6]
+        orrrr = coord_maxs_or[i][0, 0, :, 1, 279, 6]
         print(f"rot: {rot}")
+        print(f"orrr: {orrrr}")
+        rot = coord_maxs_rot[i][0, 0, :, 1, 278, 5]
+        orrrr = coord_maxs_or[i][0, 0, :, 1, 278, 5]
+        print(f"rot: {rot}")
+        print(f"orrr: {orrrr}")
+        rot = coord_maxs_rot[i][0, 0, :, 1, 270, 16]
+        orrrr = coord_maxs_or[i][0, 0, :, 1, 270, 16]
+        print(f"rot: {rot}")
+        print(f"orrr: {orrrr}")
+
         # rot2 = coord_maxs_rot[i][0, 0][coords]
 
         # or1 = coord_maxs_or[i][0, 0][0, 3, 382, 322]

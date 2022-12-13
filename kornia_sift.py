@@ -379,7 +379,7 @@ class ScaleSpaceDetector(nn.Module):
                 current_lafs[:, :, 0, 2] = torch.clone(current_lafs[:, :, 1, 2])
                 current_lafs[:, :, 1, 2] = l_temp
                 # -1 OR NOT???!!!
-                current_lafs[:, :, 1, 2] = img.shape[2] - 1 - current_lafs[:, :, 1, 2]
+                current_lafs[:, :, 1, 2] = img.shape[2] - current_lafs[:, :, 1, 2]
 
             torch.save(current_lafs, f"work/scale_space/current_lafs_comp_final_{ScaleSpaceDetector.counter}_{oct_idx}")
 
