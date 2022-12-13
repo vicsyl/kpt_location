@@ -201,8 +201,23 @@ def run_experiments(detector_sets):
     kornia_sift_descriptors = [
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True),
+        #
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=False),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=False),
+        #
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=True),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=True),
+
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False),
+
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=False),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=False),
+
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=True),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=True),
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d),
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp),
@@ -379,7 +394,8 @@ def run_experiments(detector_sets):
     if 'kornia' in detector_sets:
         # run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
         # run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
-        run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
+        # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
         # run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
         # run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
         # run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
@@ -577,7 +593,7 @@ class Output:
     latex = ""
 
 
-def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None):
+def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
 
     print(f"running experiment: {e_name}")
 
@@ -597,8 +613,9 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None):
         metrics = []
 
         # FIXME remove me
-        descriptor.set_rotate_gauss(0)
-        descriptor.detector.compensate_nms = 0
+        # if compensate:
+        #     descriptor.set_rotate_gauss(0)
+        #     descriptor.detector.compensate_nms = 0
         kpts_0, desc_0, time_0 = descriptor.detect_compute_measure(imgs[0], mask=None)
         # metrics.append([None, time_0] * 3 + [time_0])
 
@@ -607,8 +624,14 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None):
 
             # FIXME remove me
             descriptor.set_rotate_gauss(4 - other_i)
-            descriptor.detector.compensate_nms = (4 - other_i)
+            if compensate:
+                descriptor.detector.compensate_nms = (4 - other_i)
             kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
+            descriptor.set_rotate_gauss(0)
+            if compensate:
+                descriptor.set_rotate_gauss(0)
+                descriptor.detector.compensate_nms = (0)
+
             time = time_0 + time_other
             src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)
             if len(src_pts) < 4:

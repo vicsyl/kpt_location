@@ -10,7 +10,7 @@ from kornia.utils.helpers import safe_solve_with_mask
 
 
 def conv_quad_interp3d(
-    input: torch.Tensor, strict_maxima_bonus: float = 10.0, eps: float = 1e-7
+    input: torch.Tensor, strict_maxima_bonus: float = 10.0, eps: float = 1e-7, swap_xy=False,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""Compute the single iteration of quadratic interpolation of the extremum (max or min).
 
@@ -306,9 +306,20 @@ def conv_quad_interp3d(
     print(f"torch.where(dx == 0.6956359148025513): {torch.where(dx == 0.6956359148025513)}")
     print(f"torch.where(dx_res == 0.6956359148025513): {torch.where(dx_res == 0.6956359148025513)}")
 
-    tmp = torch.clone(dx_res[:, :, 1])
-    dx_res[:, :, 1] = torch.clone(dx_res[:, :, 2])
-    dx_res[:, :, 2] = tmp
+
+    if swap_xy:
+        dx_res[:, :, [1, 2]] = dx_res[:, :, [2, 1]]
+    dx_res[:, :, 1:3] += 0.5
+
+    # tmp2 = torch.clone(dx_res)
+    # tmp2[:, :, [1, 2]] = tmp2[:, :, [2, 1]]
+    #
+    # tmp = torch.clone(dx_res[:, :, 1])
+    # dx_res[:, :, 1] = torch.clone(dx_res[:, :, 2])
+    # dx_res[:, :, 2] = tmp
+    #
+    # t = torch.all(tmp2 == dx_res)
+    # print(f"test testL :{t}")
 
     coords_max = coords_max + dx_res
     print(f"dx_res.abs().max(): {dx_res.abs().max()}")
@@ -322,17 +333,18 @@ class ConvQuadInterp3d(nn.Module):
     See :func:`~kornia.geometry.subpix.conv_quad_interp3d` for details.
     """
 
-    def __init__(self, strict_maxima_bonus: float = 10.0, eps: float = 1e-7) -> None:
+    def __init__(self, swap_xy, strict_maxima_bonus: float = 10.0, eps: float = 1e-7) -> None:
         super().__init__()
         self.strict_maxima_bonus = strict_maxima_bonus
         self.eps = eps
+        self.swap_xy=swap_xy
         return
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + '(' + 'strict_maxima_bonus=' + str(self.strict_maxima_bonus) + ')'
 
     def forward(self, x: torch.Tensor):  # type: ignore
-        return conv_quad_interp3d(x, self.strict_maxima_bonus, self.eps)
+        return conv_quad_interp3d(x, self.strict_maxima_bonus, self.eps, swap_xy=self.swap_xy)
 
 
 def load(fn, dir="work/scale_space"):
@@ -370,7 +382,7 @@ def run_nms(oct_resp_l, levels):
 
     for oct_resp in oct_resp_l[:levels]:
 
-        nms_module = ConvQuadInterp3d(10)
+        nms_module = ConvQuadInterp3d(10, Cfg.swap_xy)
 
         coord_max, response_max = nms_module(oct_resp)
 
@@ -424,6 +436,7 @@ def run_nms(oct_resp_l, levels):
     return coord_maxs, response_maxs, resp_flat_bests, max_coords_bests
 
 class Cfg:
+    swap_xy = False
     counter = 0
     nms_mask_or = None
     new_nms_mask_or = None
@@ -514,7 +527,7 @@ def debug_nms():
         # coord_maxs_or[i][:, :, 1] = 737 - coord_maxs_or[i][:, :, 1]
         # coord_maxs_or[i][:, :, 2] = torch.clone(torch.flip(coord_maxs_or[i][:, :, 2], [3]))
         coord_maxs_or[i] = torch.rot90(coord_maxs_or[i], 1, [4, 5])
-        coord_maxs_or[i][:, :, 2] = 736 - coord_maxs_or[i][:, :, 2]
+        coord_maxs_or[i][:, :, 2] = 737 - coord_maxs_or[i][:, :, 2]
 
     #compare(coord_max_or, coord_max_1, levels, axes=[4, 5])
     for i in range(levels):

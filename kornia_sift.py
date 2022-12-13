@@ -4,7 +4,8 @@
 # from kornia.feature import ScaleSpaceDetector, BlobDoG, LAFOrienter, PassLAF, LAFDescriptor, SIFTDescriptor
 from kornia.feature import BlobDoG, LAFOrienter, PassLAF, LAFDescriptor, SIFTDescriptor
 from kornia.feature.laf import scale_laf
-from kornia.geometry.subpix import ConvQuadInterp3d
+# from kornia.geometry.subpix import ConvQuadInterp3d
+from conv_quad_interp3d import ConvQuadInterp3d
 # from kornia.geometry.transform import ScalePyramid
 import kornia.utils as KU
 
@@ -42,7 +43,9 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
     see kornia.feature.integrated.SIFTFeature
     plus num_features is different (originally 8000) and the ScalePyramid can be overriden for obvious reasons
     """
-    def __init__(self, upright=False, num_features=500, interpolation_mode='nearest', rootsift=True, adjustment=[0.0, 0.0], scale_pyramid=None):
+    def __init__(self, upright=False, num_features=500, interpolation_mode='nearest', rootsift=True,
+                 adjustment=[0.0, 0.0], scale_pyramid=None,
+                 scatter_fix=True, swap_xy_fix=True, compensate_nms_dim_minus_1=True):
         super().__init__()
         self.interpolation_mode = interpolation_mode if not scale_pyramid else "via_scale_pyr"
         if not scale_pyramid:
@@ -51,15 +54,19 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
 
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.adjustment = torch.tensor(adjustment, device=device)
+        scatter_fix_loc = scatter_fix
+        swap_xy_fix_loc = swap_xy_fix
+
         self.detector = ScaleSpaceDetector(
             num_features=num_features,
             resp_module=BlobDoG(),
-            nms_module=ConvQuadInterp3d(10),
+            nms_module=ConvQuadInterp3d(10, scatter_fix=scatter_fix_loc, swap_xy_fix=swap_xy_fix_loc),
             scale_pyr_module=scale_pyramid,
             ori_module=PassLAF() if upright else LAFOrienter(19),
             scale_space_response=True,
             minima_are_also_good=True,
             mr_size=6.0,
+            compensate_nms_dim_minus_1=compensate_nms_dim_minus_1
         )
         patch_size = 41
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -210,6 +217,7 @@ class ScaleSpaceDetector(nn.Module):
         minima_are_also_good: bool = False,
         scale_space_response=False,
         compensate_nms=None,
+        compensate_nms_dim_minus_1=True,
     ):
         super().__init__()
         self.mr_size = mr_size
@@ -224,6 +232,7 @@ class ScaleSpaceDetector(nn.Module):
         # like Difference-of-Gaussians
         self.scale_space_response = scale_space_response
         self.compensate_nms = compensate_nms
+        self.compensate_nms_dim_minus_1 = compensate_nms_dim_minus_1
 
     def __repr__(self):
         return (
@@ -258,8 +267,8 @@ class ScaleSpaceDetector(nn.Module):
         dev: torch.device = img.device
         dtype: torch.dtype = img.dtype
         sp, sigmas, _ = self.scale_pyr(img)
-        torch.save(sp, f"work/scale_space/sp_{ScaleSpaceDetector.counter}")
-        torch.save(sigmas, f"work/scale_space/sigmas_{ScaleSpaceDetector.counter}")
+        # torch.save(sp, f"work/scale_space/sp_{ScaleSpaceDetector.counter}")
+        # torch.save(sigmas, f"work/scale_space/sigmas_{ScaleSpaceDetector.counter}")
 
         all_responses: List[torch.Tensor] = []
         all_lafs: List[torch.Tensor] = []
@@ -274,7 +283,7 @@ class ScaleSpaceDetector(nn.Module):
             if self.scale_space_response:
                 # NOTE: ACTIVE BRANCH
                 oct_resp = self.resp(octave, sigmas_oct.view(-1))
-                torch.save(oct_resp, f"work/scale_space/oct_resp_{ScaleSpaceDetector.counter}_{oct_idx}")
+                # torch.save(oct_resp, f"work/scale_space/oct_resp_{ScaleSpaceDetector.counter}_{oct_idx}")
             else:
                 oct_resp = self.resp(octave.permute(0, 2, 1, 3, 4).reshape(B * L, CH, H, W), sigmas_oct.view(-1)).view(
                     B, L, CH, H, W
@@ -297,7 +306,7 @@ class ScaleSpaceDetector(nn.Module):
                 assert self.compensate_nms == 3
                 oct_resp = torch.clone(torch.rot90(oct_resp, self.compensate_nms, [3, 4]))
 
-            torch.save(oct_resp, f"work/scale_space/oct_resp_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(oct_resp, f"work/scale_space/oct_resp_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             coord_max, response_max = self.nms(oct_resp)
 
@@ -307,8 +316,8 @@ class ScaleSpaceDetector(nn.Module):
                 response_max = response_min * take_min_mask + (1 - take_min_mask) * response_max
                 coord_max = coord_min * take_min_mask.unsqueeze(2) + (1 - take_min_mask.unsqueeze(2)) * coord_max
 
-            torch.save(coord_max, f"work/scale_space/coord_max_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
-            torch.save(response_max, f"work/scale_space/response_max_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(coord_max, f"work/scale_space/coord_max_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(response_max, f"work/scale_space/response_max_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             # if self.compensate_nms is not None and self.compensate_nms != 0:
             #     assert self.compensate_nms == 3
@@ -321,8 +330,8 @@ class ScaleSpaceDetector(nn.Module):
             #     response_max = torch.clone(torch.rot90(response_max, 1, [3, 4]))
             #     # original to rotate by rot 4 - self.compensate_nms
 
-            torch.save(coord_max, f"work/scale_space/coord_max_{ScaleSpaceDetector.counter}_{oct_idx}")
-            torch.save(response_max, f"work/scale_space/response_max_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(coord_max, f"work/scale_space/coord_max_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(response_max, f"work/scale_space/response_max_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             # Now, lets crop out some small responses
             # responses_flatten = response_max.view(response_max.size(0), -1)  # [B, N]
@@ -330,8 +339,8 @@ class ScaleSpaceDetector(nn.Module):
             # max_coords_flatten = coord_max.view(response_max.size(0), 3, -1).permute(0, 2, 1)  # [B, N, 3]
             max_coords_flatten = coord_max.reshape(response_max.size(0), 3, -1).permute(0, 2, 1)  # [B, N, 3]
 
-            torch.save(responses_flatten, f"work/scale_space/responses_flatten_{ScaleSpaceDetector.counter}_{oct_idx}")
-            torch.save(max_coords_flatten, f"work/scale_space/max_coords_flatten_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(responses_flatten, f"work/scale_space/responses_flatten_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(max_coords_flatten, f"work/scale_space/max_coords_flatten_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             if responses_flatten.size(1) > num_feats:
                 resp_flat_best, idxs = torch.topk(responses_flatten, k=num_feats, dim=1)
@@ -340,8 +349,8 @@ class ScaleSpaceDetector(nn.Module):
                 resp_flat_best = responses_flatten
                 max_coords_best = max_coords_flatten
 
-            torch.save(resp_flat_best, f"work/scale_space/resp_flat_best_{ScaleSpaceDetector.counter}_{oct_idx}")
-            torch.save(max_coords_best, f"work/scale_space/max_coords_best_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(resp_flat_best, f"work/scale_space/resp_flat_best_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(max_coords_best, f"work/scale_space/max_coords_best_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             B, N = resp_flat_best.size()
 
@@ -369,8 +378,8 @@ class ScaleSpaceDetector(nn.Module):
             # Normalize LAFs
             current_lafs = normalize_laf(current_lafs, octave[:, 0], px_size)  # We don`t need # of scale levels, only shape
 
-            torch.save(current_lafs, f"work/scale_space/current_lafs_final_{ScaleSpaceDetector.counter}_{oct_idx}")
-            torch.save(resp_flat_best, f"work/scale_space/resp_flat_best_final_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(current_lafs, f"work/scale_space/current_lafs_final_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(resp_flat_best, f"work/scale_space/resp_flat_best_final_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             all_responses.append(resp_flat_best)
 
@@ -380,8 +389,10 @@ class ScaleSpaceDetector(nn.Module):
                 current_lafs[:, :, 1, 2] = l_temp
                 # -1 OR NOT???!!!
                 current_lafs[:, :, 1, 2] = img.shape[2] - current_lafs[:, :, 1, 2]
+                if self.compensate_nms_dim_minus_1:
+                    current_lafs[:, :, 1, 2] = current_lafs[:, :, 1, 2] - 1
 
-            torch.save(current_lafs, f"work/scale_space/current_lafs_comp_final_{ScaleSpaceDetector.counter}_{oct_idx}")
+            # torch.save(current_lafs, f"work/scale_space/current_lafs_comp_final_{ScaleSpaceDetector.counter}_{oct_idx}")
 
             all_lafs.append(current_lafs)
             px_size *= 2
