@@ -9,8 +9,15 @@ from kornia.geometry.subpix.nms import nms3d
 from kornia.utils.helpers import safe_solve_with_mask
 
 
+"""BEWARE: not really a clean code. 
+- special clone of conv_quad_interp3d and ConvQuadInterp3d here
+- current active code (debug_nms), loads the persistet DoG responses from original and rotated image 
+(which are indeed rotationally invariant) and runs nms on it  
+"""
+
 def conv_quad_interp3d(
     input: torch.Tensor, strict_maxima_bonus: float = 10.0, eps: float = 1e-7, swap_xy=False,
+     scatter_fix=True
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""Compute the single iteration of quadratic interpolation of the extremum (max or min).
 
@@ -125,11 +132,12 @@ def conv_quad_interp3d(
 
     print(f"x_solved != 0.0).sum(): {(x_solved != 0.0).sum()}")
     print(f"(x_solved != 0).sum(): {(x_solved != 0).sum()}")
-    # FIXME this is the place !!!
-    # original code
-    # x_solved.masked_scatter_(new_nms_mask.view(-1, 1, 1), x_solved_masked[solved_correctly])
+
+    if scatter_fix:
+        x_solved[torch.where(new_nms_mask.view(-1, 1, 1))[0]] = x_solved_masked[solved_correctly]
+    else:
+        x_solved.masked_scatter_(new_nms_mask.view(-1, 1, 1), x_solved_masked[solved_correctly])
     # x_solved[torch.where(new_nms_mask.view(-1, 1, 1))[0][masked_index]] = x_solved_masked[solved_correctly][masked_index]
-    x_solved[torch.where(new_nms_mask.view(-1, 1, 1))[0]] = x_solved_masked[solved_correctly]
 
     print(f"torch.where(x_solved[:, :, :] == 100): {torch.where(x_solved[:, :, :] == 100)}")
 
@@ -333,18 +341,19 @@ class ConvQuadInterp3d(nn.Module):
     See :func:`~kornia.geometry.subpix.conv_quad_interp3d` for details.
     """
 
-    def __init__(self, swap_xy, strict_maxima_bonus: float = 10.0, eps: float = 1e-7) -> None:
+    def __init__(self, swap_xy, scatter_fix, strict_maxima_bonus: float = 10.0, eps: float = 1e-7) -> None:
         super().__init__()
         self.strict_maxima_bonus = strict_maxima_bonus
         self.eps = eps
-        self.swap_xy=swap_xy
+        self.swap_xy = swap_xy
+        self.scatter_fix = scatter_fix
         return
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + '(' + 'strict_maxima_bonus=' + str(self.strict_maxima_bonus) + ')'
 
     def forward(self, x: torch.Tensor):  # type: ignore
-        return conv_quad_interp3d(x, self.strict_maxima_bonus, self.eps, swap_xy=self.swap_xy)
+        return conv_quad_interp3d(x, self.strict_maxima_bonus, self.eps, swap_xy=self.swap_xy, scatter_fix=self.scatter_fix)
 
 
 def load(fn, dir="work/scale_space"):
@@ -382,7 +391,7 @@ def run_nms(oct_resp_l, levels):
 
     for oct_resp in oct_resp_l[:levels]:
 
-        nms_module = ConvQuadInterp3d(10, Cfg.swap_xy)
+        nms_module = ConvQuadInterp3d(swap_xy=True, scatter_fix=True, strict_maxima_bonus=10)
 
         coord_max, response_max = nms_module(oct_resp)
 
@@ -436,7 +445,6 @@ def run_nms(oct_resp_l, levels):
     return coord_maxs, response_maxs, resp_flat_bests, max_coords_bests
 
 class Cfg:
-    swap_xy = False
     counter = 0
     nms_mask_or = None
     new_nms_mask_or = None
@@ -449,8 +457,8 @@ class Cfg:
 def debug_nms():
     levels = 1
     print("oct_resp_comp_")
-    oct_resp_comp_or = [load(f"oct_resp_comp_0_{i}", dir="work/scale_space_nms") for i in range(levels)]
-    oct_resp_comp_1 = [load(f"oct_resp_comp_1_{i}", dir="work/scale_space_nms") for i in range(levels)]
+    oct_resp_comp_or = [load(f"oct_resp_comp_0_{i}", dir="demo_imgs/scale_space_nms") for i in range(levels)]
+    oct_resp_comp_1 = [load(f"oct_resp_comp_1_{i}", dir="demo_imgs/scale_space_nms") for i in range(levels)]
     compare_rot(oct_resp_comp_or, oct_resp_comp_1, levels)
     coord_maxs_or, response_maxs_or, resp_flat_bests_or, max_coords_bests_or = run_nms(oct_resp_comp_or, levels)
     Cfg.counter += 1

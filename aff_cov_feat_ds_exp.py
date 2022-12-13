@@ -198,9 +198,38 @@ def run_experiments(detector_sets):
     nearest_fix_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     nearest_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
     nearest_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
-    kornia_sift_descriptors = [
+
+    kornia_sift_descriptors_nms_compensate = [
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False,
+                                  swap_xy_fix=False, compensate_nms_dim_minus_1=False),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False,
+                                  swap_xy_fix=False, compensate_nms_dim_minus_1=False),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False,
+                                  swap_xy_fix=False, compensate_nms_dim_minus_1=True),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False,
+                                  swap_xy_fix=False, compensate_nms_dim_minus_1=True),
+    ]
+
+    kornia_sift_descriptors = []
+
+    for adj in [0, -0.5]:
+        l = [
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+        ]
+        kornia_sift_descriptors.extend(l)
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
+
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True),
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True),
         #
@@ -213,11 +242,9 @@ def run_experiments(detector_sets):
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False),
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False),
 
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=False),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=False),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False),
+        # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False),
 
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=True),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, compensate_nms_dim_minus_1=True),
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d),
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp),
@@ -239,7 +266,7 @@ def run_experiments(detector_sets):
         # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.4, 0.4]),
         # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='nearest', adjustment=[0.4, 0.4]),
         # NumpyKorniaSiftDescriptor(num_features=num_features, interpolation_mode='bilinear', adjustment=[0.5, 0.5]),
-    ]
+    # ]
 
     test_descriptors = [
         AdjustedSiftDescriptor(adjustment=[0.0, 0.0], str="OpenCV; +0.25; bilinear"),
@@ -349,7 +376,8 @@ def run_experiments(detector_sets):
     print("BOAT experiment hompographies decomposition")
     print_Hs_decomposition(Hs_boat)
 
-    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False, crop=1, rotations=1)
+    Hs_gt_rot, imgs_rot = Hs_imgs_for_rotation(files_bark[0], show=False)
+    Hs_gt_rot_cropped, imgs_rot_cropped = Hs_imgs_for_rotation(files_bark[0], show=False, crop=1)
 
     imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
 
@@ -391,14 +419,21 @@ def run_experiments(detector_sets):
         run_exp(lowe_sift_descriptors, Hs_gt_sc_hom, imgs_scale_lowe_linear_cv, "synthetic rescaling linear/homography", imgs_sc_hom)
         run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
 
-    if 'kornia' in detector_sets:
+    #if 'kornia' in detector_sets:
         # run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
         # run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
-        run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
+        # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
         # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
         # run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
         # run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
         # run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
+
+    print("Original images")
+    run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=False)
+    print("nms compensation")
+    run_exp(kornia_sift_descriptors_nms_compensate, Hs_gt_rot[:1], imgs_rot[:2], "synthetic pi rotation", compensate=True)
+    print("Cropped images")
+    run_exp(kornia_sift_descriptors, Hs_gt_rot_cropped, imgs_rot_cropped, "synthetic pi rotation", compensate=False)
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
@@ -511,7 +546,7 @@ def np_show(img, title=None):
     plt.close()
 
 
-def Hs_imgs_for_rotation(file, show=False, crop=None, rotations=3):
+def Hs_imgs_for_rotation(file, show=False, crop=None):
 
     img = Image.open(file)
     img = np.array(img)
@@ -533,6 +568,7 @@ def Hs_imgs_for_rotation(file, show=False, crop=None, rotations=3):
     cos_a = [0., -1., 0.]
     sin_a = [1., 0., -1.]
 
+    rotations = 3
     Hs_gt_img = [rotate(img, sin_a[i], cos_a[i], i + 1, show) for i in range(rotations)]
     Hs_gt = [h[0] for h in Hs_gt_img]
     imgs = [img] + [h[1] for h in Hs_gt_img]
@@ -610,6 +646,7 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
 
     for i_det, descriptor in enumerate(detectors):
 
+        print(f"{i_det + 1}/{len(detectors)} detectors")
         metrics = []
 
         # FIXME remove me

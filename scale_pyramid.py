@@ -41,7 +41,7 @@ class MyScalePyramid(nn.Module):
         return f"interpolation={self.interpolation_mode}_double_img={self.double_image}_init_sigma={self.init_sigma}"
 
     def str_short(self):
-        return f"interpolation={self.interpolation_mode}"
+        return f"di={self.double_image}"
 
     def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False,
                  interpolation_mode='bilinear', rotate90_gauss=0, rotate90_interpolation=0, gauss_separable=True,
