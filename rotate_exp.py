@@ -1187,19 +1187,20 @@ if __name__ == "__main__":
     from kornia_sift import NumpyKorniaSiftDescriptor
     from sift_detectors import AdjustedSiftDescriptor
     from scale_pyramid import MyScalePyramid
-    detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
 
     # sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest')
     fix = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     detector = NumpyKorniaSiftDescriptor(num_features=500, scale_pyramid=fix)
 
-    scale_rotate_detail_experiment_loop(detector, imgs_to_show=3)
+    detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
+
+    # scale_rotate_detail_experiment_loop(detector, imgs_to_show=3)
 
     # detector = NumpyKorniaSiftDescriptor()
     #detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
     #rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
     # rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
-    # scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
+    scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
     # prepare_lowe(img_to_show=5)
     # prepare_lowe_scaling(img_to_show=5)
     # rotate_lowe_exp()

@@ -30,20 +30,23 @@ lin_interpolation_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
 
 class NumpyKorniaSiftDescriptor(BaseDescriptor):
 
-    def prop_str(self, name, value):
+    def prop_str_bool(self, name, value):
         return f"{name}={'T' if value else 'F'}"
 
     def prop_str_default(self, name, value, default_value):
         if value == default_value:
             return ""
         else:
-            return f"{self.prop_str(name, value)} "
+            return f"{self.prop_str_bool(name, value)} "
 
     def prop_1(self):
         return f"{self.prop_str_default('-1', self.compensate_nms_dim_minus_1, True)}"
 
     def __str__(self):
-        return f"SIFTKornia {self.prop_1()}{self.prop_str('di', self.scale_pyramid.double_image)} mns={self.nms_module}"
+        return f"SIFTKornia {self.prop_1()} " \
+               f"{self.prop_str_bool('di', self.scale_pyramid.double_image)}" \
+               f"ev2nd={'T' if self.scale_pyramid.every_2nd else 'F'} " \
+               f"adj={self.adjustment} mns=({self.nms_module})"
 
     """
     see kornia.feature.integrated.SIFTFeature
@@ -368,8 +371,7 @@ class ScaleSpaceDetector(nn.Module):
                 current_lafs[:, :, 1, 2] = l_temp
                 # -1 OR NOT???!!!
                 current_lafs[:, :, 1, 2] = img.shape[2] - current_lafs[:, :, 1, 2]
-                if self.compensate_nms_dim_minus_1:
-                    current_lafs[:, :, 1, 2] = current_lafs[:, :, 1, 2] - 1
+                ###
 
             all_lafs.append(current_lafs)
             px_size *= 2
@@ -379,7 +381,12 @@ class ScaleSpaceDetector(nn.Module):
         lafs: torch.Tensor = torch.cat(all_lafs, dim=1)
         responses, idxs = torch.topk(responses, k=num_feats, dim=1)
         lafs = torch.gather(lafs, 1, idxs.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, 2, 3))
-        return responses, denormalize_laf(lafs, img)
+        denom = denormalize_laf(lafs, img)
+        # here and at '###' it didn't work for some reason....
+        # if self.compensate_nms is not None and self.compensate_nms != 0 and self.compensate_nms_dim_minus_1:
+        #     denom[:, :, 1, 2] = denom[:, :, 1, 2] - 1
+
+        return responses, denom
 
     def forward(  # type: ignore
         self, img: torch.Tensor, mask: Optional[torch.Tensor] = None  # type: ignore

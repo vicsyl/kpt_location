@@ -10,9 +10,9 @@ class BaseDescriptor:
 
     def detect_compute_measure(self, img, mask):
         start = time()
-        kpts, descs = self.detectAndCompute(img, mask)
+        ret = self.detectAndCompute(img, mask)
         end = time()
-        return kpts, descs, (end - start)
+        return ret + ((end - start),)
 
 
 class AdjustedSiftDescriptor(BaseDescriptor):

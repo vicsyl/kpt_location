@@ -785,16 +785,22 @@ def log_config_and_datasets(metadata_list_map, dataset_conf, file=None, conf_to_
     return expected_loss_map
 
 
+class GlbC:
+    counter = 0
+
+
 def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
 
     conf = get_config()
     dataset_conf = conf['dataset']
+    dataset_conf['counter'] = GlbC.counter
     dataset_conf["tags"] = ["development"]
     enable_wandb = dataset_conf.get('enable_wandlog', False)
 
     if enable_wandb:
+        det_str = str(get_detector(dataset_conf))
         # tags...
-        wandb.init(project=wandb_project, name=get_wand_name(dataset_conf), tags=dataset_conf["tags"])
+        wandb.init(project=wandb_project, name=det_str + get_wand_name(dataset_conf), tags=dataset_conf["tags"])
         wandb.config = OmegaConf.to_container(conf)
     start_time = time.time()
 

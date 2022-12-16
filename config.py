@@ -49,8 +49,16 @@ def get_detector(config):
     # TODO parameters for all
     # NOTE I stuck with the cv API as e.g. scale can be used
 
-    key = config['detector']
-    return get_detector_by_key(key)
+    nearest_fix_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
+    return NumpyKorniaSiftDescriptor(num_features=8000,
+                                     conv_quad_interp_adjustment=+0.5,
+                                     scale_pyramid=nearest_fix_sp_d,
+                                     scatter_fix=False, swap_xy_fix=False, adjustment=[-0.25])
+    # key = config['detector']
+    # return get_detector_by_key(key)
+
+    counter = config['counter']
+    print(f"COUNTER: {counter}")
 
 
 def set_config_dir_scale_scheme(dataset_config):

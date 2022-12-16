@@ -200,33 +200,37 @@ def run_experiments(detector_sets):
     nearest_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
 
     kornia_sift_descriptors_nms_compensate = [
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False,
-                                  swap_xy_fix=False, compensate_nms_dim_minus_1=False),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False,
-                                  swap_xy_fix=False, compensate_nms_dim_minus_1=False),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False,
-                                  swap_xy_fix=False, compensate_nms_dim_minus_1=True),
-        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False,
-                                  swap_xy_fix=False, compensate_nms_dim_minus_1=True),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True,
+                                  swap_xy_fix=True, compensate_nms_dim_minus_1=False),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True,
+                                  swap_xy_fix=True, compensate_nms_dim_minus_1=False),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True,
+                                  swap_xy_fix=True, compensate_nms_dim_minus_1=True),
+        NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True,
+                                  swap_xy_fix=True, compensate_nms_dim_minus_1=True),
     ]
 
     kornia_sift_descriptors = []
 
-    for adj in [0, -0.5]:
+    # for i in range(5):
+    #     adj = -0.125 * i
+    for adj_i in range(3, 5): # [0.0, -0.25, -0.5, -0.75, -1.0]:
+        adj = -adj_i / 8
         l = [
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
             NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
 
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
-
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+            #
+            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+            #
+            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
         ]
         kornia_sift_descriptors.extend(l)
+
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
 
@@ -420,20 +424,19 @@ def run_experiments(detector_sets):
         run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
 
     #if 'kornia' in detector_sets:
-        # run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
-        # run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
-        # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
-        # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=True)
-        # run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-        # run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
-        # run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
+    run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
+    run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
+    run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+    run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+    run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
+    run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
-    print("Original images")
-    run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=False)
-    print("nms compensation")
-    run_exp(kornia_sift_descriptors_nms_compensate, Hs_gt_rot[:1], imgs_rot[:2], "synthetic pi rotation", compensate=True)
-    print("Cropped images")
-    run_exp(kornia_sift_descriptors, Hs_gt_rot_cropped, imgs_rot_cropped, "synthetic pi rotation", compensate=False)
+    # print("Original images")
+    # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=False)
+    # print("nms compensation")
+    # run_exp(kornia_sift_descriptors_nms_compensate, Hs_gt_rot[:1], imgs_rot[:2], "synthetic pi rotation", compensate=True)
+    # print("Cropped images")
+    # run_exp(kornia_sift_descriptors, Hs_gt_rot_cropped, imgs_rot_cropped, "synthetic pi rotation", compensate=False)
 
 
 def rotate(img, sin_a, cos_a, rotation_index, show=False):
@@ -666,8 +669,10 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
             kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
             descriptor.set_rotate_gauss(0)
             if compensate:
-                descriptor.set_rotate_gauss(0)
-                descriptor.detector.compensate_nms = (0)
+                descriptor.detector.compensate_nms = 0
+                if descriptor.detector.compensate_nms_dim_minus_1:
+                    for k in kpts_other:
+                        k.pt = (k.pt[0], k.pt[1] - 1)
 
             time = time_0 + time_other
             src_pts, dst_pts, _, _, tentative_matches = get_tentatives(kpts_0, desc_0, kpts_other, desc_other, ratio_threshold)
@@ -679,6 +684,15 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
             H_est, inlier_mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,
                                                    maxIters=ransac_iters, ransacReprojThreshold=ransac_th,
                                                    confidence=ransac_conf)
+
+            img_w = imgs[other_i].shape[0]
+            img_w_1 = imgs[other_i].shape[0] - 1
+            def get_mask(sum_c, eps=0.05):
+                return np.logical_and(np.abs((src_pts[:, 0] + dst_pts[:, 1])[:, None] - sum_c) < eps, (np.abs((src_pts[:, 1] - dst_pts[:, 0])[:, None] - 0) < 0.01))
+            mask = get_mask(img_w)
+            print(f"exact w: {mask.sum()}/{len(mask)}")
+            mask_1 = get_mask(img_w_1)
+            print(f"exact w-1: {mask_1.sum()}/{len(mask_1)}")
 
             if imgs_extra:
                 real_imgs = imgs_extra
