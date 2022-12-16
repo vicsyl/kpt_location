@@ -214,22 +214,26 @@ def run_experiments(detector_sets):
 
     # for i in range(5):
     #     adj = -0.125 * i
-    for adj_i in range(3, 5): # [0.0, -0.25, -0.5, -0.75, -1.0]:
-        adj = -adj_i / 8
-        l = [
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
-            NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
 
-            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-            #
-            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
-            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
-            #
-            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-            # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
-        ]
-        kornia_sift_descriptors.extend(l)
+    for flip in [1, -1]:
+        for adj_q in [0.0, 0.25, 0.5, 0.75]:
+            for adj_a in [0.0, -0.25, -0.5, -0.75]:
+                adj_q_r = adj_q * flip
+                adj_a_r = adj_a * flip
+                l = [
+                    NumpyKorniaSiftDescriptor(adjustment=adj_a_r, num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj_q_r),
+                    NumpyKorniaSiftDescriptor(adjustment=adj_a_r, num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj_q_r),
+
+                    # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+                    # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+                    #
+                    # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+                    # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=True, conv_quad_interp_adjustment=adj),
+                    #
+                    # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+                    # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=False, swap_xy_fix=False, conv_quad_interp_adjustment=adj),
+                ]
+                kornia_sift_descriptors.extend(l)
 
 
         # NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_sp_d),
