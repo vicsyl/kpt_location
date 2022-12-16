@@ -906,7 +906,7 @@ if __name__ == "__main__":
 
         scales = tenths(1, 10)
         #scales = [0.3]
-        prepare_data_by_scale(scales, args.counter)
+        prepare_data_by_scale(scales, int(args.counter))
 
     else:
         raise Exception("not reachable?")
