@@ -785,15 +785,11 @@ def log_config_and_datasets(metadata_list_map, dataset_conf, file=None, conf_to_
     return expected_loss_map
 
 
-class GlbC:
-    counter = 0
-
-
-def prepare_data_by_scale(scales, wandb_project="mean_std_dev"):
+def prepare_data_by_scale(scales, counter, wandb_project="mean_std_dev"):
 
     conf = get_config()
     dataset_conf = conf['dataset']
-    dataset_conf['counter'] = GlbC.counter
+    dataset_conf['counter'] = counter
     dataset_conf["tags"] = ["development"]
     enable_wandb = dataset_conf.get('enable_wandlog', False)
 
@@ -894,6 +890,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Analyze data for a given scale')
     parser.add_argument('--method', dest='method', help='method', choices=[name_prepare_data_from_files, name_prepare_data_by_scale], required=True)
     parser.add_argument('--config', dest='config', help='config path', required=True)
+    # remove me
+    parser.add_argument('--counter', required=True)
     args = parser.parse_args()
 
     config_path = args.config
@@ -908,7 +906,7 @@ if __name__ == "__main__":
 
         scales = tenths(1, 10)
         #scales = [0.3]
-        prepare_data_by_scale(scales)
+        prepare_data_by_scale(scales, args.counter)
 
     else:
         raise Exception("not reachable?")
