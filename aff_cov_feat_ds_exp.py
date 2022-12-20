@@ -801,6 +801,12 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
     for d in data_formatted:
         Output.latex += f"\n{csv2latex(format_data(d))}"
 
+    if print_eagerly:
+        print("Unformatted data (all so far)")
+        print(Output.unformatted)
+
+
+print_eagerly = True
 
 if __name__ == "__main__":
 
@@ -809,9 +815,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     run_experiments(args.detectors)
 
-    print("Unformatted data")
-    print(Output.unformatted)
-    print("Formatted data")
-    print(Output.formatted)
-    print("Latex data")
-    print(Output.latex)
+    if not print_eagerly:
+        print("Unformatted data")
+        print(Output.unformatted)
+        print("Formatted data")
+        print(Output.formatted)
+        print("Latex data")
+        print(Output.latex)
