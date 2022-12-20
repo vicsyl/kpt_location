@@ -13,6 +13,7 @@ from sift_detectors import AdjustedSiftDescriptor
 from lowe_sift_file_descriptor import LoweSiftDescriptor
 from superpoint_local import SuperPointDetector
 from utils import get_tentatives
+from utils import get_integer_scale
 
 from hloc_sift import HlocSiftDescriptor
 from utils import csv2latex
@@ -394,9 +395,9 @@ def run_experiments(detector_sets):
 
     scales = [scale_int / 10 for scale_int in range(1, 10)]
     # Hs_gt_sc_backward, imgs_sc_backward = Hs_imgs_for_scaling(files_bark[0], scales, show=False, mod4=True)
-    Hs_gt_sc_lanczos, imgs_sc_lanczos = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos')
-    Hs_gt_sc_lin, imgs_sc_lin = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear')
-    Hs_gt_sc_hom, imgs_sc_hom = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear_homography')
+    Hs_gt_sc_lanczos, imgs_sc_lanczos = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos', crop_h2=True)
+    Hs_gt_sc_lin, imgs_sc_lin = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear', crop_h2=True)
+    Hs_gt_sc_hom, imgs_sc_hom = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear_homography', crop_h2=True)
 
     scale_indices = [10] + list(range(1, 10))
     # imgs_scale_lowe_linear_cv_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_True_0_{i}.pgm.key" for i in l]
@@ -430,24 +431,24 @@ def run_experiments(detector_sets):
         run_exp(lowe_sift_descriptors, Hs_gt_sc_hom, imgs_scale_lowe_linear_cv, "synthetic rescaling linear/homography", imgs_sc_hom)
         run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
 
-    #if 'kornia' in detector_sets:
-    run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
-    run_exp(kornia_sift_descriptors_single_image, Hs_bark, imgs_bark, "bark")
+    if 'kornia' in detector_sets:
+        run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
+        run_exp(kornia_sift_descriptors_single_image, Hs_bark, imgs_bark, "bark")
 
-    run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
-    run_exp(kornia_sift_descriptors_single_image, Hs_boat, imgs_boat, "boat")
+        run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
+        run_exp(kornia_sift_descriptors_single_image, Hs_boat, imgs_boat, "boat")
 
-    run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-    run_exp(kornia_sift_descriptors_single_image, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        run_exp(kornia_sift_descriptors_single_image, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
 
-    run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-    run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
 
-    run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
-    run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
+        run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
+        run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
 
-    run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
-    run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
+        run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
+        run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
     # print("Original images")
     # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=False)
@@ -508,13 +509,17 @@ def scale_img(img, scale, mode, show=False):
 
     assert mode in ['lanczos', 'linear', 'linear_homography']
 
+    h, w = img.shape[:2]
+    scale_o = scale
+    scale = get_integer_scale(scale, h, w)
+    print(f"scale: {scale_o} => {scale}")
+
     H_gt = np.array([
-        [scale, 0., 0.],
-        [0., scale, 0.],
+        [scale, 0., 0.5 * (scale - 1)],
+        [0., scale, 0.5 * (scale - 1)],
         [0., 0., 1.],
     ])
 
-    h, w = img.shape[:2]
     dsize = (round(w * scale), round(h * scale))
     img_scaled_h = cv.warpPerspective(img, H_gt, dsize, flags=cv.INTER_LANCZOS4)
     if show:
@@ -624,14 +629,16 @@ def Hs_imgs_for_rotation(file, show=False, crop=None):
     # assert np.all(img_rot_h == img_rot_r)
 
 
-def Hs_imgs_for_scaling(file, scales, mode, show=False, mod4=False):
+def Hs_imgs_for_scaling(file, scales, mode, show=False, crop_h2=False):
 
     assert mode in ['lanczos', 'linear', 'linear_homography']
 
     img = Image.open(file)
     img = np.array(img)
-    if mod4:
-        img = img[:img.shape[0] // 4 * 4, :img.shape[1] // 4 * 4]
+    if crop_h2:
+        img = img[:img.shape[0] - 2]
+    # if mod4:
+    #     img = img[:img.shape[0] // 4 * 4, :img.shape[1] // 4 * 4]
     if show:
         np_show(img, f"original, already cropped, shape: {img.shape}")
 
@@ -679,12 +686,12 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
             # print(f"other_i: {other_i}")
 
             # FIXME remove me
-            descriptor.set_rotate_gauss(4 - other_i)
             if compensate:
+                descriptor.set_rotate_gauss(4 - other_i)
                 descriptor.detector.compensate_nms = (4 - other_i)
             kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
-            descriptor.set_rotate_gauss(0)
             if compensate:
+                descriptor.set_rotate_gauss(0)
                 descriptor.detector.compensate_nms = 0
                 if descriptor.detector.compensate_nms_dim_minus_1:
                     for k in kpts_other:
@@ -706,9 +713,9 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
             def get_mask(sum_c, eps=0.05):
                 return np.logical_and(np.abs((src_pts[:, 0] + dst_pts[:, 1])[:, None] - sum_c) < eps, (np.abs((src_pts[:, 1] - dst_pts[:, 0])[:, None] - 0) < 0.01))
             mask = get_mask(img_w)
-            print(f"exact w: {mask.sum()}/{len(mask)}")
+            # print(f"exact w: {mask.sum()}/{len(mask)}")
             mask_1 = get_mask(img_w_1)
-            print(f"exact w-1: {mask_1.sum()}/{len(mask_1)}")
+            # print(f"exact w-1: {mask_1.sum()}/{len(mask_1)}")
 
             if imgs_extra:
                 real_imgs = imgs_extra

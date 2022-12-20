@@ -7,6 +7,34 @@ import cv2 as cv
 import numpy as np
 from PIL import Image
 
+def gcd_euclid(a, b):
+
+    c = a % b
+    if c == 0:
+        return b
+    else:
+        return gcd_euclid(b, c)
+
+
+def get_integer_scale(scale, h, w, fall_back=False):
+
+    gcd = gcd_euclid(w, h)
+
+    real_scale_gcd = round(gcd * scale)
+    real_scale = real_scale_gcd / gcd
+
+    if real_scale == 0.0 or math.fabs(real_scale - scale) > 0.1:
+        if fall_back:
+            print("WARNING: scale={} => {}".format(real_scale, scale))
+            real_scale = scale
+        else:
+            raise Exception("scale {} cannot be effectively realized for w, h = {}, {} in integer domain".format(scale, w, h))
+
+    w_sc = round(w * real_scale)
+    h_sc = round(h * real_scale)
+    # print(f"scaling by: {mode[0]} = {mode[1]}")
+    return real_scale
+
 
 def show_np(img, title, save_path=None):
     plt.figure()
