@@ -197,6 +197,8 @@ def run_experiments(detector_sets):
     num_features = 8000
     nearest_fix_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     nearest_fix_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
+    nearest_fix_sp_d_lin = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True, first_level_linear=True)
+
     nearest_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
     nearest_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
 
@@ -226,7 +228,8 @@ def run_experiments(detector_sets):
                     NumpyKorniaSiftDescriptor(adjustment=adj_a_r, num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True, conv_quad_interp_adjustment=adj_q_r),
                 ]
                 kornia_sift_descriptors.extend(l)
-
+    kornia_sift_descriptors = kornia_sift_descriptors[:1]
+    kornia_sift_descriptors = [NumpyKorniaSiftDescriptor(num_features=num_features, scale_pyramid=nearest_fix_sp_d_lin, scatter_fix=True, swap_xy_fix=True)]
 
     for flip in [1, -1]:
         for adj_q in [0.0, 0.25, 0.5, 0.75]:
@@ -433,22 +436,22 @@ def run_experiments(detector_sets):
 
     if 'kornia' in detector_sets:
         run_exp(kornia_sift_descriptors, Hs_bark, imgs_bark, "bark")
-        run_exp(kornia_sift_descriptors_single_image, Hs_bark, imgs_bark, "bark")
+        # run_exp(kornia_sift_descriptors_single_image, Hs_bark, imgs_bark, "bark")
 
         run_exp(kornia_sift_descriptors, Hs_boat, imgs_boat, "boat")
-        run_exp(kornia_sift_descriptors_single_image, Hs_boat, imgs_boat, "boat")
+        # run_exp(kornia_sift_descriptors_single_image, Hs_boat, imgs_boat, "boat")
 
         run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-        run_exp(kornia_sift_descriptors_single_image, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
+        # run_exp(kornia_sift_descriptors_single_image, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
 
         run_exp(kornia_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
-        run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        # run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
 
         run_exp(kornia_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
-        run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
+        # run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling lanczos homography")
 
         run_exp(kornia_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
-        run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
+        # run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 
     # print("Original images")
     # run_exp(kornia_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation", compensate=False)

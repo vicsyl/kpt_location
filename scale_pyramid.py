@@ -45,7 +45,7 @@ class MyScalePyramid(nn.Module):
 
     def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False,
                  interpolation_mode='bilinear', rotate90_gauss=0, rotate90_interpolation=0, gauss_separable=True,
-                 every_2nd=False):
+                 every_2nd=False, first_level_linear=False):
         super().__init__()
         # 3 extra levels are needed for DoG nms.
         self.n_levels = n_levels
@@ -60,6 +60,7 @@ class MyScalePyramid(nn.Module):
         self.rotate90_interpolation = rotate90_interpolation
         self.gauss_separable = gauss_separable
         self.every_2nd = every_2nd
+        self.first_level_linear = first_level_linear
 
     def __repr__(self) -> str:
         return (
@@ -103,12 +104,15 @@ class MyScalePyramid(nn.Module):
             x = torch.rot90(x, 4 - self.rotate90_interpolation, (2, 3))
         return x
 
-    def interpolate_size(self, x, size, mode):
+    def interpolate_size(self, x, size, mode, first_level):
         if self.rotate90_interpolation != 0:
             x = torch.rot90(x, self.rotate90_interpolation, (2, 3))
             if self.rotate90_interpolation % 2 == 1:
                 size = (size[1], size[0])
 
+        if self.first_level_linear and self.double_image and first_level:
+            print("interpolated by bilinear back")
+            x = F.interpolate(x, x, size=size, mode='bilinear', align_corners=False)
         if self.every_2nd:
             x = x[:, :, ::2, ::2]
         elif mode == 'lanczos':
@@ -184,7 +188,8 @@ class MyScalePyramid(nn.Module):
                 sigmas[-1][:, level_idx] = cur_sigma
                 pixel_dists[-1][:, level_idx] = pixel_distance
             _pyr = pyr[-1][-self.extra_levels]
-            nextOctaveFirstLevel = self.interpolate_size(_pyr, size=(_pyr.size(-2) // 2, _pyr.size(-1) // 2), mode=self.interpolation_mode)
+            nextOctaveFirstLevel = self.interpolate_size(_pyr, size=(_pyr.size(-2) // 2, _pyr.size(-1) // 2), mode=self.interpolation_mode, first_level=level_idx==1)
+
             pixel_distance *= 2.0
             cur_sigma = self.init_sigma
             if min(nextOctaveFirstLevel.size(2), nextOctaveFirstLevel.size(3)) <= self.min_size:
