@@ -170,6 +170,7 @@ class MyScalePyramid(nn.Module):
         pyr = [[cur_level]]
         oct_idx = 0
         while True:
+            first_downsize = True
             cur_level = pyr[-1][0]
             for level_idx in range(1, self.n_levels + self.extra_levels):
                 sigma = cur_sigma * math.sqrt(self.sigma_step**2 - 1.0)
@@ -188,7 +189,8 @@ class MyScalePyramid(nn.Module):
                 sigmas[-1][:, level_idx] = cur_sigma
                 pixel_dists[-1][:, level_idx] = pixel_distance
             _pyr = pyr[-1][-self.extra_levels]
-            nextOctaveFirstLevel = self.interpolate_size(_pyr, size=(_pyr.size(-2) // 2, _pyr.size(-1) // 2), mode=self.interpolation_mode, first_level=level_idx==1)
+            nextOctaveFirstLevel = self.interpolate_size(_pyr, size=(_pyr.size(-2) // 2, _pyr.size(-1) // 2), mode=self.interpolation_mode, first_level=first_downsize)
+            first_downsize=False
 
             pixel_distance *= 2.0
             cur_sigma = self.init_sigma
