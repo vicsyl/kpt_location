@@ -7,6 +7,7 @@ from kornia.filters import gaussian_blur2d
 
 from typing import List, Tuple
 from PIL import Image
+from utils import upscale_double
 
 
 # copied from kornia
@@ -45,7 +46,7 @@ class MyScalePyramid(nn.Module):
 
     def __init__(self, n_levels: int = 3, init_sigma: float = 1.6, min_size: int = 15, double_image: bool = False,
                  interpolation_mode='bilinear', rotate90_gauss=0, rotate90_interpolation=0, gauss_separable=True,
-                 every_2nd=False, first_level_linear=False):
+                 every_2nd=False, bilinear_back=False, better_up=False):
         super().__init__()
         # 3 extra levels are needed for DoG nms.
         self.n_levels = n_levels
@@ -60,7 +61,8 @@ class MyScalePyramid(nn.Module):
         self.rotate90_interpolation = rotate90_interpolation
         self.gauss_separable = gauss_separable
         self.every_2nd = every_2nd
-        self.first_level_linear = first_level_linear
+        self.bilinear_back = bilinear_back
+        self.better_up = better_up
 
     def __repr__(self) -> str:
         return (
@@ -99,7 +101,11 @@ class MyScalePyramid(nn.Module):
     def interpolate_factor2(self, x):
         if self.rotate90_interpolation != 0:
             x = torch.rot90(x, self.rotate90_interpolation, (2, 3))
-        x = F.interpolate(x, scale_factor=2.0, mode='bilinear', align_corners=False)
+        if self.better_up:
+            print("better up")
+            x = upscale_double(x)
+        else:
+            x = F.interpolate(x, scale_factor=2.0, mode='bilinear', align_corners=False)
         if self.rotate90_interpolation != 0:
             x = torch.rot90(x, 4 - self.rotate90_interpolation, (2, 3))
         return x
@@ -110,10 +116,11 @@ class MyScalePyramid(nn.Module):
             if self.rotate90_interpolation % 2 == 1:
                 size = (size[1], size[0])
 
-        if self.first_level_linear and self.double_image and first_level:
+        # self.first_level_linear not fruitful
+        if self.bilinear_back and self.double_image and first_level:
             print("interpolated by bilinear back")
-            x = F.interpolate(x, x, size=size, mode='bilinear', align_corners=False)
-        if self.every_2nd:
+            x = F.interpolate(x, size=size, mode='bilinear', align_corners=False)
+        elif self.every_2nd:
             x = x[:, :, ::2, ::2]
         elif mode == 'lanczos':
             import torchvision.transforms as T
@@ -169,8 +176,8 @@ class MyScalePyramid(nn.Module):
         pixel_dists = [pixel_distance * torch.ones(bs, self.n_levels + self.extra_levels).to(x.device).to(x.dtype)]
         pyr = [[cur_level]]
         oct_idx = 0
+        first_downsize = True
         while True:
-            first_downsize = True
             cur_level = pyr[-1][0]
             for level_idx in range(1, self.n_levels + self.extra_levels):
                 sigma = cur_sigma * math.sqrt(self.sigma_step**2 - 1.0)

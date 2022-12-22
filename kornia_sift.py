@@ -43,10 +43,13 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
         return f"{self.prop_str_default('-1', self.compensate_nms_dim_minus_1, True)}"
 
     def __str__(self):
-        return f"SIFTKornia {self.prop_1()} " \
-               f"{self.prop_str_bool('di', self.scale_pyramid.double_image)}" \
-               f"ev2nd={'T' if self.scale_pyramid.every_2nd else 'F'} " \
-               f"adj={self.adjustment} mns=({self.nms_module})"
+        if self.name:
+            return self.name
+        else:
+            return f"SIFTKornia {self.prop_1()} " \
+                   f"{self.prop_str_bool('di', self.scale_pyramid.double_image)}" \
+                   f"ev2nd={'T' if self.scale_pyramid.every_2nd else 'F'} " \
+                   f"adj={self.adjustment} mns=({self.nms_module})"
 
     """
     see kornia.feature.integrated.SIFTFeature
@@ -55,11 +58,12 @@ class NumpyKorniaSiftDescriptor(BaseDescriptor):
     def __init__(self, upright=False, num_features=500, interpolation_mode='nearest', rootsift=True,
                  adjustment=[0.0, 0.0], scale_pyramid=None,
                  scatter_fix=True, swap_xy_fix=True, compensate_nms_dim_minus_1=True,
-                 conv_quad_interp_adjustment=0.0):
+                 conv_quad_interp_adjustment=0.0, name=None):
         super().__init__()
         self.interpolation_mode = interpolation_mode
         assert scale_pyramid is not None
         self.scale_pyramid = scale_pyramid
+        self.name = name
 
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.adjustment = torch.tensor(adjustment, device=device)
@@ -316,6 +320,8 @@ class ScaleSpaceDetector(nn.Module):
                 assert self.compensate_nms == 3
                 oct_resp = torch.clone(torch.rot90(oct_resp, self.compensate_nms, [3, 4]))
 
+            # torch.save(oct_resp, f"demo_imgs/scale_space_2/oct_resp_comp_{ScaleSpaceDetector.counter}_{oct_idx}")
+
             coord_max, response_max = self.nms(oct_resp)
 
             if self.minima_are_also_good:
@@ -382,6 +388,8 @@ class ScaleSpaceDetector(nn.Module):
         responses, idxs = torch.topk(responses, k=num_feats, dim=1)
         lafs = torch.gather(lafs, 1, idxs.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, 2, 3))
         denom = denormalize_laf(lafs, img)
+        # if self.scale_pyr.double_image:
+        #     denom[:, :, :, 2] -= 0.25
         # here and at '###' it didn't work for some reason....
         # if self.compensate_nms is not None and self.compensate_nms != 0 and self.compensate_nms_dim_minus_1:
         #     denom[:, :, 1, 2] = denom[:, :, 1, 2] - 1
