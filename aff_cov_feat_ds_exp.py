@@ -366,7 +366,7 @@ def run_experiments(detector_sets):
         run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_bark, imgs_bark, "bark")
         run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_boat, imgs_boat, "boat")
         run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-        run_exp(cv_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(cv_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos", imgs_extra=imgs_scale_lowe_lanczos)
 
         # run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
 
@@ -585,7 +585,13 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
         #     descriptor.set_rotate_gauss(0)
         #     descriptor.detector.compensate_nms = 0
         print("original")
-        kpts_0, desc_0, time_0 = descriptor.detect_compute_measure(imgs[0], mask=None)
+
+        if type(descriptor) == LoweSiftDescriptor:
+            img_d = imgs_extra[0]
+        else:
+            img_d = imgs[0]
+
+        kpts_0, desc_0, time_0 = descriptor.detect_compute_measure(img_d, mask=None)
         # metrics.append([None, time_0] * 3 + [time_0])
 
         for other_i in range(1, len(imgs)):
@@ -593,11 +599,16 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
 
             print(f"query img no. {other_i}")
 
+            if type(descriptor) == LoweSiftDescriptor:
+                img_d = imgs_extra[other_i]
+            else:
+                img_d = imgs[other_i]
+
             # FIXME remove me
             if compensate:
                 descriptor.set_rotate_gauss(4 - other_i)
                 descriptor.detector.compensate_nms = (4 - other_i)
-            kpts_other, desc_other, time_other = descriptor.detect_compute_measure(imgs[other_i], mask=None)
+            kpts_other, desc_other, time_other = descriptor.detect_compute_measure(img_d, mask=None)
             if compensate:
                 descriptor.set_rotate_gauss(0)
                 descriptor.detector.compensate_nms = 0
@@ -616,19 +627,19 @@ def run_exp(detectors, Hs_gt, imgs, e_name, imgs_extra=None, compensate=False):
                                                    maxIters=ransac_iters, ransacReprojThreshold=ransac_th,
                                                    confidence=ransac_conf)
 
-            img_w = imgs[other_i].shape[0]
-            img_w_1 = imgs[other_i].shape[0] - 1
-            def get_mask(sum_c, eps=0.05):
-                return np.logical_and(np.abs((src_pts[:, 0] + dst_pts[:, 1])[:, None] - sum_c) < eps, (np.abs((src_pts[:, 1] - dst_pts[:, 0])[:, None] - 0) < 0.01))
-            mask = get_mask(img_w)
-            # print(f"exact w: {mask.sum()}/{len(mask)}")
-            mask_1 = get_mask(img_w_1)
+            # img_w = imgs[other_i].shape[0]
+            # img_w_1 = imgs[other_i].shape[0] - 1
+            # def get_mask(sum_c, eps=0.05):
+            #     return np.logical_and(np.abs((src_pts[:, 0] + dst_pts[:, 1])[:, None] - sum_c) < eps, (np.abs((src_pts[:, 1] - dst_pts[:, 0])[:, None] - 0) < 0.01))
+            # mask = get_mask(img_w)
+            # # print(f"exact w: {mask.sum()}/{len(mask)}")
+            # mask_1 = get_mask(img_w_1)
             # print(f"exact w-1: {mask_1.sum()}/{len(mask_1)}")
 
-            if imgs_extra:
-                real_imgs = imgs_extra
-            else:
-                real_imgs = imgs
+            # if imgs_extra:
+            #     real_imgs = imgs_extra
+            # else:
+            real_imgs = imgs
 
             H_gt = Hs_gt[other_i - 1]
             MAE = get_visible_part_mean_absolute_reprojection_error(real_imgs[0], real_imgs[other_i], H_gt, H_est, metric="L2")
