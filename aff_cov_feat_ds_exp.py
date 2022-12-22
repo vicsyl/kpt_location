@@ -366,7 +366,7 @@ def run_experiments(detector_sets):
         run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_bark, imgs_bark, "bark")
         run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_boat, imgs_boat, "boat")
         run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-        run_exp(cv_sift_descriptors + vlfeat_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        run_exp(cv_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
 
         # run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
 
