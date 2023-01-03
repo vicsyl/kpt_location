@@ -110,19 +110,19 @@ def conv_quad_interp3d(
     foo = Hes[nms_mask.view(-1)]
     # print(f"torch.where(bar == 10000): {torch.where(bar == 10000)}")
     # print(f"torch.where(foo == 10000): {torch.where(foo == 10000)}")
-    if Cfg.counter == 0:
-        print(f"foo[2]: {foo[2]}")
-        print(f"bar[2]: {bar[2]}")
-        print(f"x_solved_masked[2]: {x_solved_masked[2]}")
-        # x_solved_masked[2, 0, 0] = 100
-        masked_index = 2
-    else:
-        print(f"foo[131]: {foo[131]}")
-        print(f"bar[131]: {bar[131]}")
-        print(f"x_solved_masked[131]: {x_solved_masked[131]}")
-        # x_solved_masked[131, 0, 0] = 100
-        masked_index = 131
-    print(f"torch.where(x_solved_masked[:, :, :] == 100): {torch.where(x_solved_masked[:, :, :] == 100)}")
+    # if Cfg.counter == 0:
+    #     print(f"foo[2]: {foo[2]}")
+    #     print(f"bar[2]: {bar[2]}")
+    #     print(f"x_solved_masked[2]: {x_solved_masked[2]}")
+    #     # x_solved_masked[2, 0, 0] = 100
+    #     masked_index = 2
+    # else:
+    #     print(f"foo[131]: {foo[131]}")
+    #     print(f"bar[131]: {bar[131]}")
+    #     print(f"x_solved_masked[131]: {x_solved_masked[131]}")
+    #     # x_solved_masked[131, 0, 0] = 100
+    #     masked_index = 131
+    # print(f"torch.where(x_solved_masked[:, :, :] == 100): {torch.where(x_solved_masked[:, :, :] == 100)}")
 
     # print(f"bar[131, 0, 0]: {torch.where(bar == 10000)}")
     # print(f"torch.where(foo == 10000): {torch.where(foo == 10000)}")
@@ -148,14 +148,14 @@ def conv_quad_interp3d(
     print(f"x_solved_masked[solved_correctly].abs().sum(): {x_solved_masked[solved_correctly].abs().sum()}")
 
     dx: torch.Tensor = -x_solved
-    if Cfg.counter == 0:
-        print(f"lin: hessian : {Hes[359376]}")
-        print(f"b: {b[359376]}")
-        print(f"dx : {dx[359376]}")
-    else:
-        print(f"lin: hessian : {Hes[488702]}")
-        print(f"b: {b[488702]}")
-        print(f"dx: {dx[488702]}")
+    # if Cfg.counter == 0:
+    #     print(f"lin: hessian : {Hes[359376]}")
+    #     print(f"b: {b[359376]}")
+    #     print(f"dx : {dx[359376]}")
+    # else:
+    #     print(f"lin: hessian : {Hes[488702]}")
+    #     print(f"b: {b[488702]}")
+    #     print(f"dx: {dx[488702]}")
 
     # Ignore ones, which are far from window center
     print(f"torch.where(dx[:, :, :] == -100): {torch.where(dx[:, :, :] == -100)}")
@@ -177,147 +177,147 @@ def conv_quad_interp3d(
 
     # CONTINUE these coords with c_m and test
 
-    if Cfg.counter == 0:
-        # continue -> this is
-        Cfg.nms_mask_or = nms_mask
-        Cfg.new_nms_mask_or = new_nms_mask
-        Cfg.dx_res = dx_res
-        # coords_max.shape = torch.Size([1, 1, 3, 5, 481, 737])
-        # coords_max[0, 0, 1, 1, 6, 279] = 279.0009
-        # coords_max_sub = coords_max[0, 0, 1, 1, 6, 279].item()
-        # coords_max[0, 0, 1, 1, 6, 457] = 457.0009
-        coords_max_sub = coords_max[0, 0, 1, 1, 6, 457].item()
-        # dx_res_sub = dx_res[0, 0, 1, 1, 6, 279].item()
-        dx_res_sub = dx_res[0, 0, :, 1, 6, 457]
-
-        # input.shape = torch.Size([1, 1, 5, 481, 737])
-        # input_sub = input[:, :, 0:3, 5:8, 278:281]
-        # nms_mask_sub = nms_mask[:, :, 0:3, 5:8, 278:281]
-        input_sub = input[:, :, 0:3, 5:8, 456:459]
-        nms_mask_sub = nms_mask[:, :, 0:3, 5:8, 456:459]
-
-        # A_sub = A_orig[:, :, :, 1, 6, 279]
-        # b_sub = b_orig[:, :, :, 1, 6, 279]
-        Hes_sub = A_orig[:, :, :, 1, 6, 457]
-        A_sub = A_orig[:, :, :, 1, 6, 457]
-        b_sub = b_orig[:, :, :, 1, 6, 457]
-
-        dxx_lin = A_orig[0, 0, 0, 1, 6, 457]
-        dyy_lin = A_orig[0, 0, 1, 1, 6, 457]
-        dss_lin = A_orig[0, 0, 2, 1, 6, 457]
-        dxy_lin = 0.25 * A_orig[0, 0, 3, 1, 6, 457]
-        dys_lin = 0.25 * A_orig[0, 0, 4, 1, 6, 457]
-        dxs_lin = 0.25 * A_orig[0, 0, 5, 1, 6, 457]
-        Cfg.Hes_lin = torch.stack([dxx_lin, dxy_lin, dxs_lin, dxy_lin, dyy_lin, dys_lin, dxs_lin, dys_lin, dss_lin], dim=-1).view(-1, 3, 3)
-        Cfg.b_lin = b_orig[:, :, :, 1, 6, 457].permute(0, 2, 1)
-
-        # coords_max_sub: 279.0
-        # dx_res_sub: -0.0
-        # input_sub: tensor([[[[[-0.0026, -0.0039, -0.0041],
-        #            [-0.0025, -0.0030, -0.0028],
-        #            [-0.0023, -0.0020, -0.0014]],
-        #           [[-0.0027, -0.0032, -0.0028],
-        #            [-0.0030, -0.0032, -0.0027],
-        #            [-0.0026, -0.0025, -0.0017]],
-        #           [[-0.0022, -0.0023, -0.0019],
-        #            [-0.0023, -0.0024, -0.0019],
-        #            [-0.0019, -0.0018, -0.0012]]]]])
-        # A_sub: tensor([[[ 0.0008,  0.0008,  0.0011,  0.0011,  0.0014, -0.0008]]])
-        # b_sub: tensor([[[0.0002, 0.0004, 0.0003]]])
-    elif Cfg.counter == 1:
-        # CONTINUE -> this is probably going to check out
-        # check nms_mask against Cfg.nms_mask_or
-        Cfg.nms_mask_or = torch.rot90(Cfg.nms_mask_or, 1, [3, 4])
-        Cfg.new_nms_mask_or = torch.rot90(Cfg.new_nms_mask_or, 1, [3, 4])
-        Cfg.dx_res = torch.rot90(Cfg.dx_res, 1, [4, 5])
-
-        dxx_lin = A_orig[0, 0, 0, 1, 279, 6]
-        dyy_lin = A_orig[0, 0, 1, 1, 279, 6]
-        dss_lin = A_orig[0, 0, 2, 1, 279, 6]
-        dxy_lin = 0.25 * A_orig[0, 0, 3, 1, 279, 6]
-        dys_lin = 0.25 * A_orig[0, 0, 4, 1, 279, 6]
-        dxs_lin = 0.25 * A_orig[0, 0, 5, 1, 279, 6]
-        Hes_lin = torch.stack([dxx_lin, dxy_lin, dxs_lin, dxy_lin, dyy_lin, dys_lin, dxs_lin, dys_lin, dss_lin], dim=-1).view(-1, 3, 3)
-        b_lin = b_orig[:, :, :, 1, 279, 6].permute(0, 2, 1)
-
-        x_solved_masked_lin_or, _, solved_correctly_lin_or = safe_solve_with_mask(Cfg.b_lin, Cfg.Hes_lin)
-        print(f"Original Hessian: {Cfg.Hes_lin}")
-        print(f"Original b: {Cfg.b_lin}")
-        print(f"Original x: {x_solved_masked_lin_or}")
-        x_solved_masked_lin, _, solved_correctly_lin = safe_solve_with_mask(b_lin, Hes_lin)
-        print(f"Rot Hessian: {Hes_lin}")
-        print(f"Rot b: {b_lin}")
-        print(f"Rot x: {x_solved_masked_lin}")
-
-        print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
-        print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
-
-        print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
-        print(f"nms_mask != Cfg.nms_mask_or: {(nms_mask != Cfg.nms_mask_or).sum()}")
-        print(f"(new_nms_mask == Cfg.new_nms_mask_or).sum(): {(new_nms_mask == Cfg.new_nms_mask_or).sum()}")
-        print(f"(new_nms_mask != Cfg.new_nms_mask_or).sum(): {(new_nms_mask != Cfg.new_nms_mask_or).sum()}")
-        print(f"(dx_res == Cfg.dx_res).sum(): {(dx_res == Cfg.dx_res).sum()}")
-        print(f"(dx_res != Cfg.dx_res).sum(): {(dx_res != Cfg.dx_res).sum()}")
-        print(f"torch.unique(dx_res): {torch.unique(dx_res)}")
-        print(f"torch.unique(Cfg.dx_res): {torch.unique(Cfg.dx_res)}")
-
-        # coords_max_sub: 279.0
-        # dx_res_sub: -0.6956359148025513
-        # input_sub: tensor([[[[[0.0085, 0.0097, 0.0082],
-        #            [0.0077, 0.0090, 0.0077],
-        #            [0.0070, 0.0079, 0.0067]],
-        #           [[0.0089, 0.0093, 0.0080],
-        #            [0.0094, 0.0101, 0.0086],
-        #            [0.0087, 0.0095, 0.0080]],
-        #           [[0.0087, 0.0086, 0.0075],
-        #            [0.0095, 0.0095, 0.0079],
-        #            [0.0089, 0.0088, 0.0070]]]]])
-        # A_sub: tensor([[[-0.0022, -0.0015, -0.0018,  0.0001, -0.0019,  0.0016]]])
-        # b_sub: tensor([[[-0.0004,  0.0001,  0.0002]]])
-        coords_max_sub = coords_max[0, 0, :, 1, 279, 6]
-        dx_res_sub = dx_res[0, 0, :, 1, 279, 6]
-        # 457 = 737 - 1 - 279
-        # input_sub = input[:, :, 0:3, 456:459, 5:8]
-        # nms_mask_sub = nms_mask[:, :, 0:3, 456:459, 5:8]
-        input_sub = input[:, :, 0:3, 278:281, 5:8]
-        nms_mask_sub = nms_mask[:, :, 0:3, 278:281, 5:8]
-
-        # A_sub = A_orig[:, :, :, 1, 457, 6]
-        # b_sub = b_orig[:, :, :, 1, 457, 6]
-        A_sub = A_orig[:, :, :, 1, 279, 6]
-        #Hes_sub = Hes_orig[:, :, :, 1, 279, 6]
-        b_sub = b_orig[:, :, :, 1, 279, 6]
-    else:
-        coords_max_sub = "foo"
-        dx_res_sub = "bar"
-        input_sub = "bar"
-        A_sub = "bar"
-        b_sub = "bar"
-        nms_mask_sub = "bar"
-        A_sub = "bar"
-        b_sub = "bar"
-
-
-    print(f"new_nms_mask")
-    print(f"coords_max_sub: {coords_max_sub}")
-    print(f"coords_max.shape: {coords_max.shape}")
-    print(f"dx_res_sub: {dx_res_sub}")
-    print(f"input_sub: {input_sub}")
-    #print(f"nms_mask_sub: {nms_mask_sub}")
-    print(f"nms_mask.sum(): {nms_mask.sum()}")
-    print(f"input.shape: {input.shape}")
-    print(f"A_sub: {A_sub}")
-    print(f"b_sub: {b_sub}")
-    print(f"torch.where(x_solved == 0.6956359148025513): {torch.where(x_solved == 0.6956359148025513)}")
-    print(f"torch.where(dx == -0.6956359148025513): {torch.where(dx == -0.6956359148025513)}")
-    print(f"torch.where(dx_res == -0.6956359148025513): {torch.where(dx_res == -0.6956359148025513)}")
-    print(f"torch.where(dx == 0.6956359148025513): {torch.where(dx == 0.6956359148025513)}")
-    print(f"torch.where(dx_res == 0.6956359148025513): {torch.where(dx_res == 0.6956359148025513)}")
+    # if Cfg.counter == 0:
+    #     # continue -> this is
+    #     Cfg.nms_mask_or = nms_mask
+    #     Cfg.new_nms_mask_or = new_nms_mask
+    #     Cfg.dx_res = dx_res
+    #     # coords_max.shape = torch.Size([1, 1, 3, 5, 481, 737])
+    #     # coords_max[0, 0, 1, 1, 6, 279] = 279.0009
+    #     # coords_max_sub = coords_max[0, 0, 1, 1, 6, 279].item()
+    #     # coords_max[0, 0, 1, 1, 6, 457] = 457.0009
+    #     coords_max_sub = coords_max[0, 0, 1, 1, 6, 457].item()
+    #     # dx_res_sub = dx_res[0, 0, 1, 1, 6, 279].item()
+    #     dx_res_sub = dx_res[0, 0, :, 1, 6, 457]
+    #
+    #     # input.shape = torch.Size([1, 1, 5, 481, 737])
+    #     # input_sub = input[:, :, 0:3, 5:8, 278:281]
+    #     # nms_mask_sub = nms_mask[:, :, 0:3, 5:8, 278:281]
+    #     input_sub = input[:, :, 0:3, 5:8, 456:459]
+    #     nms_mask_sub = nms_mask[:, :, 0:3, 5:8, 456:459]
+    #
+    #     # A_sub = A_orig[:, :, :, 1, 6, 279]
+    #     # b_sub = b_orig[:, :, :, 1, 6, 279]
+    #     Hes_sub = A_orig[:, :, :, 1, 6, 457]
+    #     A_sub = A_orig[:, :, :, 1, 6, 457]
+    #     b_sub = b_orig[:, :, :, 1, 6, 457]
+    #
+    #     dxx_lin = A_orig[0, 0, 0, 1, 6, 457]
+    #     dyy_lin = A_orig[0, 0, 1, 1, 6, 457]
+    #     dss_lin = A_orig[0, 0, 2, 1, 6, 457]
+    #     dxy_lin = 0.25 * A_orig[0, 0, 3, 1, 6, 457]
+    #     dys_lin = 0.25 * A_orig[0, 0, 4, 1, 6, 457]
+    #     dxs_lin = 0.25 * A_orig[0, 0, 5, 1, 6, 457]
+    #     Cfg.Hes_lin = torch.stack([dxx_lin, dxy_lin, dxs_lin, dxy_lin, dyy_lin, dys_lin, dxs_lin, dys_lin, dss_lin], dim=-1).view(-1, 3, 3)
+    #     Cfg.b_lin = b_orig[:, :, :, 1, 6, 457].permute(0, 2, 1)
+    #
+    #     # coords_max_sub: 279.0
+    #     # dx_res_sub: -0.0
+    #     # input_sub: tensor([[[[[-0.0026, -0.0039, -0.0041],
+    #     #            [-0.0025, -0.0030, -0.0028],
+    #     #            [-0.0023, -0.0020, -0.0014]],
+    #     #           [[-0.0027, -0.0032, -0.0028],
+    #     #            [-0.0030, -0.0032, -0.0027],
+    #     #            [-0.0026, -0.0025, -0.0017]],
+    #     #           [[-0.0022, -0.0023, -0.0019],
+    #     #            [-0.0023, -0.0024, -0.0019],
+    #     #            [-0.0019, -0.0018, -0.0012]]]]])
+    #     # A_sub: tensor([[[ 0.0008,  0.0008,  0.0011,  0.0011,  0.0014, -0.0008]]])
+    #     # b_sub: tensor([[[0.0002, 0.0004, 0.0003]]])
+    # elif Cfg.counter == 1:
+    #     # CONTINUE -> this is probably going to check out
+    #     # check nms_mask against Cfg.nms_mask_or
+    #     Cfg.nms_mask_or = torch.rot90(Cfg.nms_mask_or, 1, [3, 4])
+    #     Cfg.new_nms_mask_or = torch.rot90(Cfg.new_nms_mask_or, 1, [3, 4])
+    #     Cfg.dx_res = torch.rot90(Cfg.dx_res, 1, [4, 5])
+    #
+    #     dxx_lin = A_orig[0, 0, 0, 1, 279, 6]
+    #     dyy_lin = A_orig[0, 0, 1, 1, 279, 6]
+    #     dss_lin = A_orig[0, 0, 2, 1, 279, 6]
+    #     dxy_lin = 0.25 * A_orig[0, 0, 3, 1, 279, 6]
+    #     dys_lin = 0.25 * A_orig[0, 0, 4, 1, 279, 6]
+    #     dxs_lin = 0.25 * A_orig[0, 0, 5, 1, 279, 6]
+    #     Hes_lin = torch.stack([dxx_lin, dxy_lin, dxs_lin, dxy_lin, dyy_lin, dys_lin, dxs_lin, dys_lin, dss_lin], dim=-1).view(-1, 3, 3)
+    #     b_lin = b_orig[:, :, :, 1, 279, 6].permute(0, 2, 1)
+    #
+    #     x_solved_masked_lin_or, _, solved_correctly_lin_or = safe_solve_with_mask(Cfg.b_lin, Cfg.Hes_lin)
+    #     print(f"Original Hessian: {Cfg.Hes_lin}")
+    #     print(f"Original b: {Cfg.b_lin}")
+    #     print(f"Original x: {x_solved_masked_lin_or}")
+    #     x_solved_masked_lin, _, solved_correctly_lin = safe_solve_with_mask(b_lin, Hes_lin)
+    #     print(f"Rot Hessian: {Hes_lin}")
+    #     print(f"Rot b: {b_lin}")
+    #     print(f"Rot x: {x_solved_masked_lin}")
+    #
+    #     print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
+    #     print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
+    #
+    #     print(f"nms_mask == Cfg.nms_mask_or: {(nms_mask == Cfg.nms_mask_or).sum()}")
+    #     print(f"nms_mask != Cfg.nms_mask_or: {(nms_mask != Cfg.nms_mask_or).sum()}")
+    #     print(f"(new_nms_mask == Cfg.new_nms_mask_or).sum(): {(new_nms_mask == Cfg.new_nms_mask_or).sum()}")
+    #     print(f"(new_nms_mask != Cfg.new_nms_mask_or).sum(): {(new_nms_mask != Cfg.new_nms_mask_or).sum()}")
+    #     print(f"(dx_res == Cfg.dx_res).sum(): {(dx_res == Cfg.dx_res).sum()}")
+    #     print(f"(dx_res != Cfg.dx_res).sum(): {(dx_res != Cfg.dx_res).sum()}")
+    #     print(f"torch.unique(dx_res): {torch.unique(dx_res)}")
+    #     print(f"torch.unique(Cfg.dx_res): {torch.unique(Cfg.dx_res)}")
+    #
+    #     # coords_max_sub: 279.0
+    #     # dx_res_sub: -0.6956359148025513
+    #     # input_sub: tensor([[[[[0.0085, 0.0097, 0.0082],
+    #     #            [0.0077, 0.0090, 0.0077],
+    #     #            [0.0070, 0.0079, 0.0067]],
+    #     #           [[0.0089, 0.0093, 0.0080],
+    #     #            [0.0094, 0.0101, 0.0086],
+    #     #            [0.0087, 0.0095, 0.0080]],
+    #     #           [[0.0087, 0.0086, 0.0075],
+    #     #            [0.0095, 0.0095, 0.0079],
+    #     #            [0.0089, 0.0088, 0.0070]]]]])
+    #     # A_sub: tensor([[[-0.0022, -0.0015, -0.0018,  0.0001, -0.0019,  0.0016]]])
+    #     # b_sub: tensor([[[-0.0004,  0.0001,  0.0002]]])
+    #     coords_max_sub = coords_max[0, 0, :, 1, 279, 6]
+    #     dx_res_sub = dx_res[0, 0, :, 1, 279, 6]
+    #     # 457 = 737 - 1 - 279
+    #     # input_sub = input[:, :, 0:3, 456:459, 5:8]
+    #     # nms_mask_sub = nms_mask[:, :, 0:3, 456:459, 5:8]
+    #     input_sub = input[:, :, 0:3, 278:281, 5:8]
+    #     nms_mask_sub = nms_mask[:, :, 0:3, 278:281, 5:8]
+    #
+    #     # A_sub = A_orig[:, :, :, 1, 457, 6]
+    #     # b_sub = b_orig[:, :, :, 1, 457, 6]
+    #     A_sub = A_orig[:, :, :, 1, 279, 6]
+    #     #Hes_sub = Hes_orig[:, :, :, 1, 279, 6]
+    #     b_sub = b_orig[:, :, :, 1, 279, 6]
+    # else:
+    #     coords_max_sub = "foo"
+    #     dx_res_sub = "bar"
+    #     input_sub = "bar"
+    #     A_sub = "bar"
+    #     b_sub = "bar"
+    #     nms_mask_sub = "bar"
+    #     A_sub = "bar"
+    #     b_sub = "bar"
+    #
+    #
+    # print(f"new_nms_mask")
+    # print(f"coords_max_sub: {coords_max_sub}")
+    # print(f"coords_max.shape: {coords_max.shape}")
+    # print(f"dx_res_sub: {dx_res_sub}")
+    # print(f"input_sub: {input_sub}")
+    # #print(f"nms_mask_sub: {nms_mask_sub}")
+    # print(f"nms_mask.sum(): {nms_mask.sum()}")
+    # print(f"input.shape: {input.shape}")
+    # print(f"A_sub: {A_sub}")
+    # print(f"b_sub: {b_sub}")
+    # print(f"torch.where(x_solved == 0.6956359148025513): {torch.where(x_solved == 0.6956359148025513)}")
+    # print(f"torch.where(dx == -0.6956359148025513): {torch.where(dx == -0.6956359148025513)}")
+    # print(f"torch.where(dx_res == -0.6956359148025513): {torch.where(dx_res == -0.6956359148025513)}")
+    # print(f"torch.where(dx == 0.6956359148025513): {torch.where(dx == 0.6956359148025513)}")
+    # print(f"torch.where(dx_res == 0.6956359148025513): {torch.where(dx_res == 0.6956359148025513)}")
 
 
     if swap_xy:
         dx_res[:, :, [1, 2]] = dx_res[:, :, [2, 1]]
-    dx_res[:, :, 1:3] += 0.5
+    # dx_res[:, :, 1:3] += 0.5
 
     # tmp2 = torch.clone(dx_res)
     # tmp2[:, :, [1, 2]] = tmp2[:, :, [2, 1]]
@@ -362,6 +362,7 @@ def load(fn, dir="work/scale_space"):
 
 def compare_rot(original, rot, levels, axes=[3, 4]):
 
+    print("compare rot")
     for i in range(levels):
         rot_s = torch.rot90(rot[i], 3, axes)
         diff = original[i][0, 0] - rot_s[0, 0]
@@ -389,23 +390,23 @@ def run_nms(oct_resp_l, levels):
     resp_flat_bests = []
     max_coords_bests = []
 
-    for oct_resp in oct_resp_l[:levels]:
+    for oct_i, oct_resp in enumerate(oct_resp_l[:levels]):
 
         nms_module = ConvQuadInterp3d(swap_xy=True, scatter_fix=True, strict_maxima_bonus=10)
 
         coord_max, response_max = nms_module(oct_resp)
-
-        if Cfg.counter == 0:
-            c_m = coord_max[0, 0, 1, 1, 6, 279].item()
-            #test, _ = nms_module(oct_resp[:, :, 0:3, 5:8, 278:281])
-        elif Cfg.counter == 1:
-            c_m = coord_max[0, 0, 2, 1, 279, 6].item()
-            #test, _ = nms_module(oct_resp[:, :, 0:3, 278:281, 5:8])
-        else:
-            c_m = "foo"
-        test = "bar"
-        print(f"c_m: {c_m}")
-        print(f"test: {test}")
+        #
+        # if Cfg.counter == 0:
+        #     c_m = coord_max[0, 0, 1, 1, 6, 279].item()
+        #     #test, _ = nms_module(oct_resp[:, :, 0:3, 5:8, 278:281])
+        # elif Cfg.counter == 1:
+        #     c_m = coord_max[0, 0, 2, 1, 279, 6].item()
+        #     #test, _ = nms_module(oct_resp[:, :, 0:3, 278:281, 5:8])
+        # else:
+        #     c_m = "foo"
+        # test = "bar"
+        # print(f"c_m: {c_m}")
+        # print(f"test: {test}")
 
         minima_are_also_good = False # normally yes, though
         if minima_are_also_good:
@@ -455,7 +456,7 @@ class Cfg:
 
 
 def debug_nms():
-    levels = 1
+    levels = 4
     print("oct_resp_comp_")
     oct_resp_comp_or = [load(f"oct_resp_comp_0_{i}", dir="demo_imgs/scale_space_nms") for i in range(levels)]
     oct_resp_comp_1 = [load(f"oct_resp_comp_1_{i}", dir="demo_imgs/scale_space_nms") for i in range(levels)]
@@ -535,10 +536,11 @@ def debug_nms():
         # coord_maxs_or[i][:, :, 1] = 737 - coord_maxs_or[i][:, :, 1]
         # coord_maxs_or[i][:, :, 2] = torch.clone(torch.flip(coord_maxs_or[i][:, :, 2], [3]))
         coord_maxs_or[i] = torch.rot90(coord_maxs_or[i], 1, [4, 5])
-        coord_maxs_or[i][:, :, 2] = 737 - coord_maxs_or[i][:, :, 2]
+        coord_maxs_or[i][:, :, 2] = 736 - coord_maxs_or[i][:, :, 2]
 
     #compare(coord_max_or, coord_max_1, levels, axes=[4, 5])
     for i in range(levels):
+        print(f"level: {i}")
         # coord_maxs_or[i][:, :, 2] = 736 - coord_maxs_or[i][:, :, 2]
         # s = coord_max_or[i][0, 0] + coord_max_1[i][0, 0]
         diff = coord_maxs_or[i][0, 0] - coord_maxs_rot[i][0, 0]
@@ -551,6 +553,12 @@ def debug_nms():
         print(f"max: {diff_a.max()}")
         diff_a = diff[2:].abs()
         print(f"max: {diff_a.max()}")
+        cm_or = coord_maxs_or[i][0, 0]
+        cm_rot = coord_maxs_rot[i][0, 0]
+        argmax_or = cm_or[diff == diff.abs().max()]
+        argmax_rot = cm_rot[diff == diff.abs().max()]
+        print(f"argmax_or: {argmax_or}")
+        print(f"argmax_or: {argmax_rot}")
 
         coords_r = torch.where(diff_a.max() == diff_a)
         # coords_r = torch.where(diff_a.max() <= 0.5)
@@ -562,46 +570,47 @@ def debug_nms():
         # dim0=1
         # rot1 = coord_maxs_rot[i][0, 0][1, 3, 14, 327]
         # dim0=2
-        rot2 = coord_maxs_rot[i][0, 0][2, 1, 279, 6]
-        rot = coord_maxs_rot[i][0, 0, :, 1, 279, 6]
-        orrrr = coord_maxs_or[i][0, 0, :, 1, 279, 6]
-        print(f"rot: {rot}")
-        print(f"orrr: {orrrr}")
-        rot = coord_maxs_rot[i][0, 0, :, 1, 278, 5]
-        orrrr = coord_maxs_or[i][0, 0, :, 1, 278, 5]
-        print(f"rot: {rot}")
-        print(f"orrr: {orrrr}")
-        rot = coord_maxs_rot[i][0, 0, :, 1, 270, 16]
-        orrrr = coord_maxs_or[i][0, 0, :, 1, 270, 16]
-        print(f"rot: {rot}")
-        print(f"orrr: {orrrr}")
+        if i == 0:
+            rot2 = coord_maxs_rot[i][0, 0][2, 1, 279, 6]
+            rot = coord_maxs_rot[i][0, 0, :, 1, 279, 6]
+            orrrr = coord_maxs_or[i][0, 0, :, 1, 279, 6]
+            print(f"rot: {rot}")
+            print(f"orrr: {orrrr}")
+            rot = coord_maxs_rot[i][0, 0, :, 1, 278, 5]
+            orrrr = coord_maxs_or[i][0, 0, :, 1, 278, 5]
+            print(f"rot: {rot}")
+            print(f"orrr: {orrrr}")
+            rot = coord_maxs_rot[i][0, 0, :, 1, 270, 16]
+            orrrr = coord_maxs_or[i][0, 0, :, 1, 270, 16]
+            print(f"rot: {rot}")
+            print(f"orrr: {orrrr}")
 
-        # rot2 = coord_maxs_rot[i][0, 0][coords]
+            # rot2 = coord_maxs_rot[i][0, 0][coords]
 
-        # or1 = coord_maxs_or[i][0, 0][0, 3, 382, 322]
-        # or1 = coord_maxs_or[i][0, 0][1, 3, 14, 327]
-        ## or_or = coord_maxs_or[0][0, 0, 1, 1, 6, 279].item()
-        or1 = coord_maxs_or[i][0, 0][2, 1, 279, 6]
-        print(f"or1: {or1}")
+            # or1 = coord_maxs_or[i][0, 0][0, 3, 382, 322]
+            # or1 = coord_maxs_or[i][0, 0][1, 3, 14, 327]
+            ## or_or = coord_maxs_or[0][0, 0, 1, 1, 6, 279].item()
+            or1 = coord_maxs_or[i][0, 0][2, 1, 279, 6]
+            print(f"or1: {or1}")
 
-        print(f"or_or: {or_or}")
+            print(f"or_or: {or_or}")
 
-        diff_1 = rot - or1
-        diff_2 = rot - or_or
-        print(f"diff1: {diff_1}")
-        print(f"diff2: {diff_2}")
+            diff_1 = rot - or1
+            diff_2 = rot - or_or
+            print(f"diff1: {diff_1}")
+            print(f"diff2: {diff_2}")
 
-        # or1 = coord_maxs_or[i][0, 0][coords]
+            # or1 = coord_maxs_or[i][0, 0][coords]
 
-        print(f"out of {torch.numel(diff)} ...")
-        print(f" == 0: {(diff == 0).sum()}")
-        print(f" > 0.1: {(diff_a > 0.1).sum()}")
-        print(f" > 0.2: {(diff_a > 0.2).sum()}")
-        print(f" > 0.5: {(diff_a > 0.5).sum()}")
-        print(f"values: {values}")
-        print(f"counts: {counts}")
-        pass
-        # print(counts)
+            print(f"out of {torch.numel(diff)} ...")
+            print(f" == 0: {(diff == 0).sum()}")
+            print(f" > 0.1: {(diff_a > 0.1).sum()}")
+            print(f" > 0.2: {(diff_a > 0.2).sum()}")
+            print(f" > 0.5: {(diff_a > 0.5).sum()}")
+            print(f"values: {values}")
+            print(f"counts: {counts}")
+            pass
+            # print(counts)
 
 
 def inspect():

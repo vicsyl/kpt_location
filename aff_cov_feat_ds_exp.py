@@ -321,16 +321,17 @@ def run_experiments(detector_sets):
 
     imgs_rotation_lowe = [f"demo_imgs/lowe_all/keys/pure_rotation_0_rot_{i}.pgm.key" for i in range(4)]
 
-    scales = [scale_int / 10 for scale_int in range(1, 10)]
+    scales = [scale_int / 10 for scale_int in range(2, 10)]
     # Hs_gt_sc_backward, imgs_sc_backward = Hs_imgs_for_scaling(files_bark[0], scales, show=False, mod4=True)
 
-    Hs_gt_sc_lanczos, imgs_sc_lanczos = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos', crop_h2=True, correct=True)
-    Hs_gt_sc_lanczos_incorrect, imgs_sc_lanczos_incorrect = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos', crop_h2=True, correct=False)
+    Hs_gt_sc_lanczos, imgs_sc_lanczos = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos', correct=True, crop_h2=True)
+    Hs_gt_sc_lanczos_incorrect, _ = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos', correct=False, crop_h2=True)
+    #Hs_gt_sc_lanczos_incorrect, imgs_sc_lanczos_incorrect = Hs_imgs_for_scaling(files_bark[0], scales, mode='lanczos', crop_h2=True, correct=False)
 
     # Hs_gt_sc_lin, imgs_sc_lin = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear', crop_h2=True)
     # Hs_gt_sc_hom, imgs_sc_hom = Hs_imgs_for_scaling(files_bark[0], scales, mode='linear_homography', crop_h2=True)
 
-    scale_indices = [10] + list(range(1, 10))
+    scale_indices = [10] + list(range(2, 10))
     # imgs_scale_lowe_linear_cv_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_False_mod4_True_0_{i}.pgm.key" for i in l]
     # imgs_scale_lowe_linear_pil_mod4 = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_True_mod4_True_0_{i}.pgm.key" for i in l]
     # imgs_scale_lowe_linear_pil = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_False_resized_lin_pil_True_mod4_False_0_{i}.pgm.key" for i in l]
@@ -339,9 +340,9 @@ def run_experiments(detector_sets):
     imgs_scale_lowe_lanczos = [f"demo_imgs/lowe_all/keys/pure_scale_lanczos_True__mod4_False_0_{i}.pgm.key" for i in scale_indices]
 
     if 'opencv' in detector_sets:
+        run_exp(cv_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
         run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
         run_exp(cv_sift_descriptors, Hs_boat, imgs_boat, "boat")
-        run_exp(cv_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
         run_exp(cv_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
         # run_exp(cv_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
         # run_exp(cv_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
@@ -363,10 +364,11 @@ def run_experiments(detector_sets):
         # run_exp(lowe_sift_descriptors, Hs_gt_sc_lin, imgs_scale_lowe_linear_cv, "synthetic rescaling linear", imgs_sc_lin)
 
     if 'kornia' in detector_sets:
-        run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_bark, imgs_bark, "bark")
-        run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_boat, imgs_boat, "boat")
-        run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-        run_exp(cv_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos", imgs_extra=imgs_scale_lowe_lanczos)
+        run_exp(cv_sift_descriptors + vlfeat_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos", imgs_extra=imgs_scale_lowe_lanczos)
+        run_exp(cv_sift_descriptors + vlfeat_sift_descriptors + lowe_sift_descriptors + kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_sc_lanczos_incorrect, imgs_sc_lanczos, "synthetic rescaling lanczos incorrect H", imgs_extra=imgs_scale_lowe_lanczos)
+        # run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_bark, imgs_bark, "bark")
+        # run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_boat, imgs_boat, "boat")
+        # run_exp(kornia_sift_descriptors_correct + kornia_sift_descriptors_incorrect, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
 
         # run_exp(kornia_sift_descriptors_single_image, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
 

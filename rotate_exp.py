@@ -195,14 +195,24 @@ def rotate_experiment_against(kpts_0_cv, desc_0_cv, file_path, detector, rotatio
     return mask_00, mask_10, kpts_1_geo
 
 
-def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=True, use_mnn=True, rotate90_gauss=None, rotate90_interpolation=None):
-    print(f"experiment for n rotations: {rotations_90_deg}")
+def modulo32_is_1(n):
+    n_n = n - ((n - 1) % 32)
+    assert n_n % 32 == 1
+    return n_n
 
-    old_mod_8 = False
+
+def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=True, use_mnn=True, rotate90_gauss=None, rotate90_interpolation=None, crop=False):
+    print(f"experiment for rotations of {rotations_90_deg * 90} degrees")
+
     img_np_o = np.array(Image.open(file_path))
-    if old_mod_8:
-        new_h, new_w = img_np_o.shape[0] // 8 * 8, img_np_o.shape[1] // 8 * 8
-        img_np_o = img_np_o[:new_h, :new_w]
+    if crop:
+        h, w = img_np_o.shape[:2]
+        w = modulo32_is_1(w)
+        h = modulo32_is_1(h)
+        img_np_o = img_np_o[:h, :w]
+
+    h, w = img_np_o.shape[:2]
+    print(f"img size = {h} x {w}")
 
     if rotate90_gauss is not None:
         detector.set_rotate_gauss(0)
@@ -243,7 +253,7 @@ def rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0
         e_kpts_1_cv.pt = (kpts_1[i, 1].item(), kpts_1[i, 0].item())
 
     print("number of kpts: {}, {}".format(kpts_0.shape[0], kpts_1.shape[0]))
-
+    print(f"use_mnn: {use_mnn}")
     if use_mnn:
         # mnn
         kpts_0_new_geo, kpts_1_new_geo, mask_00, mask_10 = mnn_generic(kpts_0, kpts_1, err_th=err_th)
@@ -907,7 +917,7 @@ def show_me_rotate(kpt, img_np, margin=11):
         start = (rect[0, 1], rect[0, 0])
         end = (rect[1, 1], rect[1, 0])
         if crop:
-            img_show = cv.rectangle(img_show, start, end, [0, 0, 255], 4)
+            img_show = cv.rectangle(img_show, start, end, [255, 0, 0], 4)
 
         Counter.counter += 1
         img_show_o = img_show.copy()
@@ -1148,7 +1158,8 @@ def show_me_scale(kpt, mask, img_np, margin=11):
             show(use_cropped_kpts[i])
 
 
-def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False, compensate_gauss=None, compensate_interpolation=None):
+def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False, compensate_gauss=None, compensate_interpolation=None,
+                           crop=False):
     img_dir = "demo_imgs/hypersim"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
@@ -1160,7 +1171,7 @@ def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn
             rotate90_interpolation = None
             if compensate_interpolation is not None:
                 rotate90_interpolation = 4 - rots if compensate_interpolation else 0
-            rotate_experiment(file_path, detector, rots, err_th, show_img, use_mnn, rotate90_gauss, rotate90_interpolation)
+            rotate_experiment(file_path, detector, rots, err_th, show_img, use_mnn, rotate90_gauss, rotate90_interpolation, crop)
 
 
 def rotate_lowe_exp():
@@ -1199,8 +1210,8 @@ if __name__ == "__main__":
     # detector = NumpyKorniaSiftDescriptor()
     #detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
     #rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
-    # rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
-    scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
+    rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
+    # scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
     # prepare_lowe(img_to_show=5)
     # prepare_lowe_scaling(img_to_show=5)
     # rotate_lowe_exp()

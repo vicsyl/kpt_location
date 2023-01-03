@@ -29,8 +29,8 @@ class HlocSiftDescriptor(BaseDescriptor):
     }
 
     def __str__(self) -> str:
-
-        return f"HLOC SIFT: adj={self.abs_adjustment[0]}, conf={self.conf_name}"
+        return f"VLFeat"
+        #return f"HLOC SIFT: adj={self.abs_adjustment[0]}, conf={self.conf_name}"
 
     def try_to_construct_dog(self, conf):
         import imp

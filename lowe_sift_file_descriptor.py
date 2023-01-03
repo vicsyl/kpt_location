@@ -6,7 +6,8 @@ from sift_detectors import BaseDescriptor
 class LoweSiftDescriptor(BaseDescriptor):
 
     def __str__(self):
-        return f"Lowe SIFT: {self.adjustment}"
+        return f"Lowe"
+        # return f"Lowe SIFT: {self.adjustment}"
 
     def __init__(self, adjustment=[0., 0.]):
         self.adjustment = adjustment
