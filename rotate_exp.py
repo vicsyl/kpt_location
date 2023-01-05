@@ -227,7 +227,7 @@ def rotate_experiment(file_path, detector, rotations_90_deg, err_th, show_img=Tr
         detector.set_rotate_interpolation(rotate90_interpolation)
     kpts_1_cv, desc_1_cv = detector.detectAndCompute(img_np_r, None)
 
-    rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, use_mnn, err_th, show_img)
+    return rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, use_mnn, err_th, show_img)
 
 
 def rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0_cv, kpts_1_cv, desc_1_cv, use_mnn, err_th, show_img):
@@ -301,8 +301,8 @@ def rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0
     # TODO rename
     mean = (kpts_1_new_geo - kpts_0_new_geo).mean(dim=0)
     var = (kpts_1_new_geo - kpts_0_new_geo).var(dim=0)
-    stad_dev = var.sqrt()
-    print("mean: {}, variance: {}, std dev: {}".format(mean.numpy(), var.numpy(), stad_dev.numpy()))
+    std_dev = var.sqrt()
+    print("mean: {}, variance: {}, std dev: {}".format(mean.numpy(), var.numpy(), std_dev.numpy()))
     print()
 
     # def print_stats(pt1, pt2):
@@ -310,8 +310,8 @@ def rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0
     #     pt2 = torch.from_numpy(pt2)
     #     mean = (pt2 - pt1).mean(dim=0)
     #     var = (pt2 - pt1).var(dim=0)
-    #     stad_dev = var.sqrt()
-    #     print("mean: {}, variance: {}, std dev: {}".format(mean.numpy(), var.numpy(), stad_dev.numpy()))
+    #     std_dev = var.sqrt()
+    #     print("mean: {}, variance: {}, std dev: {}".format(mean.numpy(), var.numpy(), std_dev.numpy()))
     #
     # kpts_0_all = np.array([kpts_0_cv[m].pt for m in mask_00])
     # kpts_1_all = np.array([kpts_1_cv[m].pt for m in mask_10])
@@ -337,6 +337,8 @@ def rotate_exp_from_kpts(img_np_o, img_np_r, rotations_90_deg, kpts_0_cv, desc_0
     #     kpts_0_filtered = np.array([kpts_0_all[i] for i, m in enumerate(mask) if m])
     #     kpts_1_filtered = np.array([kpts_1_all[i] for i, m in enumerate(mask) if m])
     #     print_stats(kpts_0_filtered, kpts_1_filtered)
+
+    return mean, var, std_dev
 
 
 def rotate_detail_experiment_loop(detector, img_to_show, show_img=True):
@@ -1158,8 +1160,8 @@ def show_me_scale(kpt, mask, img_np, margin=11):
             show(use_cropped_kpts[i])
 
 
-def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False, compensate_gauss=None, compensate_interpolation=None,
-                           crop=False):
+def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn=False, compensate_gauss=None,
+                           compensate_interpolation=None, crop=False):
     img_dir = "demo_imgs/hypersim"
     files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir)][:img_to_show]
     for file_path in files:
@@ -1172,6 +1174,20 @@ def rotate_experiment_loop(detector, img_to_show, err_th, show_img=True, use_mnn
             if compensate_interpolation is not None:
                 rotate90_interpolation = 4 - rots if compensate_interpolation else 0
             rotate_experiment(file_path, detector, rots, err_th, show_img, use_mnn, rotate90_gauss, rotate90_interpolation, crop)
+
+
+def rotate_experiment_loop_aggregated(detector, img_to_show, err_th, show_img=False, use_mnn=True, crop=False):
+
+    img_dir = "dataset/raw_data"
+    files = ["{}/{}".format(img_dir, fn) for fn in os.listdir(img_dir) if fn.endswith("color.jpg")][:img_to_show]
+    means = np.zeros((3, 2))
+    for file_path in files:
+        print(f"\n\nFILE: {file_path}\n")
+        for rots in range(1, 4):
+            mean, _, _ = rotate_experiment(file_path, detector, rots, err_th, show_img, use_mnn, crop=crop)
+            means[rots - 1] += mean.numpy()
+    means /= len(files)
+    print(f"mean\n{means}")
 
 
 def rotate_lowe_exp():
@@ -1200,19 +1216,36 @@ if __name__ == "__main__":
     from scale_pyramid import MyScalePyramid
 
     # sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest')
-    fix = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
-    detector = NumpyKorniaSiftDescriptor(num_features=500, scale_pyramid=fix)
+    #fix = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
+    #detector = NumpyKorniaSiftDescriptor(num_features=500, scale_pyramid=fix)
 
-    detector = AdjustedSiftDescriptor(adjustment=[0., 0.])
+    detector = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
+
+    rotate_experiment_loop_aggregated(detector,
+                           img_to_show=100,
+                           err_th=2)
 
     # scale_rotate_detail_experiment_loop(detector, imgs_to_show=3)
 
     # detector = NumpyKorniaSiftDescriptor()
-    #detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
-    #rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
-    rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
+    # detector = AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
+    # rotate_experiment_loop(detector, img_to_show=1, show_img=True, err_th=4, use_mnn=False)
+    # rotate_detail_experiment_loop(detector, img_to_show=5, show_img=True)
     # scale_detail_experiment_loop(detector, img_to_show=1, show_img=True)
     # prepare_lowe(img_to_show=5)
     # prepare_lowe_scaling(img_to_show=5)
     # rotate_lowe_exp()
     # prepare_lowe_all()
+
+
+# unadjusted aggregated over 100 img, mmn, err = 2
+# mean
+# [[-3.53819705e-04 -4.91081291e-01]
+#  [-4.90307630e-01 -4.90930995e-01]
+#  [-4.93102292e-01 -7.51553377e-04]]
+#
+# adjusted (-0.25) of the same
+# mean
+# [[-0.000214    0.00248059]
+#  [ 0.00140487  0.00043637]
+#  [ 0.00189487 -0.00120488]]

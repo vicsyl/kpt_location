@@ -46,38 +46,38 @@ def get_full_ds_dir(config):
 
 
 def get_detector(config):
-    # TODO parameters for all
-    # NOTE I stuck with the cv API as e.g. scale can be used
-
-    nearest_fix_sp_d_f = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest',
-                                        gauss_separable=True, every_2nd=False)
-    nearest_fix_sp_d_t = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest',
-                                        gauss_separable=True, every_2nd=True)
-
-    l = []
-
-    for flip in [1, -1]:
-        for adj in [0, 0.25, 0.5]:
-            adj_r = flip * adj
-            l.append(NumpyKorniaSiftDescriptor(num_features=8000,
-                                      conv_quad_interp_adjustment=0,
-                                      scale_pyramid=nearest_fix_sp_d_f,
-                                      scatter_fix=False, swap_xy_fix=False, adjustment=[adj_r]))
-
-            for q_adj in [0, -0.375, -0.5, -0.75, -1.0]:
-                if adj == 0 and q_adj == 0 and flip == -1:
-                    continue
-                q_adj_r = flip * q_adj
-                l.append(NumpyKorniaSiftDescriptor(num_features=8000,
-                                          conv_quad_interp_adjustment=q_adj_r,
-                                          scale_pyramid=nearest_fix_sp_d_t,
-                                          scatter_fix=True, swap_xy_fix=True, adjustment=[adj_r]))
-
-    counter = config['counter']
-    print(f"COUNTER: {counter}")
-    return l[counter]
-    # key = config['detector']
-    # return get_detector_by_key(key)
+    # # TODO parameters for all
+    # # NOTE I stuck with the cv API as e.g. scale can be used
+    #
+    # nearest_fix_sp_d_f = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest',
+    #                                     gauss_separable=True, every_2nd=False)
+    # nearest_fix_sp_d_t = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest',
+    #                                     gauss_separable=True, every_2nd=True)
+    #
+    # l = []
+    #
+    # for flip in [1, -1]:
+    #     for adj in [0, 0.25, 0.5]:
+    #         adj_r = flip * adj
+    #         l.append(NumpyKorniaSiftDescriptor(num_features=8000,
+    #                                   conv_quad_interp_adjustment=0,
+    #                                   scale_pyramid=nearest_fix_sp_d_f,
+    #                                   scatter_fix=False, swap_xy_fix=False, adjustment=[adj_r]))
+    #
+    #         for q_adj in [0, -0.375, -0.5, -0.75, -1.0]:
+    #             if adj == 0 and q_adj == 0 and flip == -1:
+    #                 continue
+    #             q_adj_r = flip * q_adj
+    #             l.append(NumpyKorniaSiftDescriptor(num_features=8000,
+    #                                       conv_quad_interp_adjustment=q_adj_r,
+    #                                       scale_pyramid=nearest_fix_sp_d_t,
+    #                                       scatter_fix=True, swap_xy_fix=True, adjustment=[adj_r]))
+    #
+    # counter = config['counter']
+    # print(f"COUNTER: {counter}")
+    # return l[counter]
+    key = config['detector']
+    return get_detector_by_key(key)
 
 
 def set_config_dir_scale_scheme(dataset_config):
@@ -95,13 +95,13 @@ def get_detector_by_key(dict_key):
     if type(dict_key) == str:
         dict_key = dict_key.lower()
         if dict_key == 'sift':
-            return cv.SIFT_create()
+            return AdjustedSiftDescriptor(adjustment=[0.0, 0.0])
         elif dict_key == 'adjusted_sift':
-            return AdjustedSiftDescriptor(adjustment=[0.25, 0.25])
-        elif dict_key == 'adjusted_sift_negative':
             return AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
-        elif dict_key == 'adjusted_sift_linear':
-            return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11])
+        # elif dict_key == 'adjusted_sift_negative':
+        #     return AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
+        # elif dict_key == 'adjusted_sift_linear':
+        #     return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11])
         elif dict_key == 'sift_kornia':
             return NumpyKorniaSiftDescriptor()
         elif dict_key == 'adjusted_sift_kornia':

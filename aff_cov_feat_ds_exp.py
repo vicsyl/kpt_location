@@ -249,9 +249,8 @@ def run_experiments(detector_sets):
                 kornia_sift_descriptors_single_image.extend(l)
 
 
-    cv_sift_descriptors = [
-            AdjustedSiftDescriptor(adjustment=[0.0, 0.0]),
-        ]
+    #cv_sift_descriptors = [AdjustedSiftDescriptor(adjustment=[adj/8, adj/8]) for adj in range(-3, 4)]
+    cv_sift_descriptors = [AdjustedSiftDescriptor(adjustment=[0.0, 0.0]) for adj in range(-3, 4)]
 
     # https://www.robots.ox.ac.uk/~vgg/data/affine/
 
@@ -341,9 +340,9 @@ def run_experiments(detector_sets):
 
     if 'opencv' in detector_sets:
         run_exp(cv_sift_descriptors, Hs_gt_rot, imgs_rot, "synthetic pi rotation")
-        run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
-        run_exp(cv_sift_descriptors, Hs_boat, imgs_boat, "boat")
-        run_exp(cv_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
+        # run_exp(cv_sift_descriptors, Hs_bark, imgs_bark, "bark")
+        # run_exp(cv_sift_descriptors, Hs_boat, imgs_boat, "boat")
+        # run_exp(cv_sift_descriptors, Hs_gt_sc_lanczos, imgs_sc_lanczos, "synthetic rescaling lanczos")
         # run_exp(cv_sift_descriptors, Hs_gt_sc_hom, imgs_sc_hom, "synthetic rescaling homography")
         # run_exp(cv_sift_descriptors, Hs_gt_sc_lin, imgs_sc_lin, "synthetic rescaling linear")
 

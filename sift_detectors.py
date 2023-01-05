@@ -21,8 +21,8 @@ class AdjustedSiftDescriptor(BaseDescriptor):
         if self.str:
             return self.str
         else:
-            return f"OpenCV"
-            #return f"OpenCV: {self.abs_adjustment[0]}"
+            #return f"OpenCV"
+            return f"OpenCV: {self.abs_adjustment[0]}"
 
     def __init__(self, adjustment, nfeatures=None, lin_adjustment=[0.0, 0.0], sqrt_adjustment=[0.0, 0.0], q_adjustment=[0.0, 0.0], str=None):
         self.cv_sift = cv.SIFT_create() if not nfeatures else cv.SIFT_create(nfeatures=nfeatures)

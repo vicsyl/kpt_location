@@ -25,7 +25,15 @@ def mnn(kpts, kpts_scales, kpts_r, kpts_r_scales, scale, config):
         adjustment = torch.ones(2) * magic_scale
         kpts_r = kpts_r + adjustment
 
-    kpts_reprojected = kpts_r / scale
+    # H = [[scale, 0, (scale - 1) / 2],
+    #      [0, scale, (scale - 1) / 2],
+    #      [0, 0, 1]]
+    #
+    # H^(-1) = [[1/scale, 0, (1 - scale) / ( 2 * scale)],
+    #         [0, 1/scale, (1 - scale) / ( 2 * scale)],
+    #         [0, 0, 1]]
+
+    kpts_reprojected = kpts_r / scale + (1 - scale) / (2 * scale)
 
     d_mat = torch.cdist(kpts, kpts_reprojected)
 
@@ -503,32 +511,32 @@ def process_patches_for_images(img,
     const_patch_size = ds_config.get('const_patch_size')
     compare = ds_config['compare_patches']
 
-    def get_rotated_img(img_np_o, rotations_90_deg):
-        return np.rot90(img_np_o, rotations_90_deg, [0, 1])
+    # def get_rotated_img(img_np_o, rotations_90_deg):
+    #     return np.rot90(img_np_o, rotations_90_deg, [0, 1])
+    #
+    # def get_backprojected_rotation_kpts_and_img_r(kpts_t, rotations_90_deg, img_np_r):
+    #     coord0_max = img_np_r.shape[0] - 1
+    #     coord1_max = img_np_r.shape[1] - 1
+    #     for _ in range(4 - rotations_90_deg):
+    #         kpts_10_new = coord1_max - kpts_t[:, 1]
+    #         kpts_11_new = kpts_t[:, 0].clone()
+    #         kpts_t[:, 0] = kpts_10_new.clone()
+    #         kpts_t[:, 1] = kpts_11_new.clone()
+    #         coord1_max, coord0_max = coord0_max, coord1_max
+    #         img_np_r = np.rot90(img_np_r, 4 - rotations_90_deg, [0, 1]).copy()
+    #     return kpts_t, img_np_r
 
-    def get_backprojected_rotation_kpts_and_img_r(kpts_t, rotations_90_deg, img_np_r):
-        coord0_max = img_np_r.shape[0] - 1
-        coord1_max = img_np_r.shape[1] - 1
-        for _ in range(4 - rotations_90_deg):
-            kpts_10_new = coord1_max - kpts_t[:, 1]
-            kpts_11_new = kpts_t[:, 0].clone()
-            kpts_t[:, 0] = kpts_10_new.clone()
-            kpts_t[:, 1] = kpts_11_new.clone()
-            coord1_max, coord0_max = coord0_max, coord1_max
-            img_np_r = np.rot90(img_np_r, 4 - rotations_90_deg, [0, 1]).copy()
-        return kpts_t, img_np_r
-
-    number_of_rotations = 0
-    if number_of_rotations > 0:
-        img_r = get_rotated_img(img_r, number_of_rotations).copy()
+    # number_of_rotations = 0
+    # if number_of_rotations > 0:
+    #     img_r = get_rotated_img(img_r, number_of_rotations).copy()
 
     # start_time = time.time()
     # either here or given
     kpts, kpt_scales, _, heatmap = detect_kpts(img, min_scale_th, const_patch_size, ds_config)
 
     kpts_r, kpt_scales_r, _, heatmap_r = detect_kpts(img_r, min_scale_th * real_scale, const_patch_size, ds_config)
-    if number_of_rotations > 0:
-        kpts_r, img_r = get_backprojected_rotation_kpts_and_img_r(kpts_r, number_of_rotations, img_r)
+    # if number_of_rotations > 0:
+    #     kpts_r, img_r = get_backprojected_rotation_kpts_and_img_r(kpts_r, number_of_rotations, img_r)
     # end_time = time.time()
     # print("DETECTTIME {:.4f}.".format(end_time - start_time))
 
@@ -789,7 +797,7 @@ def prepare_data_by_scale(scales, counter, wandb_project="mean_std_dev"):
 
     conf = get_config()
     dataset_conf = conf['dataset']
-    dataset_conf['counter'] = counter
+    # dataset_conf['counter'] = counter
     dataset_conf["tags"] = ["development"]
     enable_wandb = dataset_conf.get('enable_wandlog', False)
 
@@ -891,7 +899,7 @@ if __name__ == "__main__":
     parser.add_argument('--method', dest='method', help='method', choices=[name_prepare_data_from_files, name_prepare_data_by_scale], required=True)
     parser.add_argument('--config', dest='config', help='config path', required=True)
     # remove me
-    parser.add_argument('--counter', required=True)
+    # parser.add_argument('--counter', required=True)
     args = parser.parse_args()
 
     config_path = args.config
@@ -906,7 +914,7 @@ if __name__ == "__main__":
 
         scales = tenths(1, 10)
         #scales = [0.3]
-        prepare_data_by_scale(scales, int(args.counter))
+        prepare_data_by_scale(scales, counter=None) # int(args.counter)
 
     else:
         raise Exception("not reachable?")
