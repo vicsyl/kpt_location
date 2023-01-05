@@ -12,6 +12,7 @@ from utils import get_tentatives
 # from prepare_data import scale_pil
 from lowe_sift_file_descriptor import LoweSiftDescriptor
 from kornia_sift import NumpyKorniaSiftDescriptor
+from config import get_detector_by_key
 
 
 def gcd_euclid(a, b):
@@ -1220,6 +1221,8 @@ if __name__ == "__main__":
     #detector = NumpyKorniaSiftDescriptor(num_features=500, scale_pyramid=fix)
 
     detector = AdjustedSiftDescriptor(adjustment=[-0.25, -0.25])
+
+    detector = get_detector_by_key("SIFT_KORNIA") # SIFT_KORNIA_FIXED
 
     rotate_experiment_loop_aggregated(detector,
                            img_to_show=100,
