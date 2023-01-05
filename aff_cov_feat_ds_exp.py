@@ -199,7 +199,8 @@ def run_experiments(detector_sets):
     nearest_fix_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     nearest_fix_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True)
     nearest_fix_sp_d_lin_back = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True, bilinear_back=True)
-    nearest_fix_sp_d_better = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True, better_up=True)
+    nearest_fix_sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=True, better_up=True)
+    original_sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
 
     nearest_sp = MyScalePyramid(3, 1.6, 32, double_image=False, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
     nearest_sp_d = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest', gauss_separable=True, every_2nd=False)
@@ -232,7 +233,7 @@ def run_experiments(detector_sets):
                 kornia_sift_descriptors_correct.extend(l)
     kornia_sift_descriptors_correct = kornia_sift_descriptors_correct[:1]
     kornia_sift_descriptors_correct = [
-        NumpyKorniaSiftDescriptor(name="Kornia fixed", num_features=num_features, scale_pyramid=nearest_fix_sp_d_better, scatter_fix=True, swap_xy_fix=True),
+        NumpyKorniaSiftDescriptor(name="Kornia fixed", num_features=num_features, scale_pyramid=nearest_fix_sp, scatter_fix=True, swap_xy_fix=True),
     ]
     kornia_sift_descriptors_incorrect = [
         NumpyKorniaSiftDescriptor(name="Kornia baseline", num_features=num_features, scale_pyramid=nearest_fix_sp_d, scatter_fix=True, swap_xy_fix=True),
