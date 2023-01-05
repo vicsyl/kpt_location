@@ -104,23 +104,33 @@ def get_detector_by_key(dict_key):
         #     return AdjustedSiftDescriptor(adjustment=[0.25, 0.25], q_adjustment=[-0.11, -0.11])
         elif dict_key == 'sift_kornia':
 
-            nearest_fix_sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest',
-                                            gauss_separable=True, every_2nd=True, better_up=True)
-            original_sp = MyScalePyramid(3, 1.6, 32, double_image=True, interpolation_mode='nearest',
-                                         gauss_separable=True, every_2nd=False)
-
+            original_sp = MyScalePyramid(3, 1.6, 32,
+                                         double_image=True,
+                                         interpolation_mode='nearest',
+                                         gauss_separable=True,
+                                         every_2nd=False)
             num_features = 8000
-            kornia_correct = NumpyKorniaSiftDescriptor(name="Kornia fixed",
-                                                       num_features=num_features,
-                                                       scale_pyramid=nearest_fix_sp,
-                                                       scatter_fix=True, swap_xy_fix=True)
-
             kornia_incorrect = NumpyKorniaSiftDescriptor(name="Kornia baseline",
                                                          num_features=num_features,
                                                          scale_pyramid=original_sp,
                                                          scatter_fix=False, swap_xy_fix=False)
 
             return kornia_incorrect
+        elif dict_key == 'sift_kornia_fixed':
+
+            nearest_fix_sp = MyScalePyramid(3, 1.6, 32,
+                                            double_image=True,
+                                            interpolation_mode='nearest',
+                                            gauss_separable=True,
+                                            every_2nd=True,
+                                            better_up=True)
+            num_features = 8000
+            kornia_correct = NumpyKorniaSiftDescriptor(name="Kornia fixed",
+                                                       num_features=num_features,
+                                                       scale_pyramid=nearest_fix_sp,
+                                                       scatter_fix=True, swap_xy_fix=True)
+
+            return kornia_correct
         elif dict_key == 'adjusted_sift_kornia':
             #custom_scale_pyramid = MyScalePyramid(3, 1.6, 32, double_image=True)
             return NumpyKorniaSiftDescriptor(interpolation_mode='bilinear')
