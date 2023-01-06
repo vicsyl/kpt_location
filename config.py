@@ -110,12 +110,27 @@ def get_detector_by_key(dict_key):
                                          gauss_separable=True,
                                          every_2nd=False)
             num_features = 8000
-            kornia_incorrect = NumpyKorniaSiftDescriptor(name=f"Kornia baseline {num_features}",
+            kornia_original = NumpyKorniaSiftDescriptor(name=f"Kornia baseline {num_features}",
                                                          num_features=num_features,
                                                          scale_pyramid=original_sp,
                                                          scatter_fix=False, swap_xy_fix=False)
 
-            return kornia_incorrect
+            return kornia_original
+        elif dict_key == 'sift_kornia_adjusted':
+
+            original_sp = MyScalePyramid(3, 1.6, 32,
+                                         double_image=True,
+                                         interpolation_mode='nearest',
+                                         gauss_separable=True,
+                                         every_2nd=False)
+            num_features = 8000
+            kornia_adjusted = NumpyKorniaSiftDescriptor(name=f"Kornia baseline adjusted {num_features}",
+                                                         adjustment=[-0.25, -0.25],
+                                                         num_features=num_features,
+                                                         scale_pyramid=original_sp,
+                                                         scatter_fix=False, swap_xy_fix=False)
+
+            return kornia_adjusted
         elif dict_key == 'sift_kornia_fixed':
 
             nearest_fix_sp = MyScalePyramid(3, 1.6, 32,
